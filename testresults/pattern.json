@@ -1,0 +1,5 @@
+[
+{"name":"tests/filter.nim c","category":"pattern","target":"c","action":"run","result":"reSuccess","expected":"","given":"","machine":"MacBook-Pro-som-tillhor-Jonas.local","commit":"not a git r","branch":"fatal: not a git repository (or any of the parent directories): .git"},
+{"name":"tests/identifier.nim c","category":"pattern","target":"c","action":"run","result":"reSuccess","expected":"","given":"","machine":"MacBook-Pro-som-tillhor-Jonas.local","commit":"not a git r","branch":"fatal: not a git repository (or any of the parent directories): .git"},
+{"name":"tests/meta.nim c","category":"pattern","target":"c","action":"run","result":"reSuccess","expected":"","given":"","machine":"MacBook-Pro-som-tillhor-Jonas.local","commit":"not a git r","branch":"fatal: not a git repository (or any of the parent directories): .git"},
+{"name":"tests/output_tests.nim c","category":"pattern","target":"c","action":"run","result":"reSuccess","expected":"","given":"","machine":"MacBook-Pro-som-tillhor-Jonas.local","commit":"not a git r","branch":"fatal: not a git repository (or any of the parent directories): .git"}]

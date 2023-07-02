@@ -1,0 +1,164 @@
+Statement:
+  scalars
+    scalar "," scalars
+    scalars -> scalar
+  scalar
+    string_literal
+    float_literal
+    int_literal
+    bool_literal
+    identifier
+    # String
+    # Number
+    # Boolean
+    # Nil
+    # Array
+    # EmptyDrop | nil ?
+  array
+    "[" [ scalars ] "]" # extension of the language
+    "first"
+    "last"
+    "size"
+    "[" identifier | int_literal "]"
+  range
+    "(" limit ".." limit ")"
+    limit ".." limit
+    limit
+      identifier # requires value to be int
+      int_literal
+  operator
+    # "+" # aliased as "| plus"
+    # "-"
+    # "*"
+    # "/"
+    # "%"
+    "=="
+    "!="
+    ">"
+    "<"
+    ">="
+    "<="
+    "or"
+    "and"
+    "contains"
+  filters
+    filter "|" filters
+    filter ":" scalars
+    filter
+  "{{"+expression+"}}"
+    expression -> expression operator expression
+    expression -> expression "|" filters
+    expression -> "(" expression ")"
+    expression -> identifier
+  "{%"+tag+"%}"
+    # control flow
+    "if" expression
+    "unless" expression
+    "elsif" expression # alias as elif and else if
+    "else" expression
+    "endif" # alias as end
+
+    "case" expression
+    "when" expression
+    "endcase" expression # alias as end
+
+    # iteration
+    "for" identifier "in" expression ["limit:" int_literal]["offset:" int_literal|"continue"]["reversed"]
+      "cycle" [string_literal:] string_literal, string_literal [, string_literal, ...]
+      forloop {
+        length # The total number of iterations in the loop.	number
+        parentloop # The parent forloop object. If the current for loop isn’t nested inside another for loop, then nil is returned.	forloop
+        index # The 1-based index of the current iteration.	number
+        index0 # The 0-based index of the current iteration.	number
+        rindex # The 1-based index of the current iteration, in reverse order.	number
+        rindex0 # The 0-based index of the current iteration, in reverse order.	number
+        first # Returns true if the current iteration is the first. Returns false if not.	boolean
+        last # Returns true if the current iteration is the last. Returns false if not.	boolean
+      }
+    "else"
+    "endfor" # alias as end
+    "break"
+    "continue"
+
+    "tablerow" identifier "in" expression ["cols:" int_literal]["limit:" int_literal]["offset:" int_literal]
+      tablerowloop: {
+        col # The 1-based index of the current column.	number
+        col0 # The 0-based index of the current column.	number
+        col_first # Returns true if the current column is the first in the row. Returns false if not.	boolean
+        col_last # Returns true if the current column is the last in the row. Returns false if not.	boolean
+        first # Returns true if the current iteration is the first. Returns false if not.	boolean
+        index # The 1-based index of the current iteration.	number
+        index0 # The 0-based index of the current iteration.	number
+        last # Returns true if the current iteration is the last. Returns false if not.	boolean
+        length # The total number of iterations in the loop.	number
+        rindex # The 1-based index of the current iteration, in reverse order.	number
+        rindex0 # The 0-based index of the current iteration, in reverse order.	number
+        row # The 1-based index of current row.	number
+      }
+    "endtablerow" # alias as end
+
+    # template
+    "comment"
+    "endcomment" # alias as end
+    [\n]"#" # line comment
+    "raw"
+    "endraw" # alias as end
+    "liquid"
+      "echo"
+    "render" string_literal[, identifier: scalar, ... | "with" identifier "as" identifier | "for" identifier "as" identifier] 
+
+    "assign" identifier "=" expression
+    "capture" identifier
+    "endcapture" # alias as end
+    "increment" identifier
+    "decrement" identifier
+
+    # filters
+    "abs"
+    "append" identifier | string_literal
+    "at_least" identifier | int_literal | float_literal
+    "at_most" identifier | int_literal | float_literal
+    "capitalize"
+    "ceil"
+    "compact"
+    "concat" identifier | array
+    "date" identifier | string_literal
+    "default" identifier | scalar ["allow_false:" bool_literal]
+    "divided_by" identifier | int_literal | float_literal
+    "downcase"
+    "escape"
+    "escape_once"
+    "first"
+    "floor"
+    "join" identifier | string_literal
+    "last"
+    "lstrip"
+    "map" identifier | string_literal
+    "minus" identifier | int_literal | float_literal
+    "modulo" identifier | int_literal
+    "newline_to_br"
+    "plus" identifier | int_literal | float_literal
+    "prepend" identifier | string_literal
+    "remove" identifier | string_literal
+    "remove_first" identifier | string_literal
+    "replace" identifier | string_literal, identifier | string_literal
+    "replace_first" identifier | string_literal, identifier | string_literal
+    "reverse" identifier | array
+    "round" [identifier | int_literal]
+    "rstrip"
+    "size"
+    "slice" identifier | int_literal | range, [identifier | int_literal]
+    "sort" # sort case sensitive, capital letters first
+    "sort_natural" # sort case insensitive
+    "split" identifier | string_literal
+    "strip"
+    "strip_html"
+    "strip_newlines"
+    "times" identifier | int_literal | float_literal
+    "truncate" identifier | int_literal, [identifier | string_literal = "..."]
+    "truncatewords" identifier | int_literal, [identifier | string_literal = "..."]
+    "uniq" # alias as unique
+    "upcase"
+    "url_decode"
+    "url_encode"
+    "where" identifier | string_literal [, identifier | string_literal]
