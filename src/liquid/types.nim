@@ -1,23 +1,105 @@
+import json, tables
+
 type
-  TokenKind* = enum WHITESPACE_CONTROL, FILTER, IDENTIFIER, PIPE, COLON, COMMA, STRING_LITERAL, INTEGER_LITERAL, FLOAT_LITERAL, UNKNOWN
-    
+  NodeKind* = enum
+    nkOutput, nkEmpty, nkNil, nkVariable, nkString, nkNumber, nkBoolean, nkRange, nkArray, nkOperator, nkFilter, nkArgument, nkComparison, nkLogical, nkTag, nkEnd, nkContinue
+
+  Node* = ref object
+    case kind*: NodeKind
+    of nkTag, nkEnd:
+      tagName*: string
+      parameters*: seq[Node]
+    of nkOutput:
+      children*: seq[Node]
+    of nkVariable:
+      segments*: seq[Node]
+    of nkString:
+      strVal*: string
+    of nkNumber:
+      numVal*: float
+    of nkBoolean:
+      boolVal*: bool
+    of nkRange:
+      rangeStart*, rangeEnd*: Node
+    of nkArray:
+      elements*: seq[Node]
+    of nkOperator, nkComparison, nkLogical:
+      op*: string
+      left*, right*: Node
+    of nkFilter:
+      filterName*: string
+      arguments*: seq[Node]
+    of nkArgument:
+      argName*: string
+      argValue*: Node
+    else:
+      discard
+
+  TagHandlerInfo* = object
+    opening_tag*: string
+    block_tag*: bool
+      
+  TagHandler* = proc(parser: Parser): Node
+
+  Parser* = ref object
+    tokens*: seq[Token]
+    position*: int
+    strict_mode*: bool
+    tagHandlerLookup*: Table[TagHandlerInfo, TagHandler]
+    handlerStack*: seq[TagHandler]
+
+  TokenKind* = enum
+    TkKeyword, TkIdentifier, TkOperator, TkString, TkNumber,
+    TkDot, TkComma, TkColon, TkPipe, TkAssign, TkRange,
+    TkLeftParen, TkRightParen, TkLeftBracket, TkRightBracket,
+    TkBoolean, TkEmpty, TkNil, TkParameter, TkEOF,
+    TkAnd, TkOr, TkSymbol
+
   Token* = object
-    case kind*: TokenKind
-      of IDENTIFIER: identifier_name*: string
-      of FILTER: filter_name*: string
-      of STRING_LITERAL: string_value*: string
-      of INTEGER_LITERAL: integer_value*: int
-      of FLOAT_LITERAL: float_value*: float
-      of UNKNOWN: match*: string
-      else: discard
+    kind*: TokenKind
+    value*: string
+    startPos*, endPos*, line*, column*: int
+
+  SectionType* = enum
+    Text, Output, Tag
+
+  Section* = ref object
+    sectionType*: SectionType
     content*: string
-    
+    startRow*, startCol*: int
+    endRow*, endCol*: int
+    stripLeft*, stripRight*: bool
+    tokens*: seq[Token]
+    ast*: Node
 
-  MetaTokenKind* = enum VARIABLE, TAG, TEXT
-  MetaToken* = object
-    case kind*: MetaTokenKind
-      of VARIABLE,TAG: tokens*: seq[TOKEN]
-      else: discard
-    start_pos*, end_pos*: int
-    result*: string
+  SectionLexer* = ref object
+    lexer*: Lexer
+    inSpecialSection*: bool
+    currentSection*: Section
+    openBrackets*: int
+    sections*: seq[Section]
 
+  LexerError* = object of CatchableError
+
+  Lexer* = object
+    input*: string
+    position*: int
+    line*, column*: int
+    last*: Token
+
+  TagInfo* = object
+    continuations*: seq[string]
+    closure*: string
+    required*: seq[string]  # New field for required tags
+
+  TagStackItem* = object
+    info*: TagInfo
+    hasRequired*: bool  # Track if required tags have been seen
+
+  TagStack* = seq[TagStackItem]
+
+const KEYWORDS* = @["if", "elsif", "else", "endif", "unless", "endunless",
+       "case", "when", "endcase", "for", "endfor", "break", "continue",
+       "tablerow", "endtablerow", "cycle", "echo", "break",
+       "capture", "endcapture", "increment", "decrement", "assign",
+       "comment", "endcomment", "ifchanged", "endifchanged"]
