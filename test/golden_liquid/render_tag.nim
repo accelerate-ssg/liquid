@@ -60,7 +60,7 @@ suite "render tag":
         @[
           token(TkIdentifier, "render"),
           token(TkString, "product-title"),
-          token(TkKeyword, "with"),
+          token(TkIdentifier, "with"),
           token(TkIdentifier, "collection"),
           token(TkDot),
           token(TkIdentifier, "products"),
@@ -85,14 +85,14 @@ suite "render tag":
         @[
           token(TkIdentifier, "render"),
           token(TkString, "product-alias"),
-          token(TkKeyword, "with"),
+          token(TkIdentifier, "with"),
           token(TkIdentifier, "collection"),
           token(TkDot),
           token(TkIdentifier, "products"),
           token(TkLeftBracket),
           token(TkNumber, "1"),
           token(TkRightBracket),
-          token(TkKeyword, "as"),
+          token(TkIdentifier, "as"),
           token(TkIdentifier, "product")
         ],
         nodeRender("product-alias", 

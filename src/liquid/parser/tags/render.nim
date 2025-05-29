@@ -13,41 +13,49 @@ proc parse*(p: Parser): Node =
       let templateName = p.parseExpression()
       var parameters: seq[Node] = @[templateName]
       
-      # Parse optional parameters
+      # Check for comma after template name
+      if p.current().kind == TkComma:
+        discard p.advance()  # skip comma
+        
+        # Parse keyword arguments like "product: product"
+        while p.position < p.tokens.len and p.current().kind == TkIdentifier:
+          let paramName = p.advance().value
+          if p.current().kind == TkColon:
+            discard p.advance()  # skip colon
+            let value = p.parseExpression()
+            # Add key and value as separate parameters (matches nodeRender helper)
+            parameters.add(Node(kind: nkVariable, segments: @[Node(kind: nkString, strVal: paramName)]))
+            parameters.add(value)
+            
+            # Skip comma if present
+            if p.current().kind == TkComma:
+              discard p.advance()
+            else:
+              break
+          else:
+            break
+      
+      # Check for special keywords (with, for, as)
       while p.position < p.tokens.len and p.current().kind != TkEOF and p.current().kind != TkPipe:
         let token = p.current()
         
-        # Check for special keywords (including identifiers that should be treated as keywords)
-        var tokenToCheck = token
-        if token.kind == TkIdentifier and token.value in ["with", "as", "for"]:
-          tokenToCheck.kind = TkKeyword  # Treat as keyword for this context
-        
-        if tokenToCheck.kind == TkKeyword:
-          case tokenToCheck.value:
+        if token.kind == TkIdentifier:
+          case token.value:
           of "with":
             discard p.advance()
             let value = p.parseExpression()
-            parameters.add(Node(kind: nkArgument, argName: "with", argValue: value))
+            parameters.add(value)  # Add bound variable directly
+            
+            # Check for "as" clause
+            if p.current().kind == TkIdentifier and p.current().value == "as":
+              discard p.advance()  # skip "as"
+              if p.current().kind == TkIdentifier:
+                let asName = p.advance().value
+                parameters.add(Node(kind: nkString, strVal: asName))
           of "for":
             discard p.advance()
             let value = p.parseExpression()
-            parameters.add(Node(kind: nkArgument, argName: "for", argValue: value))
-          of "as":
-            discard p.advance()
-            if p.current().kind == TkIdentifier:
-              let asName = p.advance().value
-              parameters.add(Node(kind: nkArgument, argName: "as", 
-                                argValue: Node(kind: nkString, strVal: asName)))
-          else:
-            break
-        # Check for parameter assignment
-        elif token.kind == TkIdentifier:
-          let paramName = token.value
-          if p.peek().kind == TkColon or p.peek().kind == TkAssign:
-            discard p.advance()  # skip identifier
-            discard p.advance()  # skip : or =
-            let value = p.parseExpression()
-            parameters.add(Node(kind: nkArgument, argName: paramName, argValue: value))
+            parameters.add(value)  # Add collection directly
           else:
             break
         else:
