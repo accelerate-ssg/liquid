@@ -36,8 +36,7 @@ suite "output statement":
           token(TkDot),
           token(TkIdentifier, "tags"),
           token(TkLeftBracket),
-          token(TkOperator, "-"),
-          token(TkNumber, "2"),
+          token(TkNumber, "-2"),
           token(TkRightBracket)
         ],
         nodeOutput(@[
