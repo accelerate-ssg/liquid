@@ -60,8 +60,16 @@ suite "inline comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "liquid")
-          # Liquid tag parsing would include comment handling
+          token(TkIdentifier, "liquid"),
+          token(TkNewline, "\n"),
+          token(TkSymbol, "#"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "assign"),
+          token(TkIdentifier, "my_variable"),
+          token(TkAssign, "="),
+          token(TkString, "hello"),
+          token(TkNewline, "\n"),
+          token(TkSymbol, "#")
         ],
         nodeLiquid(@[
           nodeAssign("my_variable", nodeString("hello"))
@@ -78,7 +86,16 @@ suite "inline comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "liquid")
+          token(TkIdentifier, "liquid"),
+          token(TkNewline, "\n"),
+          token(TkSymbol, "#"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "assign"),
+          token(TkIdentifier, "my_variable"),
+          token(TkAssign, "="),
+          token(TkString, "hello"),
+          token(TkNewline, "\n"),
+          token(TkSymbol, "#")
         ],
         nodeLiquid(@[
           nodeAssign("my_variable", nodeString("hello"))
@@ -95,7 +112,8 @@ suite "inline comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "liquid")
+          token(TkIdentifier, "liquid"),
+          token(TkSymbol, "#")
         ],
         nodeLiquid(@[])
       )

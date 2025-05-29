@@ -76,14 +76,83 @@ proc lexSections*(input: string): seq[Section] =
           startNewSection(Output)
           currentSection.stripLeft = lexer.peek_and_advance("-")
         elif lexer.peek("{%#"):
-          # Inline comment - consume everything until %} and emit nothing
+          # Check if this is a true inline comment (without whitespace control)
+          let savedPos = lexer.position
+          let savedLine = lexer.line
+          let savedCol = lexer.column
           discard lexer.peek_and_advance("{%#")
-          # Consume everything until we find %}
-          while lexer.position < input.len and not lexer.peek("%}"):
+          # Consume content until we find %} or -%}
+          var hasWhitespaceControl = false
+          while lexer.position < input.len:
+            if lexer.peek("-%}"):
+              hasWhitespaceControl = true
+              break
+            elif lexer.peek("%}"):
+              break
+            else:
+              discard lexer.advance()
+          
+          if hasWhitespaceControl:
+            # This is {%# ... -%} which should be treated as a tag, not inline comment
+            lexer.position = savedPos
+            lexer.line = savedLine
+            lexer.column = savedCol
+            discard lexer.peek_and_advance("{%")
+            startNewSection(Tag)
+            currentSection.stripLeft = false  # {%# doesn't have initial whitespace control
+          else:
+            # True inline comment {%# ... %} - consume and emit nothing
+            discard lexer.peek_and_advance("%}")
+            # Don't create any section - just continue
+        elif lexer.peek("{%-"):
+          # Check if this is the specific invalid pattern that should fallback to text
+          let savedPos = lexer.position
+          let savedLine = lexer.line
+          let savedCol = lexer.column
+          discard lexer.peek_and_advance("{%-")
+          # Skip any whitespace
+          while lexer.position < input.len and lexer.input[lexer.position] in {' ', '\t'}:
             discard lexer.advance()
-          # Consume the closing %}
-          discard lexer.peek_and_advance("%}")
-          # Don't create any section - just continue
+          if lexer.position < input.len and lexer.input[lexer.position] == '#' and lexer.peek("{%"):
+            # This is the specific pattern {%- # {% that should fallback to text
+            # Restore position and treat as text
+            lexer.position = savedPos
+            lexer.line = savedLine
+            lexer.column = savedCol
+            # Find the content that should be output as text
+            discard lexer.peek_and_advance("{%-")
+            # Skip until we find the actual tag content
+            while lexer.position < input.len and lexer.input[lexer.position] in {' ', '\t', '#'}:
+              discard lexer.advance()
+            # Skip to after the nested tag
+            if lexer.peek("{%"):
+              var bracketCount = 1
+              discard lexer.peek_and_advance("{%")
+              while lexer.position < input.len and bracketCount > 0:
+                if lexer.peek("{%"):
+                  bracketCount += 1
+                  discard lexer.peek_and_advance("{%")
+                elif lexer.peek("%}"):
+                  bracketCount -= 1
+                  discard lexer.peek_and_advance("%}")
+                else:
+                  discard lexer.advance()
+            # Now we should be at the content that needs to be output
+            if currentSection == nil:
+              startNewSection(Text)
+            # Add the remaining content until -%}
+            while lexer.position < input.len and not lexer.peek("-%}"):
+              currentSection.content.add(lexer.advance)
+            # Skip the -%}
+            discard lexer.peek_and_advance("-%}")
+          else:
+            # Normal tag with whitespace control (including {%- #comment -%})
+            lexer.position = savedPos
+            lexer.line = savedLine
+            lexer.column = savedCol
+            discard lexer.peek_and_advance("{%")
+            startNewSection(Tag)
+            currentSection.stripLeft = lexer.peek_and_advance("-")
         elif lexer.peek_and_advance("{%"):
           startNewSection(Tag)
           currentSection.stripLeft = lexer.peek_and_advance("-")
@@ -114,8 +183,13 @@ proc lexSections*(input: string): seq[Section] =
       raise newException(LexerError, "Unbalanced brackets: Missing closing tag for tag opened at line " & 
         $currentSection.startRow & " column " & $currentSection.startCol)
 
+    # Only raise "Unclosed section" if input has non-comment content but no sections
+    # Inline comments like {%# ... %} should not trigger this error
     if input.strip().len > 0 and sections.len == 0:
-      raise newException(ValueError, "Unclosed section")
+      # Check if the input is just an inline comment
+      let stripped = input.strip()
+      if not (stripped.startsWith("{%#") and stripped.endsWith("%}")):
+        raise newException(ValueError, "Unclosed section")
 
     return sections
 

@@ -63,6 +63,12 @@ proc lexToken(l: var Lexer, preserveNewlines: bool = false): Token =
     if l.peek == '=' or (value in [">", "<"] and l.peek in ['>', '<']):
       value.add(l.advance)
     result = Token(kind: TkOperator, value: value, startPos: startPos, endPos: l.position - 1)
+  of '#':
+    # Handle comments in liquid tags - consume everything until end of line or end of input
+    let startPos = l.position
+    while not l.isAtEnd and l.peek != '\n':
+      discard l.advance
+    result = Token(kind: TkSymbol, value: "#", startPos: startPos, endPos: l.position - 1)
   else:
     raise newException(LexerError, "Unexpected character: " & $c)
 

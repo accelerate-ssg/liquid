@@ -1,7 +1,7 @@
 import tables
 
 import ../types
-import tags/[assign, break_tag, capture, case_tag, comment, continue_tag, cycle, decrement, echo_tag, for_tag, if_tag, ifchanged, include_tag, increment, liquid, raw, render, tablerow, unless]
+import tags/[assign, break_tag, capture, case_tag, comment, comment_tag, continue_tag, cycle, decrement, echo_tag, for_tag, if_tag, ifchanged, include_tag, increment, liquid, raw, render, tablerow, unless]
 
 proc registerTag(parser: Parser, handler: TagHandler, info: TagHandlerInfo) =
   if info in parser.tagHandlerLookup:
@@ -28,6 +28,7 @@ proc registerDefaultTags*(parser: Parser) =
   parser.registerTag(capture.parse, capture.tag_info)
   parser.registerTag(case_tag.parse, case_tag.tag_info)
   parser.registerTag(comment.parse, comment.tag_info)
+  parser.registerTag(comment_tag.parse, comment_tag.tag_info)
   parser.registerTag(continue_tag.parse, continue_tag.tag_info)
   parser.registerTag(cycle.parse, cycle.tag_info)
   parser.registerTag(decrement.parse, decrement.tag_info)

@@ -83,6 +83,10 @@ proc parse*(p: Parser): Node =
         if line.len == 0:
           continue
           
+        # Skip comment lines (lines starting with #)
+        if line[0].kind == TkSymbol and line[0].value == "#":
+          continue
+          
         # Create a temporary parser for this line
         var lineParser = Parser(tokens: line, position: 0, strict_mode: p.strict_mode)
         lineParser.tagHandlerLookup = p.tagHandlerLookup
