@@ -37,8 +37,6 @@ proc lexIdentifier*(l: var Lexer): Token =
     TkOr
   elif value == "and":
     TkAnd
-  elif value in ["with", "reversed"] or (l.peek == ':' and l.last.kind != TkPipe):
-    TkParameter
   else:
     TkIdentifier
   

@@ -6,7 +6,7 @@ type
 
   Node* = ref object
     case kind*: NodeKind
-    of nkTag, nkEnd:
+    of nkTag, nkEnd, nkContinue:
       tagName*: string
       parameters*: seq[Node]
     of nkOutput:
@@ -38,6 +38,7 @@ type
   TagHandlerInfo* = object
     opening_tag*: string
     block_tag*: bool
+    inner_tags*: seq[string]  # Tags that can appear within this block (separators, control flow, etc.)
       
   TagHandler* = proc(parser: Parser): Node
 
@@ -47,6 +48,7 @@ type
     strict_mode*: bool
     tagHandlerLookup*: Table[TagHandlerInfo, TagHandler]
     handlerStack*: seq[TagHandler]
+    dynamicKeywords*: seq[string]  # Keywords added from registered tags
 
   TokenKind* = enum
     TkKeyword, TkIdentifier, TkOperator, TkString, TkNumber,
@@ -98,8 +100,4 @@ type
 
   TagStack* = seq[TagStackItem]
 
-const KEYWORDS* = @["if", "elsif", "else", "endif", "unless", "endunless",
-       "case", "when", "endcase", "for", "endfor", "break", "continue",
-       "tablerow", "endtablerow", "cycle", "echo", "break",
-       "capture", "endcapture", "increment", "decrement", "assign",
-       "comment", "endcomment", "ifchanged", "endifchanged"]
+const KEYWORDS*: seq[string] = @[]  # No global keywords - all context-specific

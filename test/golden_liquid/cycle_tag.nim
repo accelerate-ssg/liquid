@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "cycle tag":
   testCase(
@@ -6,8 +6,8 @@ suite "cycle tag":
     "{% cycle a: 1, 2, 3 %}{% assign a = 'bar' %}{% cycle a: 1, 2, 3 %}{% cycle a: 1, 2, 3 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -16,14 +16,14 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "a"),
         token(TkAssign),
         token(TkString, "bar")
       ], nodeAssign("a", nodeString("bar"))),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -32,8 +32,8 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -51,7 +51,7 @@ suite "cycle tag":
     "{% cycle '1', '2', '3' %}{% cycle '1', '2' %}{% cycle '1', '2', '3' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "1"),
         token(TkComma),
         token(TkString, "2"),
@@ -59,13 +59,13 @@ suite "cycle tag":
         token(TkString, "3")
       ], nodeCycle(@[nodeString("1"), nodeString("2"), nodeString("3")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "1"),
         token(TkComma),
         token(TkString, "2")
       ], nodeCycle(@[nodeString("1"), nodeString("2")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "1"),
         token(TkComma),
         token(TkString, "2"),
@@ -81,7 +81,7 @@ suite "cycle tag":
     "{% cycle 1, 2, 3 %}{% cycle 1, 2, 3 %}{% cycle 1, 2, 3 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkNumber, "1"),
         token(TkComma),
         token(TkNumber, "2"),
@@ -89,7 +89,7 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle( @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkNumber, "1"),
         token(TkComma),
         token(TkNumber, "2"),
@@ -97,7 +97,7 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle( @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkNumber, "1"),
         token(TkComma),
         token(TkNumber, "2"),
@@ -113,8 +113,8 @@ suite "cycle tag":
     "{% cycle a: 1, 2, 3 %}{% cycle b: 1, 2, 3 %}{% cycle a: 1, 2, 3 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -123,8 +123,8 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "b"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "b"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -133,8 +133,8 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("b", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -151,7 +151,7 @@ suite "cycle tag":
     "{% cycle 'a': 1, 2, 3 %}{% cycle 'a': 7, 8, 9 %}{% cycle 'a': 1, 2, 3 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "a"),
         token(TkColon),
         token(TkNumber, "1"),
@@ -161,7 +161,7 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "a"),
         token(TkColon),
         token(TkNumber, "7"),
@@ -171,7 +171,7 @@ suite "cycle tag":
         token(TkNumber, "9")
       ], nodeCycle("a", @[nodeNumber(7), nodeNumber(8), nodeNumber(9)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "a"),
         token(TkColon),
         token(TkNumber, "1"),
@@ -189,16 +189,16 @@ suite "cycle tag":
     "{% cycle a: '1', '2' %}{% cycle a: '1', '2', '3' %}{% cycle a: '1' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1"),
         token(TkComma),
         token(TkString, "2")
       ], nodeCycle("a", @[nodeString("1"), nodeString("2")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1"),
         token(TkComma),
@@ -207,8 +207,8 @@ suite "cycle tag":
         token(TkString, "3")
       ], nodeCycle("a", @[nodeString("1"), nodeString("2"), nodeString("3")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1")
       ], nodeCycle("a", @[nodeString("1")]))
@@ -221,22 +221,22 @@ suite "cycle tag":
     "{% cycle a: '1' %}{% cycle a: '1', '2' %}{% cycle a: '1', '2', '3' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1")
       ], nodeCycle("a", @[nodeString("1")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1"),
         token(TkComma),
         token(TkString, "2")
       ], nodeCycle("a", @[nodeString("1"), nodeString("2")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1"),
         token(TkComma),
@@ -253,8 +253,8 @@ suite "cycle tag":
     "{% cycle a: '1', '2', '3' %}{% cycle a: '1', '2' %}{% cycle a: '1' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1"),
         token(TkComma),
@@ -263,16 +263,16 @@ suite "cycle tag":
         token(TkString, "3")
       ], nodeCycle("a", @[nodeString("1"), nodeString("2"), nodeString("3")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1"),
         token(TkComma),
         token(TkString, "2")
       ], nodeCycle("a", @[nodeString("1"), nodeString("2")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkString, "1")
       ], nodeCycle("a", @[nodeString("1")]))
@@ -285,19 +285,19 @@ suite "cycle tag":
     "{% cycle 'some', 'other' %}{% cycle 'some', 'other' %}{% cycle 'some', 'other' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "some"),
         token(TkComma),
         token(TkString, "other")
       ], nodeCycle( @[nodeString("some"), nodeString("other")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "some"),
         token(TkComma),
         token(TkString, "other")
       ], nodeCycle( @[nodeString("some"), nodeString("other")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "some"),
         token(TkComma),
         token(TkString, "other")
@@ -311,8 +311,8 @@ suite "cycle tag":
     "{% cycle a: 1, 2, 3 %}{% cycle b: 1, 2, 3 %}{% cycle 1, 2, 3 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -321,8 +321,8 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "b"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "b"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -331,7 +331,7 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("b", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkNumber, "1"),
         token(TkComma),
         token(TkNumber, "2"),
@@ -347,8 +347,8 @@ suite "cycle tag":
     "{% cycle a: 1, 2, 3 %}{% cycle a: 1, 2, 3 %}{% cycle a: 1, 2, 3 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -357,8 +357,8 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -367,8 +367,8 @@ suite "cycle tag":
         token(TkNumber, "3")
       ], nodeCycle("a", @[nodeNumber(1), nodeNumber(2), nodeNumber(3)])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
-        token(TkParameter, "a"),
+        token(TkIdentifier, "cycle"),
+        token(TkIdentifier, "a"),
         token(TkColon),
         token(TkNumber, "1"),
         token(TkComma),
@@ -386,7 +386,7 @@ suite "cycle tag":
     "{% cycle 'foo': 'some', 'other' %}{% cycle 'some', 'other' %}{% cycle 'foo': 'some', 'other' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "foo"),
         token(TkColon),
         token(TkString, "some"),
@@ -394,13 +394,13 @@ suite "cycle tag":
         token(TkString, "other")
       ], nodeCycle("foo", @[nodeString("some"), nodeString("other")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "some"),
         token(TkComma),
         token(TkString, "other")
       ], nodeCycle( @[nodeString("some"), nodeString("other")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "cycle"),
+        token(TkIdentifier, "cycle"),
         token(TkString, "foo"),
         token(TkColon),
         token(TkString, "some"),

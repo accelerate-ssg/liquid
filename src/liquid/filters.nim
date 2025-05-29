@@ -1,6 +1,6 @@
 import json,tables
 
-import shared, filters/[strings]
+import shared, filters/[strings, arrays, numbers, dates, misc]
 
 
 proc applyFilter*(value: JsonNode, filterName: string, args: seq[JsonNode], context: Context): JsonNode =

@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "increment and decrement":
   testCase(
@@ -6,17 +6,17 @@ suite "increment and decrement":
     "{% decrement foo %} {% decrement foo %} {% increment foo %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "decrement"),
+        token(TkIdentifier, "decrement"),
         token(TkIdentifier, "foo")
       ], nodeDecrement("foo")),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "decrement"),
+        token(TkIdentifier, "decrement"),
         token(TkIdentifier, "foo")
       ], nodeDecrement("foo")),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "increment"),
+        token(TkIdentifier, "increment"),
         token(TkIdentifier, "foo")
       ], nodeIncrement("foo"))
     ],
@@ -28,7 +28,7 @@ suite "increment and decrement":
     "{% decrement foo %}{{ foo }} {% decrement foo %}{{ foo }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "decrement"),
+        token(TkIdentifier, "decrement"),
         token(TkIdentifier, "foo")
       ], nodeDecrement("foo")),
       section(SectionType.Output, @[
@@ -36,7 +36,7 @@ suite "increment and decrement":
       ], nodeOutput(@[nodeVariable("foo")])),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "decrement"),
+        token(TkIdentifier, "decrement"),
         token(TkIdentifier, "foo")
       ], nodeDecrement("foo")),
       section(SectionType.Output, @[

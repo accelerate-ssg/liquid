@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "comment tag":
   testCase(
@@ -8,7 +8,7 @@ suite "comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "comment")
+          token(TkIdentifier, "comment")
         ],
         nodeComment(),
       ),
@@ -20,7 +20,7 @@ suite "comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcomment")
+          token(TkIdentifier, "endcomment")
         ],
         nodeEndComment(),
       )
@@ -35,19 +35,19 @@ suite "comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "comment")
+          token(TkIdentifier, "comment")
         ],
         nodeComment(),
       ),
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "true"),
         ],
         nodeIf(
-          nodeBoolean(true),
-        ),
+          nodeBoolean(true)
+        )
       ),
       section(
         SectionType.Output,
@@ -61,14 +61,14 @@ suite "comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf(),
       ),
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcomment")
+          token(TkIdentifier, "endcomment")
         ],
         nodeEndComment(),
       )
@@ -88,7 +88,7 @@ suite "comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "comment")
+          token(TkIdentifier, "comment")
         ],
         nodeComment(),
       ),
@@ -100,7 +100,7 @@ suite "comment tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcomment")
+          token(TkIdentifier, "endcomment")
         ],
         nodeEndComment(),
       ),

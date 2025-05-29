@@ -2,7 +2,11 @@ include json
 
 include ../core
 
-const tag_info* = TagHandlerInfo(opening_tag: "cycle", block_tag: false)
+const tag_info* = TagHandlerInfo(
+  opening_tag: "cycle",
+  block_tag: false,
+  inner_tags: @[]
+)
 
 proc parse*(p: Parser): Node =
   case p.advance().value:
@@ -10,7 +14,7 @@ proc parse*(p: Parser): Node =
       var
         group_name: string = "cycle"
       
-      if p.current.kind in [TkParameter, TkString] and p.peek.kind == TkColon:
+      if p.current.kind in [TkIdentifier, TkString] and p.peek.kind == TkColon:
         group_name = p.advance.value
         discard p.advance() # consume colon
 

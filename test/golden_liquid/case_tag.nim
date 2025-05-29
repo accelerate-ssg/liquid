@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "case/when":
   testCase(
@@ -8,7 +8,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "title")
         ],
         nodeCase("title")
@@ -16,7 +16,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkIdentifier, "other")
         ],
         nodeWhen(nodeVariable("other"))
@@ -29,7 +29,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "goodbye")
         ],
         nodeWhen(nodeString("goodbye"))
@@ -42,7 +42,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )
@@ -57,7 +57,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "title")
         ],
         nodeCase("title")
@@ -65,7 +65,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkIdentifier, "nosuchthing")
         ],
         nodeWhen(nodeVariable("nosuchthing"))
@@ -78,7 +78,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "Hello")
         ],
         nodeWhen(nodeString("Hello"))
@@ -91,7 +91,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )
@@ -106,7 +106,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "title")
         ],
         nodeCase("title")
@@ -114,7 +114,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "foo")
         ],
         nodeWhen(nodeString("foo"))
@@ -127,7 +127,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "bar"),
           token(TkComma),
           token(TkString, "Hello")
@@ -142,7 +142,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )
@@ -157,7 +157,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "title")
         ],
         nodeCase("title")
@@ -165,7 +165,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "foo")
         ],
         nodeWhen(nodeString("foo"))
@@ -178,7 +178,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "bar"),
           token(TkOr),
           token(TkString, "Hello")
@@ -193,7 +193,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )
@@ -208,7 +208,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "foo")
         ],
         nodeCase("foo")
@@ -216,7 +216,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "foo")
         ],
         nodeWhen(nodeString("foo"))
@@ -229,7 +229,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, ",")
         ],
         nodeWhen(nodeString(","))
@@ -242,7 +242,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )
@@ -257,7 +257,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "foo")
         ],
         nodeCase("foo")
@@ -265,7 +265,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when")
+          token(TkIdentifier, "when")
         ],
         nodeWhen(nil)
       ),
@@ -277,7 +277,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )
@@ -293,7 +293,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "case"),
+          token(TkIdentifier, "case"),
           token(TkIdentifier, "title")
         ],
         nodeCase("title")
@@ -301,7 +301,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "when"),
+          token(TkIdentifier, "when"),
           token(TkString, "foo")
         ],
         nodeWhen(nodeString("foo"))
@@ -314,7 +314,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -326,7 +326,7 @@ suite "case/when":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcase")
+          token(TkIdentifier, "endcase")
         ],
         nodeEndCase()
       )

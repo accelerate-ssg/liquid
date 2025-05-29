@@ -101,7 +101,7 @@ suite "Liquid Template Parser Tests":
     let tokens = @[
       Token(kind: TkKeyword, value: "for"),
       Token(kind: TkIdentifier, value: "product"),
-      Token(kind: TkKeyword, value: "in"),
+      Token(kind: TkOperator, value: "in"),
       Token(kind: TkIdentifier, value: "collection"),
       Token(kind: TkDot, value: "."),
       Token(kind: TkIdentifier, value: "products")
@@ -119,7 +119,7 @@ suite "Liquid Template Parser Tests":
     let tokens = @[
       Token(kind: TkKeyword, value: "for"),
       Token(kind: TkIdentifier, value: "product"),
-      Token(kind: TkKeyword, value: "in"),
+      Token(kind: TkOperator, value: "in"),
       Token(kind: TkIdentifier, value: "collection"),
       Token(kind: TkDot, value: "."),
       Token(kind: TkIdentifier, value: "products"),

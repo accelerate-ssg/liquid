@@ -17,6 +17,12 @@ proc advance*(p: Parser): Token =
   if p.position < p.tokens.len:
     p.position += 1
 
+proc treatAsKeyword*(p: Parser, keywords: openArray[string]): Token =
+  ## Convert the current token to a keyword if it matches one of the provided keywords
+  result = p.current()
+  if result.kind == TkIdentifier and result.value in keywords:
+    result.kind = TkKeyword
+
 proc parseExpression*(p: Parser): Node
 proc parseLogical*(p: Parser): Node
 

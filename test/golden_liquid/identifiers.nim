@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "identifiers":
   testCase(
@@ -6,7 +6,7 @@ suite "identifiers":
     "{% assign foo = 'hello' %}{{ foo }} {{ bar }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "foo"),
         token(TkAssign),
         token(TkString, "hello")
@@ -29,7 +29,7 @@ suite "identifiers":
     "{% assign FOO = 'hello' %}{{ FOO }} {{ BAR }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "FOO"),
         token(TkAssign),
         token(TkString, "hello")
@@ -64,12 +64,12 @@ suite "identifiers":
     "{% capture foo %}hello{% endcapture %}{{ foo }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "foo")
       ], nodeCapture("foo")),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "foo")
@@ -84,12 +84,12 @@ suite "identifiers":
     "{% capture FOO %}hello{% endcapture %}{{ FOO }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "FOO")
       ], nodeCapture("FOO")),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "FOO")
@@ -104,12 +104,12 @@ suite "identifiers":
     "{% capture foo1 %}hello{% endcapture %}{{ foo1 }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "foo1")
       ], nodeCapture("foo1")),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "foo1")
@@ -124,7 +124,7 @@ suite "identifiers":
     "{% capture foo-a %}hello {{ bar-b }}{% endcapture %}{{ foo-a }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "foo-a")
       ], nodeCapture("foo-a")),
       section(SectionType.Text, @[], nil),
@@ -132,7 +132,7 @@ suite "identifiers":
         token(TkIdentifier, "bar-b")
       ], nodeOutput(@[nodeVariable("bar-b")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "foo-a")
@@ -148,7 +148,7 @@ suite "identifiers":
     "{% capture -foo %}hello {{ -bar }}{% endcapture %}{{ -foo }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkOperator, "-"),
         token(TkIdentifier, "foo")
       ], nodeCapture("-foo")),
@@ -158,7 +158,7 @@ suite "identifiers":
         token(TkIdentifier, "bar")
       ], nodeOutput(@[nodeVariable("-bar")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkOperator, "-"),
@@ -175,7 +175,7 @@ suite "identifiers":
     "{% capture _foo %}hello {{ _bar }}{% endcapture %}{{ _foo }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "_foo")
       ], nodeCapture("_foo")),
       section(SectionType.Text, @[], nil),
@@ -183,7 +183,7 @@ suite "identifiers":
         token(TkIdentifier, "_bar")
       ], nodeOutput(@[nodeVariable("_bar")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "_foo")
@@ -199,12 +199,12 @@ suite "identifiers":
     "{% capture 123 %}hello{% endcapture %}{{ 123 }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkNumber, "123")
       ], nodeCapture("123")),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkNumber, "123")
@@ -219,7 +219,7 @@ suite "identifiers":
     "{% capture _ %}hello {{ __ }}{% endcapture %}{{ _ }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "_")
       ], nodeCapture("_")),
       section(SectionType.Text, @[], nil),
@@ -227,7 +227,7 @@ suite "identifiers":
         token(TkIdentifier, "__")
       ], nodeOutput(@[nodeVariable("__")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "_")
@@ -243,7 +243,7 @@ suite "identifiers":
     "{% capture foo_a %}hello {{ bar_b }}{% endcapture %}{{ foo_a }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "capture"),
+        token(TkIdentifier, "capture"),
         token(TkIdentifier, "foo_a")
       ], nodeCapture("foo_a")),
       section(SectionType.Text, @[], nil),
@@ -251,7 +251,7 @@ suite "identifiers":
         token(TkIdentifier, "bar_b")
       ], nodeOutput(@[nodeVariable("bar_b")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endcapture")
+        token(TkIdentifier, "endcapture")
       ], nodeEndCapture()),
       section(SectionType.Output, @[
         token(TkIdentifier, "foo_a")
@@ -267,11 +267,11 @@ suite "identifiers":
     "{% decrement f-oo %}{% decrement f-oo %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "decrement"),
+        token(TkIdentifier, "decrement"),
         token(TkIdentifier, "f-oo")
       ], nodeDecrement("f-oo")),
       section(SectionType.Tag, @[
-        token(TkKeyword, "decrement"),
+        token(TkIdentifier, "decrement"),
         token(TkIdentifier, "f-oo")
       ], nodeDecrement("f-oo"))
     ],
@@ -284,7 +284,7 @@ suite "identifiers":
     "{% assign foo1 = 'hello' %}{{ foo1 }} {{ bar2 }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "foo1"),
         token(TkAssign),
         token(TkString, "hello")
@@ -307,16 +307,16 @@ suite "identifiers":
     "{% for x in f-oo %}{{ x }}{% endfor %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "for"),
+        token(TkIdentifier, "for"),
         token(TkIdentifier, "x"),
-        token(TkKeyword, "in"),
+        token(TkOperator, "in"),
         token(TkIdentifier, "f-oo")
       ], nodeFor("x", nodeVariable("f-oo"), @[])),
       section(SectionType.Output, @[
         token(TkIdentifier, "x")
       ], nodeOutput(@[nodeVariable("x")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endfor")
+        token(TkIdentifier, "endfor")
       ], nodeEndFor())
     ],
     context = %*{"f-oo": [1, 2, 3]},
@@ -329,16 +329,16 @@ suite "identifiers":
     "{% for x-y in foo %}{{ x-y }}{% endfor %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "for"),
+        token(TkIdentifier, "for"),
         token(TkIdentifier, "x-y"),
-        token(TkKeyword, "in"),
+        token(TkOperator, "in"),
         token(TkIdentifier, "foo")
       ], nodeFor("x-y", nodeVariable("foo"), @[])),
       section(SectionType.Output, @[
         token(TkIdentifier, "x-y")
       ], nodeOutput(@[nodeVariable("x-y")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endfor")
+        token(TkIdentifier, "endfor")
       ], nodeEndFor())
     ],
     context = %*{"foo": [1, 2, 3]},
@@ -351,7 +351,7 @@ suite "identifiers":
     "{% assign foo-a = 'hello' %}{{ foo-a }} {{ bar-b }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "foo-a"),
         token(TkAssign),
         token(TkString, "hello")
@@ -374,11 +374,11 @@ suite "identifiers":
     "{% increment f-oo %}{% increment f-oo %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "increment"),
+        token(TkIdentifier, "increment"),
         token(TkIdentifier, "f-oo")
       ], nodeIncrement("f-oo")),
       section(SectionType.Tag, @[
-        token(TkKeyword, "increment"),
+        token(TkIdentifier, "increment"),
         token(TkIdentifier, "f-oo")
       ], nodeIncrement("f-oo"))
     ],
@@ -391,7 +391,7 @@ suite "identifiers":
     "{% assign -foo = 'hello' %}{{ -foo }} {{ -bar }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkOperator, "-"),
         token(TkIdentifier, "foo"),
         token(TkAssign),
@@ -417,9 +417,9 @@ suite "identifiers":
     "{% for x in -foo %}{{ x }}{% endfor %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "for"),
+        token(TkIdentifier, "for"),
         token(TkIdentifier, "x"),
-        token(TkKeyword, "in"),
+        token(TkOperator, "in"),
         token(TkOperator, "-"),
         token(TkIdentifier, "foo")
       ], nodeFor("x", nodeVariable("-foo"), @[])),
@@ -427,7 +427,7 @@ suite "identifiers":
         token(TkIdentifier, "x")
       ], nodeOutput(@[nodeVariable("x")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endfor")
+        token(TkIdentifier, "endfor")
       ], nodeEndFor())
     ],
     context = %*{"-foo": [1, 2, 3]},
@@ -440,7 +440,7 @@ suite "identifiers":
     "{% assign _foo = 'hello' %}{{ _foo }} {{ _bar }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "_foo"),
         token(TkAssign),
         token(TkString, "hello")
@@ -463,7 +463,7 @@ suite "identifiers":
     "{% assign 123 = 'hello' %}{{ 123 }} {{ 456 }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkNumber, "123"),
         token(TkAssign),
         token(TkString, "hello")
@@ -486,7 +486,7 @@ suite "identifiers":
     "{% assign _ = 'hello' %}{{ _ }} {{ __ }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "_"),
         token(TkAssign),
         token(TkString, "hello")
@@ -509,7 +509,7 @@ suite "identifiers":
     "{% assign foo? = 'hello' %}{{ foo? }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "foo?"),
         token(TkAssign),
         token(TkString, "hello")
@@ -527,16 +527,16 @@ suite "identifiers":
     "{% for x in foo? %}{{ x }}{% endfor %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "for"),
+        token(TkIdentifier, "for"),
         token(TkIdentifier, "x"),
-        token(TkKeyword, "in"),
+        token(TkOperator, "in"),
         token(TkIdentifier, "foo?")
       ], nodeFor("x", nodeVariable("foo?"), @[])),
       section(SectionType.Output, @[
         token(TkIdentifier, "x")
       ], nodeOutput(@[nodeVariable("x")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endfor")
+        token(TkIdentifier, "endfor")
       ], nodeEndFor())
     ],
     context = %*{"foo?": [1, 2, 3]},
@@ -549,21 +549,20 @@ suite "identifiers":
     "{% for x? in foo %}{{ x? }}{% endfor %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "for"),
+        token(TkIdentifier, "for"),
         token(TkIdentifier, "x?"),
-        token(TkKeyword, "in"),
+        token(TkOperator, "in"),
         token(TkIdentifier, "foo")
       ], nodeFor("x?", nodeVariable("foo"), @[])),
       section(SectionType.Output, @[
         token(TkIdentifier, "x?")
       ], nodeOutput(@[nodeVariable("x?")])),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endfor")
+        token(TkIdentifier, "endfor")
       ], nodeEndFor())
     ],
     context = %*{"foo": [1, 2, 3]},
-    output = "123",
-    strict = true
+    output = "123"
   )
 
   testCase(
@@ -584,7 +583,7 @@ suite "identifiers":
     "{% assign foo_a = 'hello' %}{{ foo_a }} {{ bar_b }}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "foo_a"),
         token(TkAssign),
         token(TkString, "hello")

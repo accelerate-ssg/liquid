@@ -1,22 +1,58 @@
 import strutils, json, sequtils
 
-import ./filters/[strings]
-
-import parser, shared, filters
+import types, shared, filters
 
 proc evaluate*(node: Node, context: Context): JsonNode
 
 proc evaluateVariable(node: Node, context: Context): JsonNode =
   if node.isNil or node.kind != nkVariable: return newJNull()
 
-  let parts = node.name.split('.')
   var current = context
   
-  for part in parts:
-    if current.kind == JObject and part in current:
-      current = current[part]
+  # Navigate through segments
+  for segment in node.segments:
+    if segment.kind == nkString:
+      let key = segment.strVal
+      if current.kind == JObject and current.hasKey(key):
+        current = current[key]
+      elif current.kind == JArray:
+        # Try to parse as array index
+        try:
+          var idx = parseInt(key)
+          # Handle negative indices
+          if idx < 0:
+            idx = current.len + idx
+          if idx >= 0 and idx < current.len:
+            current = current[idx]
+          else:
+            return newJNull()
+        except:
+          return newJNull()
+      else:
+        return newJNull()
     else:
-      return newJNull()  # Return null if the variable is not found
+      # Handle dynamic segments (like array[index])
+      let segmentValue = evaluate(segment, context)
+      if segmentValue.kind == JString:
+        let key = segmentValue.getStr
+        if current.kind == JObject and current.hasKey(key):
+          current = current[key]
+        else:
+          return newJNull()
+      elif segmentValue.kind == JInt:
+        var idx = segmentValue.getInt
+        if current.kind == JArray:
+          # Handle negative indices
+          if idx < 0:
+            idx = current.len + idx
+          if idx >= 0 and idx < current.len:
+            current = current[idx]
+          else:
+            return newJNull()
+        else:
+          return newJNull()
+      else:
+        return newJNull()
   
   current
 
@@ -79,9 +115,22 @@ proc applyOperator(op: string, left, right: JsonNode): JsonNode =
       of ">=": return newJBool(leftStr >= rightStr)
       else: discard
   of "and":
-    return newJBool(left.getBool and right.getBool)
+    # Liquid's truthiness: false and nil are falsy, everything else is truthy
+    let leftTruthy = not (left.kind == JBool and not left.getBool) and left.kind != JNull
+    let rightTruthy = not (right.kind == JBool and not right.getBool) and right.kind != JNull
+    return newJBool(leftTruthy and rightTruthy)
   of "or":
-    return newJBool(left.getBool or right.getBool)
+    # Liquid's truthiness: false and nil are falsy, everything else is truthy
+    let leftTruthy = not (left.kind == JBool and not left.getBool) and left.kind != JNull
+    let rightTruthy = not (right.kind == JBool and not right.getBool) and right.kind != JNull
+    return newJBool(leftTruthy or rightTruthy)
+  of "contains":
+    if left.kind == JString and right.kind == JString:
+      return newJBool(left.getStr.contains(right.getStr))
+    elif left.kind == JArray:
+      return newJBool(left.contains(right))
+    else:
+      return newJBool(false)
   else:
     echo "Unknown operator: ", op
   return newJNull()
@@ -110,29 +159,54 @@ proc isEmpty(node: JsonNode): bool =
 proc evaluate*(node: Node, context: Context): JsonNode =
   try:
     case node.kind
-    of nkTemplate:
-      result = newJArray()
-      for child in node.children:
-        let childResult = evaluate(child, context)
-        if not isWhitespaceOnly(childResult):
-          result.add(childResult)
-      if result.len == 0:
-        result = newJString("")
-      elif result.len == 1:
-        result = result[0]
-    
-    of nkText:
-      result = newJString(node.textValue)
-    
     of nkOutput:
-      result = evaluate(node.expression, context)
-      if result.kind == JNull:
+      # Output nodes contain children to evaluate
+      if node.children.len > 0:
+        result = evaluate(node.children[0], context)
+        if result.kind == JNull:
+          result = newJString("")
+      else:
         result = newJString("")
     
     of nkVariable:
       result = evaluateVariable(node, context)
       if result.kind == JNull:
         result = newJString("")
+    
+    of nkString:
+      result = newJString(node.strVal)
+    
+    of nkNumber:
+      if node.numVal == node.numVal.int.float:
+        result = newJInt(node.numVal.int)
+      else:
+        result = newJFloat(node.numVal)
+    
+    of nkBoolean:
+      result = newJBool(node.boolVal)
+    
+    of nkNil:
+      result = newJNull()
+    
+    of nkArray:
+      result = newJArray()
+      for element in node.elements:
+        result.add(evaluate(element, context))
+    
+    of nkRange:
+      # Evaluate range into an array
+      let startVal = evaluate(node.rangeStart, context)
+      let endVal = evaluate(node.rangeEnd, context)
+      result = newJArray()
+      if startVal.kind == JInt and endVal.kind == JInt:
+        let start = startVal.getInt
+        let endNum = endVal.getInt
+        if start <= endNum:
+          for i in start..endNum:
+            result.add(newJInt(i))
+        else:
+          for i in countdown(start, endNum):
+            result.add(newJInt(i))
     
     of nkFilter:
       let value = evaluate(node.arguments[0], context)
@@ -143,76 +217,250 @@ proc evaluate*(node: Node, context: Context): JsonNode =
       if result.kind == JNull:
         result = newJString("")
     
-    of nkIfTag, nkUnlessTag:
-      for branch in node.branches:
-        let conditionValue = evaluate(branch.condition, context)
-        let conditionMet = 
-          if node.kind == nkIfTag:
-            conditionValue.kind == JBool and conditionValue.getBool
-          else:  # nkUnlessTag
-            conditionValue.kind != JBool or not conditionValue.getBool
-        
-        if conditionMet:
-          result = evaluate(branch.body, context)
-          if not isWhitespaceOnly(result):
-            return result
-      
-      # If no condition was met, evaluate the else branch (if it exists)
-      if not isNil(node.elseBranch):
-        result = evaluate(node.elseBranch, context)
-        if not isWhitespaceOnly(result):
-          return result
-      
-      result = newJString("")
-    
-    of nkLiteral:
-      case node.literalValue
-      of "true": result = newJBool(true)
-      of "0.0": result = newJBool(true)
-      of "false": result = newJBool(false)
-      of "nil": result = newJNull()
-
-      else:
-        try:
-          result = newJInt(parseInt(node.literalValue))
-        except ValueError:
-          try:
-            result = newJFloat(parseFloat(node.literalValue))
-          except ValueError:
-            result = newJString(node.literalValue)
-    
-    of nkForTag:
-      let iterableValue = evaluate(node.iterable, context)
-      result = newJString("")
-      if iterableValue.kind == JArray:
-        for item in iterableValue:
-          var loopContext = context
-          loopContext[node.loopVar] = item
-          result = newJString(result.getStr & evaluate(node.body, loopContext).getStr)
-    
-    of nkAssignTag:
-      let value = evaluate(node.assignValue, context)
-      context[node.varName] = value
-      result = newJString("")
-    
-    of nkOperator:
+    of nkOperator, nkComparison, nkLogical:
       let left = evaluate(node.left, context)
       let right = evaluate(node.right, context)
       result = applyOperator(node.op, left, right)
       if result.kind == JNull:
         result = newJString("")
-
+    
+    of nkTag:
+      # Handle specific tags based on tagName
+      case node.tagName
+      of "if", "unless":
+        # For if/unless tags, evaluate the condition from parameters
+        if node.parameters.len > 0:
+          let conditionValue = evaluate(node.parameters[0], context)
+          let conditionMet = 
+            if node.tagName == "if":
+              # In Liquid, truthy is anything except false and nil
+              not (conditionValue.kind == JBool and not conditionValue.getBool) and conditionValue.kind != JNull
+            else:  # unless
+              # Unless is the opposite of if
+              (conditionValue.kind == JBool and not conditionValue.getBool) or conditionValue.kind == JNull
+          result = newJBool(conditionMet)
+        else:
+          result = newJBool(false)
+      
+      of "assign":
+        # Assign tags have two parameters: variable name and value
+        if node.parameters.len >= 2:
+          let varNode = node.parameters[0]
+          let valueNode = node.parameters[1]
+          if varNode.kind == nkVariable and varNode.segments.len > 0 and varNode.segments[0].kind == nkString:
+            let varName = varNode.segments[0].strVal
+            let value = evaluate(valueNode, context)
+            context[varName] = value
+        result = newJString("")
+      
+      of "for":
+        # For tags need to be handled in the section renderer with body
+        result = newJString("")
+      
+      of "capture":
+        # Capture tags need body handling
+        result = newJString("")
+      
+      of "else", "else if":
+        # These are handled as part of if/unless blocks
+        if node.parameters.len > 0:
+          let conditionValue = evaluate(node.parameters[0], context)
+          let conditionMet = not (conditionValue.kind == JBool and not conditionValue.getBool) and conditionValue.kind != JNull
+          result = newJBool(conditionMet)
+        else:
+          result = newJBool(true)  # else without condition is always true
+      
+      else:
+        # Other tags return empty string by default
+        result = newJString("")
+    
+    of nkArgument:
+      # Arguments evaluate their value
+      if not node.argValue.isNil:
+        result = evaluate(node.argValue, context)
+      else:
+        result = newJNull()
+    
     of nkEmpty:
-      let targetValue = evaluate(node.target, context)
-      result = newJBool(isEmpty(targetValue))
+      # Empty is a special check - need to evaluate against context
+      result = newJBool(true)
+    
+    of nkEnd, nkContinue:
+      # Control flow nodes
+      result = newJString("")
       
   except CatchableError as e:
     echo "Error in template evaluation: " & e.msg
     result = newJString("")
 
+proc renderSections*(sections: seq[Section], context: Context): string =
+  result = ""
+  var i = 0
+  
+  while i < sections.len:
+    let section = sections[i]
+    case section.sectionType
+    of Text:
+      var content = section.content
+      # Apply whitespace stripping based on adjacent sections
+      if i > 0 and sections[i-1].stripRight:
+        # Strip leading whitespace from this text section
+        var idx = 0
+        while idx < content.len and content[idx] in {' ', '\t', '\n', '\r'}:
+          idx += 1
+        content = content[idx..^1]
+      if i < sections.len - 1 and sections[i+1].stripLeft:
+        # Strip trailing whitespace from this text section  
+        var idx = content.len - 1
+        while idx >= 0 and content[idx] in {' ', '\t', '\n', '\r'}:
+          idx -= 1
+        content = content[0..idx]
+      result &= content
+    
+    of Output:
+      if not section.ast.isNil:
+        let evaluated = evaluate(section.ast, context)
+        case evaluated.kind
+        of JString:
+          result &= evaluated.getStr
+        of JInt:
+          result &= $evaluated.getInt
+        of JFloat:
+          result &= $evaluated.getFloat
+        of JBool:
+          result &= $evaluated.getBool
+        of JArray:
+          # Join array elements
+          for j, elem in evaluated.elems:
+            if j > 0:
+              result &= " "
+            case elem.kind
+            of JString: result &= elem.getStr
+            of JInt: result &= $elem.getInt
+            of JFloat: result &= $elem.getFloat
+            of JBool: result &= $elem.getBool
+            else: discard
+        of JNull:
+          discard  # Null outputs nothing
+        else:
+          discard
+    
+    of Tag:
+      if not section.ast.isNil and section.ast.kind == nkTag:
+        case section.ast.tagName
+        of "if", "unless":
+          # Find the matching endif/endunless and process the block
+          var j = i + 1
+          var depth = 1
+          var branches: seq[tuple[condition: Node, startIdx: int, endIdx: int]] = @[]
+          var currentBranchStart = i + 1
+          var elseBranchStart = -1
+          
+          # Add the first branch
+          branches.add((section.ast.parameters[0], currentBranchStart, -1))
+          
+          while j < sections.len and depth > 0:
+            if sections[j].sectionType == Tag and not sections[j].ast.isNil:
+              if sections[j].ast.kind == nkEnd:
+                if (section.ast.tagName == "if" and sections[j].ast.tagName == "if") or
+                   (section.ast.tagName == "unless" and sections[j].ast.tagName == "unless"):
+                  depth -= 1
+                  if depth == 0:
+                    # Close the last branch
+                    if branches.len > 0:
+                      branches[^1].endIdx = j
+                    if elseBranchStart >= 0:
+                      # There was an else branch
+                      branches.add((nil, elseBranchStart, j))
+              elif sections[j].ast.kind == nkTag:
+                case sections[j].ast.tagName
+                of "if", "unless":
+                  depth += 1
+                of "else if":
+                  if depth == 1:
+                    # Close current branch and start new one
+                    branches[^1].endIdx = j
+                    if sections[j].ast.parameters.len > 0:
+                      branches.add((sections[j].ast.parameters[0], j + 1, -1))
+                of "else":
+                  if depth == 1 and sections[j].ast.parameters.len == 0:
+                    # This is an else without condition
+                    branches[^1].endIdx = j
+                    elseBranchStart = j + 1
+            j += 1
+          
+          # Evaluate branches and render the first true one
+          for branch in branches:
+            let conditionMet = 
+              if branch.condition.isNil:
+                true  # else branch
+              else:
+                let condValue = evaluate(branch.condition, context)
+                if section.ast.tagName == "if":
+                  not (condValue.kind == JBool and not condValue.getBool) and condValue.kind != JNull
+                else:  # unless
+                  (condValue.kind == JBool and not condValue.getBool) or condValue.kind == JNull
+            
+            if conditionMet:
+              # Render this branch
+              result &= renderSections(sections[branch.startIdx..<branch.endIdx], context)
+              break
+          
+          i = j - 1  # Skip to end of if block
+        
+        of "for":
+          if section.ast.parameters.len >= 2:
+            let varNode = section.ast.parameters[0]
+            let iterableNode = section.ast.parameters[1]
+            
+            if varNode.kind == nkVariable and varNode.segments.len > 0 and varNode.segments[0].kind == nkString:
+              let loopVar = varNode.segments[0].strVal
+              let iterableValue = evaluate(iterableNode, context)
+              
+              if iterableValue.kind == JArray:
+                # Find endfor
+                var j = i + 1
+                var depth = 1
+                while j < sections.len and depth > 0:
+                  if sections[j].sectionType == Tag and not sections[j].ast.isNil:
+                    if sections[j].ast.kind == nkTag and sections[j].ast.tagName == "for":
+                      depth += 1
+                    elif sections[j].ast.kind == nkEnd and sections[j].ast.tagName == "for":
+                      depth -= 1
+                  j += 1
+                
+                # Render loop body for each item
+                for item in iterableValue:
+                  var loopContext = context.copy()
+                  loopContext[loopVar] = item
+                  result &= renderSections(sections[(i+1)..<(j-1)], loopContext)
+                
+                i = j - 1  # Skip to end of for block
+        
+        of "assign":
+          # Already handled in evaluate
+          discard evaluate(section.ast, context)
+        
+        else:
+          # Other tags - just evaluate them
+          discard evaluate(section.ast, context)
+    
+    i += 1
+
 proc renderTemplate*(node: Node, context: Context): string =
   try:
-    result = evaluate(node, context).getStr
+    let evaluated = evaluate(node, context)
+    case evaluated.kind
+    of JString:
+      result = evaluated.getStr
+    of JInt:
+      result = $evaluated.getInt
+    of JFloat:
+      result = $evaluated.getFloat
+    of JBool:
+      result = $evaluated.getBool
+    else:
+      result = ""
   except CatchableError as e:
     echo "Error in template rendering: " & e.msg
     result = ""

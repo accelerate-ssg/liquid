@@ -8,7 +8,7 @@ suite "compact filter":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "x"),
           token(TkAssign),
           token(TkIdentifier, "a"),
@@ -21,18 +21,18 @@ suite "compact filter":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "for"),
+          token(TkIdentifier, "for"),
           token(TkIdentifier, "obj"),
-          token(TkKeyword, "in"),
+          token(TkOperator, "in"),
           token(TkIdentifier, "x")
         ],
         nodeFor("obj", nodeVariable("x"), @[])),
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "for"),
+          token(TkIdentifier, "for"),
           token(TkIdentifier, "i"),
-          token(TkKeyword, "in"),
+          token(TkOperator, "in"),
           token(TkIdentifier, "obj")
         ],
         nodeFor("i", nodeVariable("obj"), @[])),
@@ -75,11 +75,11 @@ suite "compact filter":
       ),
       section(
         SectionType.Tag,
-        @[token(TkKeyword, "endfor")],
+        @[token(TkIdentifier, "endfor")],
         nodeEndFor()),
       section(
         SectionType.Tag,
-        @[token(TkKeyword, "endfor")],
+        @[token(TkIdentifier, "endfor")],
         nodeEndFor())
     ],
     context = %*{

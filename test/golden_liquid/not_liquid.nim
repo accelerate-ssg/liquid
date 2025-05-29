@@ -1,20 +1,26 @@
-[
-  {
-    "name": "css text gets passed through unchanged",
-    "template": " div { font-weight: bold; } ",
-    "want": " div { font-weight: bold; } ",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "plain text gets passed through unchanged",
-    "template": "a literal string",
-    "want": "a literal string",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  }
-]
+suite "not liquid":
+  testCase(
+    "css text gets passed through unchanged",
+    " div { font-weight: bold; } ",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = " div { font-weight: bold; } "
+  )
+
+  testCase(
+    "plain text gets passed through unchanged",
+    "a literal string",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = "a literal string"
+  )

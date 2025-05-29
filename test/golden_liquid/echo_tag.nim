@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "echo tag":
   testCase(
@@ -6,7 +6,7 @@ suite "echo tag":
     "{% echo product.tags[1] %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "tags"),
@@ -14,9 +14,9 @@ suite "echo tag":
         token(TkNumber, "1"),
         token(TkRightBracket)
       ],
-      nodeEcho(
+      nodeEcho(@[
         nodeVariable("product.tags[1]")
-      ))
+      ]))
     ],
     context = %*{"product": {"tags": ["sports", "garden"]}},
     output = "garden"
@@ -27,14 +27,14 @@ suite "echo tag":
     "{% echo product.tags[-2] %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "tags"),
         token(TkLeftBracket),
         token(TkNumber, "-2"),
         token(TkRightBracket)
-      ], nodeEcho(nodeVariable("product.tags[-2]")))
+      ], nodeEcho(@[nodeVariable("product.tags[-2]")]))
     ],
     context = %*{"product": {"tags": ["sports", "garden"]}},
     output = "sports"
@@ -45,12 +45,12 @@ suite "echo tag":
     "{% echo nosuchthing[0] %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "nosuchthing"),
         token(TkLeftBracket),
         token(TkNumber, "0"),
         token(TkRightBracket)
-      ], nodeEcho(nodeVariable("nosuchthing[0]")))
+      ], nodeEcho(@[nodeVariable("nosuchthing[0]")]))
     ],
     output = ""
   )
@@ -60,20 +60,20 @@ suite "echo tag":
     "{% assign i = 1 %}{% echo product.tags[i] %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "i"),
         token(TkAssign),
         token(TkNumber, "1")
       ], nodeAssign("i", nodeNumber(1.0))),
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "tags"),
         token(TkLeftBracket),
         token(TkIdentifier, "i"),
         token(TkRightBracket)
-      ], nodeEcho(nodeVariable("product.tags[i]")))
+      ], nodeEcho(@[nodeVariable("product.tags[i]")]))
     ],
     context = %*{"product": {"tags": ["sports", "garden"]}},
     output = "garden"
@@ -83,24 +83,24 @@ suite "echo tag":
     "assign a variable the value of an existing variable",
     "{% capture some %}hello{% endcapture %}{% assign other = some %}{% assign some = 'foo' %}{% echo some %}-{% echo other %}",
     @[
-      section(SectionType.Tag, @[token(TkKeyword, "capture"), token(TkIdentifier, "some")], nodeCapture("some")),
+      section(SectionType.Tag, @[token(TkIdentifier, "capture"), token(TkIdentifier, "some")], nodeCapture("some")),
       section(SectionType.Text, @[], nil),
-      section(SectionType.Tag, @[token(TkKeyword, "endcapture")], nodeEndCapture()),
+      section(SectionType.Tag, @[token(TkIdentifier, "endcapture")], nodeEndCapture()),
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "other"),
         token(TkAssign),
         token(TkIdentifier, "some")
       ], nodeAssign("other", nodeVariable("some"))),
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "some"),
         token(TkAssign),
         token(TkString, "foo")
       ], nodeAssign("some", nodeString("foo"))),
-      section(SectionType.Tag, @[token(TkKeyword, "echo"), token(TkIdentifier, "some")], nodeEcho(nodeVariable("some"))),
+      section(SectionType.Tag, @[token(TkIdentifier, "echo"), token(TkIdentifier, "some")], nodeEcho(@[nodeVariable("some")])),
       section(SectionType.Text, @[], nil),
-      section(SectionType.Tag, @[token(TkKeyword, "echo"), token(TkIdentifier, "other")], nodeEcho(nodeVariable("other")))
+      section(SectionType.Tag, @[token(TkIdentifier, "echo"), token(TkIdentifier, "other")], nodeEcho(@[nodeVariable("other")]))
     ],
     output = "foo-hello"
   )
@@ -110,11 +110,11 @@ suite "echo tag":
     "{% echo product.tags %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "tags")
-      ], nodeEcho(nodeVariable("product.tags")))
+      ], nodeEcho(@[nodeVariable("product.tags")]))
     ],
     context = %*{"product": {"tags": ["sports", "garden"]}},
     output = "sportsgarden"
@@ -124,7 +124,7 @@ suite "echo tag":
     "nothing to echo",
     "{% echo %}",
     @[
-      section(SectionType.Tag, @[token(TkKeyword, "echo")], nodeEcho(nodeNil()))
+      section(SectionType.Tag, @[token(TkIdentifier, "echo")], nodeEcho(@[nodeNil()]))
     ],
     output = ""
   )
@@ -134,9 +134,9 @@ suite "echo tag":
     "{% echo 1.23 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkNumber, "1.23")
-      ], nodeEcho(nodeNumber(1.23)))
+      ], nodeEcho(@[nodeNumber(1.23)]))
     ],
     output = "1.23"
   )
@@ -146,13 +146,13 @@ suite "echo tag":
     "{% echo product.title | upcase %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "title"),
         token(TkPipe),
         token(TkIdentifier, "upcase")
-      ], nodeEcho(nodeFilter("upcase", @[nodeVariable("product.title")])))
+      ], nodeEcho(@[nodeFilter("upcase", @[nodeVariable("product.title")])]))
     ],
     context = %*{"product": {"title": "foo"}},
     output = "FOO"
@@ -163,9 +163,9 @@ suite "echo tag":
     "{% echo 'hello' %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkString, "hello")
-      ], nodeEcho(nodeString("hello")))
+      ], nodeEcho(@[nodeString("hello")]))
     ],
     output = "hello"
   )
@@ -175,11 +175,11 @@ suite "echo tag":
     "{% echo product.title %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "title")
-      ], nodeEcho(nodeVariable("product.title")))
+      ], nodeEcho(@[nodeVariable("product.title")]))
     ],
     context = %*{"product": {"title": "foo"}},
     output = "foo"
@@ -190,15 +190,15 @@ suite "echo tag":
     "{% assign name = 'Brian' %}{% echo name %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "name"),
         token(TkAssign),
         token(TkString, "Brian")
       ], nodeAssign("name", nodeString("Brian"))),
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "name")
-      ], nodeEcho(nodeVariable("name")))
+      ], nodeEcho(@[nodeVariable("name")]))
     ],
     output = "Brian"
   )
@@ -208,9 +208,9 @@ suite "echo tag":
     "{% echo 123 %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkNumber, "123")
-      ], nodeEcho(nodeNumber(123)))
+      ], nodeEcho(@[nodeNumber(123)]))
     ],
     output = "123"
   )
@@ -220,11 +220,11 @@ suite "echo tag":
     "{% echo product.age %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "product"),
         token(TkDot),
         token(TkIdentifier, "age")
-      ], nodeEcho(nodeVariable("product.age")))
+      ], nodeEcho(@[nodeVariable("product.age")]))
     ],
     context = %*{"product": {"title": "foo"}},
     output = ""
@@ -235,9 +235,9 @@ suite "echo tag":
     "{% echo age %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "age")
-      ], nodeEcho(nodeVariable("age")))
+      ], nodeEcho(@[nodeVariable("age")]))
     ],
     output = ""
   )
@@ -247,7 +247,7 @@ suite "echo tag":
     "{% echo site.data.menu[include.menu][include.locale] %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "echo"),
+        token(TkIdentifier, "echo"),
         token(TkIdentifier, "site"),
         token(TkDot),
         token(TkIdentifier, "data"),
@@ -263,7 +263,7 @@ suite "echo tag":
         token(TkDot),
         token(TkIdentifier, "locale"),
         token(TkRightBracket)
-      ], nodeEcho(nodeVariable("site.data.menu[include.menu][include.locale]")))
+      ], nodeEcho(@[nodeVariable("site.data.menu[include.menu][include.locale]")]))
     ],
     context = %*{
       "site": {

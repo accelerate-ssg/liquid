@@ -1,155 +1,225 @@
-[
-  {
-    "name": "can't comment tags",
-    "template": "{%- # {% echo 'hello world' %} -%}",
-    "want": " -%}",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "comment with double quote",
-    "template": "{%# some \"comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "comment with double quoted string",
-    "template": "{%# some \"comment\" %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "comment with single quote",
-    "template": "{%# some 'comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "comment with single quoted string",
-    "template": "{%# some 'comment' %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "comment with u2018",
-    "template": "{%# some ‘comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "comment with u201C",
-    "template": "{%# some “comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "empty",
-    "template": "{%#%}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "enforce leading hash",
-    "template": "{%-\n  # spread inline comments\n  over multiple lines\n-%}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": true,
-    "strict": false
-  },
-  {
-    "name": "liquid tag",
-    "template": "{% liquid \n  # first comment line\n  # second comment line\n\n  # another comment line\n  echo 'Hello '\n\n  # more comments\n  echo 'goodbye'\n-%}",
-    "want": "Hello goodbye",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "lots of hashes in a liquid tag",
-    "template": "{% liquid\n  ##########################\n  # spread inline comments #\n  ##########################\n-%}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "multiple lines",
-    "template": "{%-\n  # spread inline comments\n  # over multiple lines\n-%}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "no padding after the hash",
-    "template": "{%#some comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "no whitespace control no padding",
-    "template": "{%# some comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "no whitespace control with padding",
-    "template": "{% # some comment %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "with whitespace control and padding",
-    "template": "{%- # some comment -%}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "with whitespace control no padding",
-    "template": "{%-# some comment -%}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  }
-]
+suite "inline comment tag":
+  testCase(
+    "can't comment tags",
+    "{%- # {% echo 'hello world' %} -%}",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = " -%}"
+  )
+
+  testCase(
+    "comment with double quote",
+    "{%# some \"comment %}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "comment with newline",
+    "{%#\nsome comment\n%}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "comment with single quote",
+    "{%# some 'comment %}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "comment with tag delimiter",
+    "{%#%}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "inline tag comment does not require whitespace",
+    "some {%#comment%} here",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = "some  here"
+  )
+
+  testCase(
+    "liquid inline comment",
+    "{%- liquid\n  # first comment\n  assign my_variable = 'hello'\n  # second comment\n-%}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkKeyword, "liquid")
+          # Liquid tag parsing would include comment handling
+        ],
+        nodeLiquid(@[
+          nodeAssign("my_variable", nodeString("hello"))
+        ])
+      )
+    ],
+    output = ""
+  )
+
+  testCase(
+    "liquid inline comment on last line",
+    "{%- liquid\n  # first comment\n  assign my_variable = 'hello'\n  # second comment -%}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkKeyword, "liquid")
+        ],
+        nodeLiquid(@[
+          nodeAssign("my_variable", nodeString("hello"))
+        ])
+      )
+    ],
+    output = ""
+  )
+
+  testCase(
+    "liquid tag comment using legacy syntax",
+    "{%- liquid # first comment -%}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkKeyword, "liquid")
+        ],
+        nodeLiquid(@[])
+      )
+    ],
+    output = ""
+  )
+
+  testCase(
+    "no whitespace control",
+    "{%# some comment %}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "tag delimiter can be commented out",
+    "{%#}%}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "whitespace and newlines are not required",
+    "{%#some comment%}",
+    @[],  # Inline comments produce no sections
+    output = ""
+  )
+
+  testCase(
+    "whitespace control",
+    "\t{%- #comment -%} \r\n",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkSymbol, "#")
+        ],
+        Node(kind: nkTag, tagName: "#", parameters: @[])
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = ""
+  )
+
+  testCase(
+    "whitespace control either side",
+    "\r{%- #comment -%}\t",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkSymbol, "#")
+        ],
+        Node(kind: nkTag, tagName: "#", parameters: @[])
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = ""
+  )
+
+  testCase(
+    "whitespace control leading",
+    "\n{%- # some comment %}  ",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkSymbol, "#")
+        ],
+        Node(kind: nkTag, tagName: "#", parameters: @[])
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = "  "
+  )
+
+  testCase(
+    "whitespace control trailing",
+    "   {%# some comment -%}\r",
+    @[
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkSymbol, "#")
+        ],
+        Node(kind: nkTag, tagName: "#", parameters: @[])
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      )
+    ],
+    output = "   "
+  )

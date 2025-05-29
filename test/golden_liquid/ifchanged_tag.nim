@@ -1,47 +1,99 @@
-[
-  {
-    "name": "change from assign",
-    "template": "{% assign foo = 'hello' %}{% ifchanged %}{{ foo }}{% endifchanged %}{% ifchanged %}{{ foo }}{% endifchanged %}{% assign foo = 'goodbye' %}{% ifchanged %}{{ foo }}{% endifchanged %}",
-    "want": "hellogoodbye",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "changed from initial state",
-    "template": "{% ifchanged %}hello{% endifchanged %}",
-    "want": "hello",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "no change from assign",
-    "template": "{% assign foo = 'hello' %}{% ifchanged %}{{ foo }}{% endifchanged %}{% ifchanged %}{{ foo }}{% endifchanged %}",
-    "want": "hello",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "not changed from initial state",
-    "template": "{% ifchanged %}{% endifchanged %}",
-    "want": "",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "within for loop",
-    "template": "{% assign list = \"1,3,2,1,3,1,2\" | split: \",\" | sort %}{% for item in list -%}{%- ifchanged %} {{ item }}{% endifchanged -%}{%- endfor %}",
-    "want": " 1 2 3",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  }
-]
+
+
+suite "ifchanged tag":
+  testCase(
+    "basic ifchanged",
+    "{% ifchanged %}hello{% endifchanged %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "ifchanged")
+        ],
+        nodeIfchanged()
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endifchanged")
+        ],
+        nodeEndIfchanged()
+      )
+    ],
+    output = "hello"
+  )
+
+  testCase(
+    "ifchanged with expression",
+    "{% ifchanged foo %}{{ foo }}{% endifchanged %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "ifchanged"),
+          token(TkIdentifier, "foo")
+        ],
+        nodeIfchanged(nodeVariable("foo"))
+      ),
+      section(
+        SectionType.Output,
+        @[
+          token(TkIdentifier, "foo")
+        ],
+        nodeOutput(@[nodeVariable("foo")])
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endifchanged")
+        ],
+        nodeEndIfchanged()
+      )
+    ],
+    context = %*{"foo": "bar"},
+    output = "bar"
+  )
+
+  testCase(
+    "ifchanged with else",
+    "{% ifchanged %}hello{% else %}world{% endifchanged %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "ifchanged")
+        ],
+        nodeIfchanged()
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "else")
+        ],
+        nodeElse()
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endifchanged")
+        ],
+        nodeEndIfchanged()
+      )
+    ],
+    output = "hello"
+  )

@@ -75,6 +75,15 @@ proc lexSections*(input: string): seq[Section] =
         if lexer.peek_and_advance("{{"):
           startNewSection(Output)
           currentSection.stripLeft = lexer.peek_and_advance("-")
+        elif lexer.peek("{%#"):
+          # Inline comment - consume everything until %} and emit nothing
+          discard lexer.peek_and_advance("{%#")
+          # Consume everything until we find %}
+          while lexer.position < input.len and not lexer.peek("%}"):
+            discard lexer.advance()
+          # Consume the closing %}
+          discard lexer.peek_and_advance("%}")
+          # Don't create any section - just continue
         elif lexer.peek_and_advance("{%"):
           startNewSection(Tag)
           currentSection.stripLeft = lexer.peek_and_advance("-")

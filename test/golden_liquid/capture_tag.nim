@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "capture tag":
   testCase(
@@ -8,7 +8,7 @@ suite "capture tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "capture"),
+          token(TkIdentifier, "capture"),
           token(TkIdentifier, "some"),
         ],
         nodeCapture("some")
@@ -21,14 +21,14 @@ suite "capture tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcapture")
+          token(TkIdentifier, "endcapture")
         ],
         nodeEndCapture()
       ),
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "other"),
           token(TkAssign),
           token(TkIdentifier, "some")
@@ -65,7 +65,7 @@ suite "capture tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "capture"),
+          token(TkIdentifier, "capture"),
           token(TkIdentifier, "this-thing")
         ],
         nodeCapture("this-thing")
@@ -92,7 +92,7 @@ suite "capture tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcapture")
+          token(TkIdentifier, "endcapture")
         ],
         nodeEndCapture()
       ),
@@ -115,7 +115,7 @@ suite "capture tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "capture"),
+          token(TkIdentifier, "capture"),
           token(TkIdentifier, "greeting")
         ],
         nodeCapture("greeting")
@@ -142,7 +142,7 @@ suite "capture tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcapture")
+          token(TkIdentifier, "endcapture")
         ],
         nodeEndCapture()
       ),

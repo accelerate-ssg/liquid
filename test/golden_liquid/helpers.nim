@@ -46,6 +46,30 @@ proc nodeLogical*(op: string, left, right: Node): Node =
 proc nodeFilter*(filterName: string, arguments: seq[Node]): Node =
   Node(kind: nkFilter, filterName: filterName, arguments: arguments)
 
+proc nodeFilter*(input: Node, filterName: string, arguments: seq[Node] = @[]): Node =
+  Node(kind: nkFilter, filterName: filterName, arguments: @[input] & arguments)
+
+proc nodeEq*(left: Node, right: Node): Node =
+  Node(kind: nkComparison, op: "==", left: left, right: right)
+
+proc nodeDot*(base: Node, field: string): Node =
+  var segments: seq[Node]
+  if base.kind == nkVariable:
+    segments = base.segments
+  else:
+    segments = @[base]
+  segments.add(nodeString(field))
+  Node(kind: nkVariable, segments: segments)
+
+proc nodeIndex*(base: Node, index: Node): Node =
+  var segments: seq[Node]
+  if base.kind == nkVariable:
+    segments = base.segments
+  else:
+    segments = @[base]
+  segments.add(index)
+  Node(kind: nkVariable, segments: segments)
+
 proc nodeArgument*(argName: string, argValue: Node): Node =
   Node(kind: nkArgument, argName: argName, argValue: argValue)
 
@@ -105,26 +129,46 @@ proc nodeVariable*(name: string): Node =
   result = Node(kind: nkVariable)
   result.segments = segments
 
+proc nodeIdentifier*(name: string): Node =
+  nodeVariable(name)
+
+proc nodeLiteral*(value: string): Node =
+  nodeString(value)
+
+proc nodeLiteral*(value: int): Node =
+  nodeNumber(value.float)
+
+proc nodeLiteral*(value: float): Node =
+  nodeNumber(value)
+
+proc nodeLiteral*(value: bool): Node =
+  nodeBoolean(value)
+
 proc nodeOutput*(children: seq[Node]): Node =
   Node(kind: nkOutput, children: children)
+
 proc nodeIf*(condition: Node): Node =
   Node(kind: nkTag, tagName: "if", parameters: @[condition])
+
+proc nodeFor*(iterVar: string, collection: Node, parameters: seq[Node] = @[]): Node =
+  Node(kind: nkTag, tagName: "for", parameters: @[nodeVariable(iterVar), collection] & parameters)
 proc nodeElsIf*(condition: Node): Node =
   Node(kind: nkTag, tagName: "else if", parameters: @[condition])
-proc nodeUnless*(condition: Node): Node =
-  Node(kind: nkTag, tagName: "unless", parameters: @[condition])
 proc nodeElsUnless*(condition: Node): Node =
   Node(kind: nkTag, tagName: "else unless", parameters: @[condition])
+
+proc nodeUnless*(condition: Node): Node =
+  Node(kind: nkTag, tagName: "unless", parameters: @[condition])
 proc nodeElse*(): Node =
   Node(kind: nkTag, tagName: "else", parameters: @[])
 proc nodeEndIf*(): Node =
   Node(kind: nkEnd, tagName: "if", parameters: @[])
-proc endUnless*(): Node =
-  Node(kind: nkEnd, tagName: "unless", parameters: @[])
 
 
-proc nodeCase*(caseVar: string): Node =
-  Node(kind: nkTag, tagName: "case", parameters: @[nodeVariable(caseVar)])
+proc nodeCase*(condition: Node): Node =
+  Node(kind: nkTag, tagName: "case", parameters: @[condition])
+proc nodeCase*(identifier: string): Node =
+  Node(kind: nkTag, tagName: "case", parameters: @[nodeVariable(identifier)])
 proc nodeWhen*(condition: Node): Node =
   Node(kind: nkTag, tagName: "when", parameters: @[condition])
 proc nodeWhen*(conditions: seq[Node]): Node =
@@ -132,15 +176,12 @@ proc nodeWhen*(conditions: seq[Node]): Node =
 proc nodeEndCase*(): Node =
   Node(kind: nkEnd, tagName: "case", parameters: @[])
 
-proc nodeFor*(iterVar: string, collection: Node, parameters: seq[Node]): Node =
-  Node(kind: nkTag, tagName: "for", parameters: @[nodeVariable(iterVar), collection] & parameters)
 proc nodeEndFor*(): Node =
   Node(kind: nkEnd, tagName: "for", parameters: @[])
 
-proc nodeTablerow*(iterVar: string, collection: Node, parameters: seq[Node]): Node =
+proc nodeTablerow*(iterVar: string, collection: Node, parameters: seq[Node] = @[]): Node =
   Node(kind: nkTag, tagName: "tablerow", parameters: @[nodeVariable(iterVar), collection] & parameters)
-proc nodeEndTablerow*(): Node =
-  Node(kind: nkEnd, tagName: "tablerow", parameters: @[])
+
 
 proc nodeCapture*(name: string): Node =
   Node(kind: nkTag, tagName: "capture", parameters: @[nodeVariable(name)])
@@ -179,11 +220,110 @@ proc nodeEmpty*(): Node =
 proc nodeNil*(): Node =
   Node(kind: nkNil)
 
-proc nodeEcho*(output: Node): Node =
-  Node(kind: nkTag, tagName: "echo", parameters: @[output])
 proc nodeContinue*(): Node =
   Node(kind: nkContinue)
 
+proc nodeIfchanged*(expr: Node = nil): Node =
+  if expr.isNil:
+    Node(kind: nkTag, tagName: "ifchanged", parameters: @[])
+  else:
+    Node(kind: nkTag, tagName: "ifchanged", parameters: @[expr])
+
+proc nodeEndIfchanged*(): Node =
+  Node(kind: nkEnd, tagName: "ifchanged", parameters: @[])
+
+proc nodeRaw*(content: string): Node =
+  Node(kind: nkTag, tagName: "raw", parameters: @[nodeString(content)])
+proc nodeEndRaw*(): Node =
+   Node(kind: nkEnd, tagName: "raw", parameters: @[])
+
+proc nodeRender*(templateName: string, params: seq[(string, Node)] = @[]): Node =
+  var parameters = @[nodeString(templateName)]
+  for (name, value) in params:
+    parameters.add(nodeVariable(name))
+    parameters.add(value)
+  Node(kind: nkTag, tagName: "render", parameters: parameters)
+
+proc nodeRender*(templateName: string, boundVar: Node, alias: string = ""): Node =
+  var parameters = @[nodeString(templateName), boundVar]
+  if alias != "":
+    parameters.add(nodeString(alias))
+  Node(kind: nkTag, tagName: "render", parameters: parameters)
+
+proc nodeRenderFor*(templateName: string, collection: Node): Node =
+  Node(kind: nkTag, tagName: "render", parameters: @[nodeString(templateName), collection])
+
+proc nodeLiquid*(commands: seq[Node]): Node =
+  Node(kind: nkTag, tagName: "liquid", parameters: commands)
+
+# proc nodeUnless*(condition: Node, trueBody: seq[Section] = @[], falseBody: seq[Section] = @[], elsifs: seq[(Node, seq[Section])] = @[]): Node =
+#   var params = @[condition]
+#   # Add body sections as nodes
+#   for section in trueBody:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   for section in falseBody:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   for (cond, sections) in elsifs:
+#     params.add(cond)
+#     for section in sections:
+#       if section.ast != nil:
+#         params.add(section.ast)
+#   Node(kind: nkTag, tagName: "unless", parameters: params)
+
+# Complex overload commented out - tests use simpler version
+# proc nodeTablerow*(iterVar: string, collection: Node, body: seq[Section], cols: int = 0, limit: int = 0, offset: int = 0): Node =
+#   var params = @[nodeVariable(iterVar), collection]
+#   if cols > 0:
+#     params.add(nodeNumber(cols.float))
+#   if limit > 0:
+#     params.add(nodeNumber(limit.float))
+#   if offset > 0:
+#     params.add(nodeNumber(offset.float))
+#   for section in body:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   Node(kind: nkTag, tagName: "tablerow", parameters: params)
+
+# proc nodeTablerow*(iterVar: string, collection: Node, body: seq[Section], cols: Node): Node =
+#   var params = @[nodeVariable(iterVar), collection, cols]
+#   for section in body:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   Node(kind: nkTag, tagName: "tablerow", parameters: params)
+
+proc nodeEndTablerow*(): Node =
+  Node(kind: nkEnd, tagName: "tablerow", parameters: @[])
+
+proc nodeEcho*(output: seq[Node]): Node =
+  Node(kind: nkTag, tagName: "echo", parameters: output)
+
+# proc nodeIf*(condition: Node, body: seq[Section], elseBody: seq[Section] = @[], elsifs: seq[(Node, seq[Section])] = @[]): Node =
+#   var params = @[condition]
+#   # Add body sections as nodes
+#   for section in body:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   for section in elseBody:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   for (cond, sections) in elsifs:
+#     params.add(cond)
+#     for section in sections:
+#       if section.ast != nil:
+#         params.add(section.ast)
+#   Node(kind: nkTag, tagName: "if", parameters: params)
+
+# proc nodeFor*(iterVar: string, collection: Node, body: seq[Section]): Node =
+#   var params = @[nodeVariable(iterVar), collection]
+#   for section in body:
+#     if section.ast != nil:
+#       params.add(section.ast)
+#   Node(kind: nkTag, tagName: "for", parameters: params)
+
+proc nodeEndUnless*(): Node =
+  Node(kind: nkEnd, tagName: "unless", parameters: @[])
 
 
 proc section*(sectionType:SectionType, tokens:seq[Token], ast:Node):TestSection =
@@ -245,6 +385,7 @@ type
     testName*: string
   CustomFormatter = ref object of OutputFormatter
     failures: seq[TestFailure]
+    successes: int
     suiteName: string
 
 let
@@ -253,6 +394,8 @@ let
 method testEnded*(formatter: CustomFormatter, testResult: TestResult) =
   if testResult.status == TestStatus.FAILED:
     formatter.failures.add(TestFailure( suiteName: formatter.suiteName, testName: testResult.testName ))
+  elif testResult.status == TestStatus.OK:
+    formatter.successes.inc()
 
   var color = case testResult.status
     of TestStatus.OK: fgGreen
@@ -276,6 +419,9 @@ method suiteStarted*(formatter: CustomFormatter, suiteName: string) =
 
 proc getFailures*(): seq[TestFailure] =
   formatter.failures
+
+proc getSuccesses*(): int =
+  formatter.successes
 
 
 

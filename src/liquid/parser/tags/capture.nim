@@ -2,7 +2,11 @@ include json
 
 include ../core
 
-const tag_info* = TagHandlerInfo(opening_tag: "capture", block_tag: true)
+const tag_info* = TagHandlerInfo(
+  opening_tag: "capture",
+  block_tag: true,
+  inner_tags: @[]  # No separators for capture
+)
 
 proc parse*(p: Parser): Node =
   case p.advance().value:

@@ -2,7 +2,11 @@ include json
 
 include ../core
 
-const tag_info* = TagHandlerInfo(opening_tag: "tablerow", block_tag: true)
+const tag_info* = TagHandlerInfo(
+  opening_tag: "tablerow",
+  block_tag: true,
+  inner_tags: @["break", "continue"]  # Tablerow supports break/continue
+)
 
 proc parse*(p: Parser): Node =
   case p.advance().value:
@@ -29,7 +33,7 @@ proc parse*(p: Parser): Node =
         value
       ])
 
-      while p.current.kind == TkParameter:
+      while p.current.kind == TkIdentifier and p.peek.kind == TkColon:
         let
           name = p.advance.value
           colon = p.advance()
@@ -43,6 +47,10 @@ proc parse*(p: Parser): Node =
         if p.current.kind == TkComma: # consume optional comma
           discard p.advance()
 
+    of "break":
+      result = Node(kind: nkContinue, tagName: "break", parameters: @[])
+    of "continue":
+      result = Node(kind: nkContinue, tagName: "continue", parameters: @[])
     of "endtablerow","end": result = Node(kind: nkEnd, tagName: "tablerow", parameters: @[])
     else: result = nil
 

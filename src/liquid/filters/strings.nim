@@ -65,10 +65,6 @@ create_filter:
   proc escape(input: string): string =
     result = xmltree.escape(input)
 
-# TODO: This is not working, it will actually escape again
-# create_filter:
-#   proc escape_once(input: string): string =
-#     result = xmltree.escape(input)
 
 # Converts a string into a URL-friendly format
 create_filter:
@@ -144,72 +140,132 @@ create_filter:
 
 
 # Removes specified characters from the beginning of a string
-#lstrip : string [characters:string]
+create_filter:
+  proc lstrip(input: string, chars: string = " \t\n\r"): string =
+    var i = 0
+    while i < input.len and input[i] in chars:
+      inc i
+    result = input[i..^1]
 
 # Removes specified characters from the end of a string
-#rstrip : string [characters:string]
+create_filter:
+  proc rstrip(input: string, chars: string = " \t\n\r"): string =
+    var i = input.len - 1
+    while i >= 0 and input[i] in chars:
+      dec i
+    result = input[0..i]
 
 # Reverses the characters in a string
-#reverse : string
+create_filter:
+  proc reverse(input: string): string =
+    result = ""
+    for i in countdown(input.len - 1, 0):
+      result.add(input[i])
+
+# Returns the size/length of a string
+create_filter:
+  proc size(input: string): int =
+    result = input.len
 
 # Prepends a string to another string
-#prepend : string prefix:string
+create_filter:
+  proc prepend(input: string, prefix: string): string =
+    result = prefix & input
 
 # Escapes a string for use in a URL
-#url_encode : string
+create_filter:
+  proc url_encode(input: string): string =
+    result = ""
+    for c in input:
+      case c
+      of 'a'..'z', 'A'..'Z', '0'..'9', '-', '_', '.', '~':
+        result.add(c)
+      of ' ':
+        result.add('+')
+      else:
+        result.add('%')
+        result.add(toHex(ord(c), 2))
 
 # Unescapes a URL-encoded string
-#url_decode : string
+create_filter:
+  proc url_decode(input: string): string =
+    result = ""
+    var i = 0
+    while i < input.len:
+      if input[i] == '+':
+        result.add(' ')
+        inc i
+      elif input[i] == '%' and i + 2 < input.len:
+        try:
+          let hex = input[i+1..i+2]
+          result.add(chr(parseHexInt(hex)))
+          i += 3
+        except:
+          result.add(input[i])
+          inc i
+      else:
+        result.add(input[i])
+        inc i
 
-# Escapes a string for use in HTML
-#escape : string
+# escape_once was implemented above as a commented TODO, let's fix it
+create_filter:
+  proc escape_once(input: string): string =
+    # Check if string contains HTML entities
+    if "&amp;" in input or "&lt;" in input or "&gt;" in input or "&quot;" in input or "&#39;" in input:
+      # Already escaped, return as-is
+      result = input
+    else:
+      result = xmltree.escape(input)
 
-# Unescapes a string from HTML
-#escape_once : string
-
-# Escapes a string for use in JSON
-#json_escape : string
 
 # Returns a slice of a string
-#slice : string start:number [length:number]
+create_filter:
+  proc slice(input: string, start: int, length: int = -1): string =
+    let actualStart = if start < 0: input.len + start else: start
+    if actualStart < 0 or actualStart >= input.len:
+      return ""
+    
+    if length < 0:
+      result = input[actualStart..^1]
+    else:
+      let endIdx = min(actualStart + length - 1, input.len - 1)
+      result = input[actualStart..endIdx]
 
-# Converts newline characters to HTML line breaks
-#strip_newlines : string
 
 # Removes all HTML tags from a string
-#remove : string substring:string
+create_filter:
+  proc strip_html(input: string): string =
+    result = re.replace(input, re"<[^>]*>")
+
+# Removes all occurrences of a substring from a string
+create_filter:
+  proc remove(input: string, substring: string): string =
+    result = input.replace(substring, "")
 
 # Removes the first occurrence of a substring from a string
-#remove_first : string substring:string
+create_filter:
+  proc remove_first(input: string, substring: string): string =
+    let idx = input.find(substring)
+    if idx >= 0:
+      result = input[0..<idx] & input[idx + substring.len..^1]
+    else:
+      result = input
 
 # Removes the last occurrence of a substring from a string
-#remove_last : string substring:string
+create_filter:
+  proc remove_last(input: string, substring: string): string =
+    let idx = input.rfind(substring)
+    if idx >= 0:
+      result = input[0..<idx] & input[idx + substring.len..^1]
+    else:
+      result = input
 
-# Removes leading whitespace from a string
-#lstrip : string
+# replace_last - Replaces the last occurrence of a substring
+create_filter:
+  proc replace_last(input: string, old: string, replacement: string): string =
+    let idx = input.rfind(old)
+    if idx >= 0:
+      result = input[0..<idx] & replacement & input[idx + old.len..^1]
+    else:
+      result = input
 
-# Removes trailing whitespace from a string
-#rstrip : string
-
-# Converts a string into an MD5 hash
-#md5 : string
-
-# Converts a string into a SHA1 hash
-#sha1 : string
-
-# Converts a string into a SHA256 hash
-#sha256 : string
-
-# Converts a string into a SHA512 hash
-#sha512 : string
-
-# proc apply_string_filter(value: JsonNode, filterName: string, args: JsonNode, context: Context): JsonNode =
-#   case filterName
-#   of "base64_encode":
-#     let encoding = if args.len > 0 and args[0].kind == JString: args[0].getStr else: "standard"
-#     let lineLength = if args.len > 1 and args[1].kind == JInt: args[1].getInt else: -1
-#     return newJString(encode(value.getStr, encoding, lineLength))
-#   # ... other filters ...
-#   else:
-#     echo "Unknown filter: ", filterName
-#     return value

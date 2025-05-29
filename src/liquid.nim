@@ -8,10 +8,8 @@ import liquid/renderer
 proc test(source: string, context: JsonNode, expected: string): bool =
   try:
     let sections = lex(source)
-    for section in sections:
-      if section.sectionType == Text:
-        continue
-      section.ast = parse(section.tokens, context)
+    let parsedSections = parse(sections)
+    let renderedTemplate = renderSections(parsedSections, context)
 
     echo "    rendered: \"" & renderedTemplate & "\""
     echo "    expected: \"" & expected & "\""
@@ -46,8 +44,8 @@ for kind, key, val in optparser.getopt():
     echo "  -t, --test <test>    Run only the specified test"
     quit(0)
 
-# Read test/golden_liquid.json and parse the JSON
-let test_groups = parseFile("test/golden_liquid.json")["test_groups"].getElems()
+# Read test/golden_liquid/golden_liquid.json and parse the JSON
+let test_groups = parseFile("test/golden_liquid/golden_liquid.json")["test_groups"].getElems()
 
 # Run the tests
 for test_group in test_groups:

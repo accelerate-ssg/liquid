@@ -1,47 +1,75 @@
-[
-  {
-    "name": "assign and increment",
-    "template": "{% assign foo = 5 %}{{ foo }} {% increment foo %} {% increment foo %} {{ foo }}",
-    "want": "5 0 1 5",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "incrementing counter renders before incrementing",
-    "template": "{% increment foo %} {{ foo }}",
-    "want": "0 1",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "multiple named counters",
-    "template": "{% increment foo %} {% increment bar %} {% increment foo %} {% increment bar %}",
-    "want": "0 0 1 1",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "named counter",
-    "template": "{% increment foo %} {% increment foo %} {% increment foo %}",
-    "want": "0 1 2",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "named counters are in scope for subsequent expressions",
-    "template": "{% increment foo %} {% increment foo %} {% if foo > 0 %}{{ foo }}{% endif %}",
-    "want": "0 1 2",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  }
-]
+
+
+suite "increment tag":
+  testCase(
+    "basic increment",
+    "{% increment foo %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "increment"),
+          token(TkIdentifier, "foo")
+        ],
+        nodeIncrement("foo")
+      )
+    ],
+    output = "0"
+  )
+  
+  testCase(
+    "increment twice",
+    "{% increment foo %} {% increment foo %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "increment"),
+          token(TkIdentifier, "foo")
+        ],
+        nodeIncrement("foo")
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "increment"),
+          token(TkIdentifier, "foo")
+        ],
+        nodeIncrement("foo")
+      )
+    ],
+    output = "0 1"
+  )
+  
+  testCase(
+    "increment and variable access",
+    "{% increment foo %} {{ foo }}",
+    @[
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "increment"),
+          token(TkIdentifier, "foo")
+        ],
+        nodeIncrement("foo")
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Output,
+        @[
+          token(TkIdentifier, "foo")
+        ],
+        nodeOutput(@[nodeVariable("foo")])
+      )
+    ],
+    output = "0 1"
+  )

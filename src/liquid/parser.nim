@@ -10,13 +10,36 @@ proc parseOutputSection(p: Parser): Node =
 proc parseTagSection(p: Parser): Node =
   let tagName = p.current().value
   var handler: TagHandler
+  var handlerInfo: TagHandlerInfo
+  var found = false
 
-  if tagName in p.tagHandlerLookup:
-    handler = p.tagHandlerLookup[tagName]
-    p.handlerStack.add(handler)
-  elif p.handlerStack.len > 0:
-    handler = p.handlerStack[^1]
-  else:
+  # Look for a handler that matches this tag name
+  for info, h in p.tagHandlerLookup:
+    if info.opening_tag == tagName:
+      handler = h
+      handlerInfo = info
+      found = true
+      if info.block_tag:
+        p.handlerStack.add(handler)
+      break
+
+  if not found and p.handlerStack.len > 0:
+    # Check if this is a block separator or end tag for the current handler
+    for info, h in p.tagHandlerLookup:
+      if p.handlerStack[^1] == h:
+        # Check if it's a valid block separator
+        if tagName in info.inner_tags:
+          handler = h
+          found = true
+          break
+        # Check if it's a valid end tag (generic "end" or "end" + opening_tag)
+        let isGenericEnd = tagName == "end" or tagName == "end" & info.opening_tag
+        if isGenericEnd:
+          handler = h
+          found = true
+          break
+
+  if not found:
     raise newException(ValueError, "1 Unsupported tag: " & tagName)
 
   result = handler(p)

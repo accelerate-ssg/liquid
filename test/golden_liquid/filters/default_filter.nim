@@ -269,7 +269,7 @@ suite "default filter":
     "{% assign b = a | default: foo %}{% for item in b %}({{ item[0] }},{{ item[1] }}){% endfor %}",
     @[
       section(SectionType.Tag, @[
-        token(TkKeyword, "assign"),
+        token(TkIdentifier, "assign"),
         token(TkIdentifier, "b"),
         token(TkAssign),
         token(TkIdentifier, "a"),
@@ -280,9 +280,9 @@ suite "default filter":
       ],
         nodeAssign("b", nodeFilter("default", @[nodeVariable("a"), nodeArgument("", nodeVariable("foo"))]))),
       section(SectionType.Tag, @[
-        token(TkKeyword, "for"),
+        token(TkIdentifier, "for"),
         token(TkIdentifier, "item"),
-        token(TkKeyword, "in"),
+        token(TkOperator, "in"),
         token(TkIdentifier, "b")
       ], nodeFor("item", nodeVariable("b"), @[])),
       section(SectionType.Text, @[], nil),
@@ -305,7 +305,7 @@ suite "default filter":
       ])),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
-        token(TkKeyword, "endfor")
+        token(TkIdentifier, "endfor")
       ], nodeEndFor())
     ],
     context = %*{"a": {"greeting": "hello"}, "foo": {"greeting": "goodbye"}},

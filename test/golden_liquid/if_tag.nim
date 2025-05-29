@@ -1,4 +1,4 @@
-import helpers
+
 
 suite "if statement":
   testCase(
@@ -8,7 +8,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNumber, "0.0")
         ],
         nodeIf(nodeNumber(0.0))
@@ -21,7 +21,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -33,7 +33,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -47,7 +47,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -67,7 +67,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -82,7 +82,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "x"),
           token(TkAssign),
           token(TkString, "a,b,c"),
@@ -96,7 +96,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "y"),
           token(TkAssign),
           token(TkString, "a,b,c"),
@@ -110,7 +110,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "x"),
           token(TkOperator, "=="),
           token(TkIdentifier, "y")
@@ -125,7 +125,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -137,7 +137,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -151,7 +151,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "y"),
           token(TkAssign),
           token(TkString, "a,b,c"),
@@ -165,7 +165,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "x"),
           token(TkOperator, "=="),
           token(TkIdentifier, "y")
@@ -180,7 +180,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -192,7 +192,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -207,7 +207,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "true")
         ],
         nodeIf(nodeBoolean(true))
@@ -220,7 +220,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "comment")
+          token(TkIdentifier, "comment")
         ],
         nodeComment()
       ),
@@ -232,7 +232,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endcomment")
+          token(TkIdentifier, "endcomment")
         ],
         nodeEndComment()
       ),
@@ -244,7 +244,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -258,7 +258,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "true")
         ],
         nodeIf(nodeBoolean(true))
@@ -271,7 +271,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "elsif"),
+          token(TkIdentifier, "elsif"),
           token(TkBoolean, "false")
         ],
         nodeElsIf(nodeBoolean(false))
@@ -284,7 +284,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -296,7 +296,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -310,7 +310,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -327,7 +327,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "elsif"),
+          token(TkIdentifier, "elsif"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -344,7 +344,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -359,7 +359,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -376,7 +376,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "elsif"),
+          token(TkIdentifier, "elsif"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -393,7 +393,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -405,7 +405,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -420,7 +420,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -437,7 +437,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -452,7 +452,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -469,7 +469,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -481,7 +481,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -496,7 +496,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "false")
         ],
         nodeIf(nodeBoolean(false))
@@ -509,7 +509,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "elsif"),
+          token(TkIdentifier, "elsif"),
           token(TkBoolean, "false")
         ],
         nodeElsIf(nodeBoolean(false))
@@ -522,7 +522,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -534,7 +534,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -548,7 +548,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "tags"),
@@ -565,7 +565,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -580,7 +580,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "false")
         ],
         nodeIf(nodeBoolean(false))
@@ -593,7 +593,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else"),
+          token(TkIdentifier, "else"),
           token(TkIdentifier, "nonsense")
         ],
         nodeElse()
@@ -606,7 +606,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -621,7 +621,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "x"),
           token(TkOperator, "=="),
           token(TkEmpty)
@@ -636,7 +636,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -648,7 +648,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -663,7 +663,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "x")
         ],
         nodeIf(nodeVariable("x"))
@@ -676,7 +676,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -688,7 +688,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -703,7 +703,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "x"),
           token(TkOperator, "=="),
           token(TkEmpty)
@@ -718,7 +718,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -730,7 +730,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -745,7 +745,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "x")
         ],
         nodeIf(nodeVariable("x"))
@@ -758,7 +758,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -770,7 +770,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -785,7 +785,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "")
         ],
         nodeIf(nodeString(""))
@@ -798,7 +798,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -810,7 +810,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -824,7 +824,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "false")
         ],
         nodeIf(nodeBoolean(false))
@@ -837,7 +837,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -849,7 +849,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -861,7 +861,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -876,7 +876,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "false")
         ],
         nodeIf(nodeBoolean(false))
@@ -889,7 +889,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -901,7 +901,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "elsif"),
+          token(TkIdentifier, "elsif"),
           token(TkBoolean, "true")
         ],
         nodeElsIf(nodeBoolean(true))
@@ -914,7 +914,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -929,7 +929,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNumber, "1"),
           token(TkOperator, "=="),
           token(TkString, "1")
@@ -944,7 +944,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -956,7 +956,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -970,7 +970,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNumber, "1"),
           token(TkOperator, "=="),
           token(TkNumber, "1.0")
@@ -985,7 +985,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -997,7 +997,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1011,7 +1011,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "false")
         ],
         nodeIf(nodeBoolean(false))
@@ -1019,7 +1019,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1033,7 +1033,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNil)
         ],
         nodeIf(nodeNil())
@@ -1046,7 +1046,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1058,7 +1058,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1072,7 +1072,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkBoolean, "true"),
           token(TkAnd),
           token(TkBoolean, "false"),
@@ -1102,7 +1102,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1116,7 +1116,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product")
         ],
         nodeIf(nodeVariable("product"))
@@ -1124,7 +1124,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "title"),
           token(TkOperator, "=="),
           token(TkString, "Hello")
@@ -1139,14 +1139,14 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       ),
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1161,7 +1161,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product")
         ],
         nodeIf(nodeVariable("product"))
@@ -1169,7 +1169,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "title"),
           token(TkOperator, "=="),
           token(TkString, "goodbye")
@@ -1184,7 +1184,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1196,14 +1196,14 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       ),
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1218,7 +1218,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product")
         ],
         nodeIf(nodeVariable("product"))
@@ -1231,7 +1231,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1243,7 +1243,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1258,7 +1258,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "product"),
           token(TkDot),
           token(TkIdentifier, "title"),
@@ -1275,7 +1275,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1290,7 +1290,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNumber, "1"),
           token(TkOperator, "=="),
           token(TkBoolean, "true")
@@ -1305,7 +1305,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1317,7 +1317,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1331,7 +1331,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "foo"),
           token(TkAssign),
           token(TkLeftParen),
@@ -1345,7 +1345,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "foo"),
           token(TkOperator, "=="),
           token(TkLeftParen),
@@ -1367,7 +1367,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1379,7 +1379,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1393,7 +1393,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "hel9lo"),
           token(TkOperator, "contains"),
           token(TkNumber, "9")
@@ -1408,7 +1408,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1420,7 +1420,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1435,7 +1435,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "1"),
           token(TkOperator, "=="),
           token(TkNumber, "1")
@@ -1450,7 +1450,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1462,7 +1462,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1476,7 +1476,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "2"),
           token(TkOperator, ">"),
           token(TkNumber, "1")
@@ -1491,7 +1491,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1503,7 +1503,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1520,7 +1520,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "abc"),
           token(TkOperator, ">="),
           token(TkString, "acb")
@@ -1535,7 +1535,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1547,7 +1547,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1561,7 +1561,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "abc"),
           token(TkOperator, ">"),
           token(TkString, "acb")
@@ -1576,7 +1576,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1588,7 +1588,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1602,7 +1602,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "abc"),
           token(TkOperator, "<="),
           token(TkString, "acb")
@@ -1617,7 +1617,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1629,7 +1629,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1643,7 +1643,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "abc"),
           token(TkOperator, "<"),
           token(TkString, "acb")
@@ -1658,7 +1658,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1670,7 +1670,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1684,7 +1684,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "bbb"),
           token(TkOperator, ">="),
           token(TkString, "aaa")
@@ -1699,7 +1699,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1711,7 +1711,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1725,7 +1725,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "bbb"),
           token(TkOperator, ">"),
           token(TkString, "aaa")
@@ -1740,7 +1740,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1752,7 +1752,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1766,7 +1766,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "bbb"),
           token(TkOperator, "<="),
           token(TkString, "aaa")
@@ -1781,7 +1781,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1793,7 +1793,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1807,7 +1807,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkString, "bbb"),
           token(TkOperator, "<"),
           token(TkString, "aaa")
@@ -1822,7 +1822,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1834,7 +1834,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1848,7 +1848,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "nosuchthing"),
           token(TkOperator, "=="),
           token(TkNil)
@@ -1863,7 +1863,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1875,7 +1875,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1889,7 +1889,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "nosuchthing"),
           token(TkOperator, "=="),
           token(TkNil)
@@ -1904,7 +1904,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1916,7 +1916,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1930,7 +1930,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkIdentifier, "nosuchthing")
         ],
         nodeIf(nodeVariable("nosuchthing"))
@@ -1943,7 +1943,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1955,7 +1955,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -1969,7 +1969,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNumber, "0"),
           token(TkOperator, "=="),
           token(TkBoolean, "false")
@@ -1984,7 +1984,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -1996,7 +1996,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )
@@ -2010,7 +2010,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "if"),
+          token(TkIdentifier, "if"),
           token(TkNumber, "0")
         ],
         nodeIf(nodeNumber(0))
@@ -2023,7 +2023,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "else")
+          token(TkIdentifier, "else")
         ],
         nodeElse()
       ),
@@ -2035,7 +2035,7 @@ suite "if statement":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "endif")
+          token(TkIdentifier, "endif")
         ],
         nodeEndIf()
       )

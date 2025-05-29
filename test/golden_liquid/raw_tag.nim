@@ -1,47 +1,70 @@
-[
-  {
-    "name": "continue after raw",
-    "template": "{% raw %} {% some raw content %} {% endraw %}a literal",
-    "want": " {% some raw content %} a literal",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "literal",
-    "template": "{% raw %}foo{% endraw %}",
-    "want": "foo",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "partial tag",
-    "template": "{% raw %} %} {% }} {{ {% endraw %}",
-    "want": " %} {% }} {{ ",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "statement",
-    "template": "{% raw %}{{ foo }}{% endraw %}",
-    "want": "{{ foo }}",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  },
-  {
-    "name": "tag",
-    "template": "{% raw %}{% assign x = 1 %}{% endraw %}",
-    "want": "{% assign x = 1 %}",
-    "context": {},
-    "partials": {},
-    "error": false,
-    "strict": false
-  }
-]
+
+
+suite "raw tag":
+  testCase(
+    "continue after raw",
+    "{% raw %} {% some raw content %} {% endraw %}a literal",
+    @[
+      section(
+        SectionType.Tag,
+        @[token(TkIdentifier, "raw")],
+        nodeRaw(" {% some raw content %} ")
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "a"), token(TkIdentifier, "literal")],
+        nodeOutput(@[
+          nodeIdentifier("a"),
+          nodeIdentifier("literal")
+        ])
+      )
+    ]
+  )
+
+  testCase(
+    "literal",
+    "{% raw %}foo{% endraw %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[token(TkIdentifier, "raw")],
+        nodeRaw("foo")
+      )
+    ]
+  )
+
+  testCase(
+    "partial tag",
+    "{% raw %} %} {% }} {{ {% endraw %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[token(TkIdentifier, "raw")],
+        nodeRaw(" %} {% }} {{ ")
+      )
+    ]
+  )
+
+  testCase(
+    "statement",
+    "{% raw %}{{ foo }}{% endraw %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[token(TkIdentifier, "raw")],
+        nodeRaw("{{ foo }}")
+      )
+    ]
+  )
+
+  testCase(
+    "tag",
+    "{% raw %}{% assign x = 1 %}{% endraw %}",
+    @[
+      section(
+        SectionType.Tag,
+        @[token(TkIdentifier, "raw")],
+        nodeRaw("{% assign x = 1 %}")
+      )
+    ]
+  )

@@ -1,4 +1,3 @@
-import helpers
 
 var testResults: seq[string]
 
@@ -10,7 +9,7 @@ suite "assign tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "foo"),
           token(TkAssign),
           token(TkIdentifier, "bar")
@@ -58,7 +57,7 @@ suite "assign tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "foo"),
           token(TkAssign),
           token(TkIdentifier, "bar"),
@@ -87,7 +86,7 @@ suite "assign tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "foo"),
           token(TkAssign),
           token(TkIdentifier, "bar"),
@@ -121,7 +120,7 @@ suite "assign tag":
       section(
         SectionType.Tag,
         @[
-          token(TkKeyword, "assign"),
+          token(TkIdentifier, "assign"),
           token(TkIdentifier, "foo"),
           token(TkAssign),
           token(TkString, "foo"),
