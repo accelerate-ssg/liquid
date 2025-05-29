@@ -130,7 +130,23 @@ proc parseScalar*(p: Parser): Node =
   of TkLeftParen:
     result = p.parseRange()
   of TkLeftBracket:
-    result = p.parseArray()
+    # Check if this is bracket notation [something] or array literal [1,2,3]
+    let savedPos = p.position
+    discard p.advance() # consume [
+    
+    # If the next token is an identifier and the one after is ], it's bracket notation
+    if p.current().kind == TkIdentifier and p.peek().kind == TkRightBracket:
+      let identifier = p.advance()
+      discard p.advance() # consume ]
+      # This is bracket notation [something] - create index with nil base
+      result = Node(kind: nkVariable, segments: @[
+        Node(kind: nkNil),
+        Node(kind: nkVariable, segments: @[Node(kind: nkString, strVal: identifier.value)])
+      ])
+    else:
+      # Reset position and parse as array
+      p.position = savedPos
+      result = p.parseArray()
   of TkNil, TkEOF:
     discard p.advance()
     result = Node(kind: nkNil)
