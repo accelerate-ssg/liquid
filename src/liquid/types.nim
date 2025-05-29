@@ -55,7 +55,7 @@ type
     TkDot, TkComma, TkColon, TkPipe, TkAssign, TkRange,
     TkLeftParen, TkRightParen, TkLeftBracket, TkRightBracket,
     TkBoolean, TkEmpty, TkNil, TkParameter, TkEOF,
-    TkAnd, TkOr, TkSymbol
+    TkAnd, TkOr, TkSymbol, TkNewline
 
   Token* = object
     kind*: TokenKind

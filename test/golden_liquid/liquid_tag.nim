@@ -54,8 +54,10 @@ suite "liquid tag":
         SectionType.Tag,
         @[
           token(TkIdentifier, "liquid"),
+          token(TkNewline, "\n"),
           token(TkIdentifier, "echo"),
-          token(TkString, "good")
+          token(TkString, "good"),
+          token(TkNewline, "\n")
         ],
         nodeLiquid(@[
           nodeEcho(@[nodeString("good")])
@@ -135,10 +137,68 @@ suite "liquid tag":
       section(
         SectionType.Tag,
         @[
-          token(TkIdentifier, "liquid")
-          # TODO: The liquid tag parser will need to handle newline-separated commands
+          token(TkIdentifier, "liquid"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "if"),
+          token(TkIdentifier, "product"),
+          token(TkDot, "."),
+          token(TkIdentifier, "title"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "echo"),
+          token(TkIdentifier, "product"),
+          token(TkDot, "."),
+          token(TkIdentifier, "title"),
+          token(TkPipe, "|"),
+          token(TkIdentifier, "upcase"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "else"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "echo"),
+          token(TkString, "product-1"),
+          token(TkPipe, "|"),
+          token(TkIdentifier, "upcase"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "endif"),
+          token(TkNewline, "\n"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "for"),
+          token(TkIdentifier, "i"),
+          token(TkOperator, "in"),
+          token(TkLeftParen, "("),
+          token(TkNumber, "0"),
+          token(TkRange, ".."),
+          token(TkNumber, "5"),
+          token(TkRightParen, ")"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "echo"),
+          token(TkIdentifier, "i"),
+          token(TkNewline, "\n"),
+          token(TkIdentifier, "endfor")
         ],
-        nodeLiquid(@[])  # Complex liquid parsing not implemented yet
+        nodeLiquid(@[
+          nodeIf(
+            nodeVariable("product.title")
+          ),
+          nodeEcho(@[
+            nodeFilter(
+              nodeVariable("product.title"),
+              "upcase"
+            )
+          ]),
+          nodeEcho(@[
+            nodeFilter(
+              nodeString("product-1"),
+              "upcase"
+            )
+          ]),
+          nodeFor(
+            "i",
+            nodeRange(nodeNumber(0), nodeNumber(5))
+          ),
+          nodeEcho(@[
+            nodeVariable("i")
+          ])
+        ])
       )
     ],
     context = %*{"product": {"title": "foo"}},

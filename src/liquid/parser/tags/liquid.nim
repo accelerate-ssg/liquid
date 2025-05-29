@@ -1,5 +1,5 @@
 import ../../types, ../core
-import strutils
+import tables
 
 const tag_info* = TagHandlerInfo(
   opening_tag: "liquid",
@@ -59,26 +59,55 @@ proc parseLiquidCommand(p: Parser): Node =
 proc parse*(p: Parser): Node =
   case p.advance().value:
     of "liquid":
-      # The liquid tag contains multiple liquid commands
+      # The liquid tag contains multiple liquid commands separated by newlines
       var commands: seq[Node] = @[]
       
-      # Parse commands until we run out of tokens
-      while p.position < p.tokens.len:
-        # Save current position in case we need to backtrack
-        let savedPos = p.position
-        
-        # Try to parse a command
-        let cmd = parseLiquidCommand(p)
-        if cmd != nil:
-          commands.add(cmd)
+      # Split tokens by newlines
+      var lines: seq[seq[Token]] = @[]
+      var currentLine: seq[Token] = @[]
+      
+      for token in p.tokens[p.position..^1]:
+        if token.kind == TkNewline:
+          if currentLine.len > 0:
+            lines.add(currentLine)
+            currentLine = @[]
         else:
-          # If we couldn't parse a command, check if we're at a potential command start
-          if p.current.kind == TkIdentifier and p.current.value in ["echo", "assign", "liquid"]:
-            # We're at a command but failed to parse it, skip this token
-            discard p.advance()
-          else:
-            # Not a command, skip this token
-            discard p.advance()
+          currentLine.add(token)
+      
+      # Don't forget the last line if it doesn't end with newline
+      if currentLine.len > 0:
+        lines.add(currentLine)
+      
+      # Parse each line as a separate command
+      for line in lines:
+        if line.len == 0:
+          continue
+          
+        # Create a temporary parser for this line
+        var lineParser = Parser(tokens: line, position: 0, strict_mode: p.strict_mode)
+        lineParser.tagHandlerLookup = p.tagHandlerLookup
+        
+        # Parse this line as if it were a tag section
+        if lineParser.current.kind == TkIdentifier:
+          let tagName = lineParser.current.value
+          
+          # Look for a handler that matches this tag name
+          var found = false
+          for info, handler in lineParser.tagHandlerLookup:
+            if info.opening_tag == tagName:
+              try:
+                let node = handler(lineParser)
+                if node != nil:
+                  commands.add(node)
+                found = true
+                break
+              except ValueError:
+                # Skip lines that can't be parsed as valid tags
+                discard
+                
+          # If not found, it might be a continuation/end tag - skip it
+          if not found:
+            continue
       
       result = Node(kind: nkTag, tagName: "liquid", parameters: commands)
     else:

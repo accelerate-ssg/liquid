@@ -1,8 +1,18 @@
 import strutils
 import ../types, helpers, functions
 
-proc lexToken(l: var Lexer): Token =
-  l.skipWhitespace()
+proc skipWhitespacePreservingNewlines(l: var Lexer) =
+  while not l.isAtEnd:
+    case l.peek
+    of ' ', '\t', '\r':
+      discard l.advance
+    else: break
+
+proc lexToken(l: var Lexer, preserveNewlines: bool = false): Token =
+  if preserveNewlines:
+    l.skipWhitespacePreservingNewlines()
+  else:
+    l.skipWhitespace()
   if l.isAtEnd:
     return Token(kind: TkEOF, value: "", startPos: l.position, endPos: l.position)
   
@@ -37,6 +47,13 @@ proc lexToken(l: var Lexer): Token =
   of ')': result = Token(kind: TkRightParen, value: $l.advance, startPos: l.position, endPos: l.position)
   of '[': result = Token(kind: TkLeftBracket, value: $l.advance, startPos: l.position, endPos: l.position)
   of ']': result = Token(kind: TkRightBracket, value: $l.advance, startPos: l.position, endPos: l.position)
+  of '\n':
+    if preserveNewlines:
+      let startPos = l.position
+      discard l.advance
+      result = Token(kind: TkNewline, value: "\n", startPos: startPos, endPos: l.position - 1)
+    else:
+      raise newException(LexerError, "Unexpected character: " & $c)
   of '+', '-', '*', '/', '%':
     if c == '-' and l.peekNext().isDigit():
       # Handle negative numbers
@@ -49,11 +66,11 @@ proc lexToken(l: var Lexer): Token =
   else:
     raise newException(LexerError, "Unexpected character: " & $c)
 
-proc lexTagSection*(content: string): seq[Token] =
+proc lexTagSection*(content: string, preserveNewlines: bool = false): seq[Token] =
   var lexer = initLexer(content)
   result = @[]
   while not lexer.isAtEnd:
-    let token = lexer.lexToken()
+    let token = lexer.lexToken(preserveNewlines)
     if token.kind == TkEOF: break
     if token.kind != TkKeyword or token.value != "":
       lexer.last = token

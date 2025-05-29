@@ -1,4 +1,5 @@
 import types, lexer/[sections,tags]
+import strutils
 
 proc lex*(input: string): seq[Section] =
   result = lexSections(input)
@@ -7,4 +8,6 @@ proc lex*(input: string): seq[Section] =
     if section.sectionType == Text:
       continue
     
-    section.tokens = lexTagSection(section.content)
+    # Check if this is a liquid tag that needs newline preservation
+    let preserveNewlines = section.sectionType == Tag and section.content.strip().startsWith("liquid")
+    section.tokens = lexTagSection(section.content, preserveNewlines)
