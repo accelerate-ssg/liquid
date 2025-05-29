@@ -91,27 +91,43 @@ proc parse*(p: Parser): Node =
         var lineParser = Parser(tokens: line, position: 0, strict_mode: p.strict_mode)
         lineParser.tagHandlerLookup = p.tagHandlerLookup
         
-        # Parse this line as if it were a tag section
-        if lineParser.current.kind == TkIdentifier:
-          let tagName = lineParser.current.value
-          
-          # Look for a handler that matches this tag name
-          var found = false
-          for info, handler in lineParser.tagHandlerLookup:
-            if info.opening_tag == tagName:
-              try:
-                let node = handler(lineParser)
-                if node != nil:
-                  commands.add(node)
-                found = true
-                break
-              except ValueError:
-                # Skip lines that can't be parsed as valid tags
-                discard
-                
-          # If not found, it might be a continuation/end tag - skip it
-          if not found:
+        # Parse commands sequentially using parseLiquidCommand
+        while lineParser.position < lineParser.tokens.len:
+          # Skip newlines and comments
+          if lineParser.current.kind == TkNewline:
+            discard lineParser.advance()
             continue
+          if lineParser.current.kind == TkSymbol and lineParser.current.value == "#":
+            # Skip rest of line (comment)
+            break
+            
+          let cmd = parseLiquidCommand(lineParser)
+          if cmd != nil:
+            commands.add(cmd)
+          else:
+            # If we can't parse as liquid command, try regular tag parsing
+            if lineParser.current.kind == TkIdentifier:
+              let tagName = lineParser.current.value
+              
+              # Look for a handler that matches this tag name
+              var found = false
+              for info, handler in lineParser.tagHandlerLookup:
+                if info.opening_tag == tagName:
+                  try:
+                    let node = handler(lineParser)
+                    if node != nil:
+                      commands.add(node)
+                    found = true
+                    break
+                  except ValueError:
+                    # Skip lines that can't be parsed as valid tags
+                    discard
+                    
+              # If not found, it might be a continuation/end tag - skip it
+              if not found:
+                discard lineParser.advance()
+            else:
+              discard lineParser.advance()
       
       result = Node(kind: nkTag, tagName: "liquid", parameters: commands)
     else:
