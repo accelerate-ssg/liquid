@@ -48,10 +48,11 @@ proc parseVariable*(p: Parser): Node =
       segments.add(Node(kind: nkString, strVal: prop.value))
     else:
       let prop = p.parseArrayAccess()
-      if prop.kind == nkVariable:
-        segments.add(prop)
-      else:
-        segments.add(Node(kind: nkVariable, segments: @[prop]))
+      segments.add(prop)
+      # After array access, check if identifier follows without dot
+      if p.current().kind == TkIdentifier:
+        let prop = p.advance()
+        segments.add(Node(kind: nkString, strVal: prop.value))
   
   if segments.len == 1 and segments[0].kind == nkString:
     case segments[0].strVal
@@ -134,19 +135,50 @@ proc parseScalar*(p: Parser): Node =
     let savedPos = p.position
     discard p.advance() # consume [
     
-    # If the next token is an identifier and the one after is ], it's bracket notation
-    if p.current().kind == TkIdentifier and p.peek().kind == TkRightBracket:
-      let identifier = p.advance()
-      discard p.advance() # consume ]
-      # This is bracket notation [something] - create index with nil base
-      result = Node(kind: nkVariable, segments: @[
-        Node(kind: nkNil),
-        Node(kind: nkVariable, segments: @[Node(kind: nkString, strVal: identifier.value)])
-      ])
-    else:
-      # Reset position and parse as array
+    # Try to parse as bracket notation first
+    var isBracketNotation = false
+    
+    # Look ahead to determine if this is bracket notation or array literal
+    # Bracket notation: [expr] where expr is not followed by comma
+    # Array literal: [expr, expr, ...] or []
+    if p.current().kind == TkRightBracket:
+      # Empty array []
       p.position = savedPos
       result = p.parseArray()
+    else:
+      # Parse the first expression
+      let index = p.parseExpression()
+      
+      # Check what follows
+      if p.current().kind == TkRightBracket:
+        # This is bracket notation [expr]
+        discard p.advance() # consume ]
+        
+        # Create index with nil base
+        var segments: seq[Node] = @[Node(kind: nkNil), index]
+        result = Node(kind: nkVariable, segments: segments)
+        
+        # Check for chained access like [something].foo or [something][bar] or [something]foo
+        while p.current().kind in [TkDot, TkLeftBracket, TkIdentifier]:
+          if p.current.kind == TkDot:
+            discard p.advance()
+            let prop = p.advance()
+            segments.add(Node(kind: nkString, strVal: prop.value))
+          elif p.current.kind == TkLeftBracket:
+            let prop = p.parseArrayAccess()
+            segments.add(prop)
+          else:
+            # Handle identifier directly after bracket without dot
+            let prop = p.advance()
+            segments.add(Node(kind: nkString, strVal: prop.value))
+        
+        result.segments = segments
+      elif p.current().kind == TkComma:
+        # This is an array literal [expr, ...]
+        p.position = savedPos
+        result = p.parseArray()
+      else:
+        raise newException(ValueError, "Expected ] or , in bracket expression")
   of TkNil, TkEOF:
     discard p.advance()
     result = Node(kind: nkNil)

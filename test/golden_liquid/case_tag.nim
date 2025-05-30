@@ -47,7 +47,8 @@ suite "case/when":
         nodeEndCase()
       )
     ],
-    context = %*{"title": "Hello", "other": "Hello"}
+    context = %*{"title": "Hello", "other": "Hello"},
+    output = "foo"
   )
 
   testCase(
@@ -96,7 +97,8 @@ suite "case/when":
         nodeEndCase()
       )
     ],
-    context = %*{"title": "Hello"}
+    context = %*{"title": "Hello"},
+    output = "bar"
   )
 
   testCase(
@@ -147,7 +149,8 @@ suite "case/when":
         nodeEndCase()
       )
     ],
-    context = %*{"title": "Hello"}
+    context = %*{"title": "Hello"},
+    output = "bar"
   )
 
   testCase(
@@ -198,7 +201,8 @@ suite "case/when":
         nodeEndCase()
       )
     ],
-    context = %*{"title": "Hello"}
+    context = %*{"title": "Hello"},
+    output = "bar"
   )
 
   testCase(
@@ -247,7 +251,8 @@ suite "case/when":
         nodeEndCase()
       )
     ],
-    context = %*{"foo": ","}
+    context = %*{"foo": ","},
+    output = "comma"
   )
 
   testCase(
@@ -331,5 +336,6 @@ suite "case/when":
         nodeEndCase()
       )
     ],
-    context = %*{"title": "Hello"}
+    context = %*{"title": "Hello"},
+    output = "bar"
   )

@@ -18,7 +18,8 @@ suite "abs filter":
           ])
         ])
       )
-    ]
+    ],
+    output = "5.4"
   )
  
   testCase(
@@ -38,7 +39,8 @@ suite "abs filter":
           ])
         ])
       )
-    ]
+    ],
+    output = "5"
   )
  
   testCase(

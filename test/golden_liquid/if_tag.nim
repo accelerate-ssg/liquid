@@ -37,7 +37,8 @@ suite "if statement":
         ],
         nodeEndIf()
       )
-    ]
+    ],
+    output = "Hello"
   )
 
   testCase(
@@ -141,7 +142,8 @@ suite "if statement":
         ],
         nodeEndIf()
       )
-    ]
+    ],
+    output = "true"
   )
 
   testCase(
@@ -197,7 +199,8 @@ suite "if statement":
         nodeEndIf()
       )
     ],
-    context = %*{"x": ["a", "b", "c"]}
+    context = %*{"x": ["a", "b", "c"]},
+    output = "true"
   )
 
   testCase(
@@ -349,7 +352,8 @@ suite "if statement":
         nodeEndIf()
       )
     ],
-    context = %*{"product": {"title": "foo"}}
+    context = %*{"product": {"title": "foo"}},
+    output = "bar"
   )
 
   testCase(
@@ -410,7 +414,8 @@ suite "if statement":
         nodeEndIf()
       )
     ],
-    context = %*{"product": {"title": "foo"}}
+    context = %*{"product": {"title": "foo"}},
+    output = "baz"
   )
 
   testCase(
@@ -442,7 +447,8 @@ suite "if statement":
         nodeEndIf()
       )
     ],
-    context = %*{"product": {"title": "foo"}}
+    context = %*{"product": {"title": "foo"}},
+    output = "bar"
   )
 
   testCase(

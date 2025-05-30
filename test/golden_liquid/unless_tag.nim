@@ -27,7 +27,8 @@ suite "unless tag":
         ],
         nodeEndUnless()
       )
-    ]
+    ],
+    output = "foo"
   )
 
   testCase(
@@ -97,7 +98,8 @@ suite "unless tag":
         ],
         nodeEndUnless()
       )
-    ]
+    ],
+    output = "bar"
   )
 
   testCase(
@@ -139,7 +141,8 @@ suite "unless tag":
         ],
         nodeEndUnless()
       )
-    ]
+    ],
+    output = "bar"
   )
 
   testCase(
@@ -193,7 +196,8 @@ suite "unless tag":
         ],
         nodeEndUnless()
       )
-    ]
+    ],
+    output = "hello"
   )
 
   testCase(
