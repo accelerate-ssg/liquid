@@ -60,7 +60,7 @@ suite "assign tag":
           token(TkString, "#")
         ],
         nodeOutput(@[
-          nodeFilter("join", @[nodeVariable("foo"), nodeString("#")])
+          nodeFilter(nodeVariable("foo"), "join", @[nodeString("#")])
         ])
       )
     ],
