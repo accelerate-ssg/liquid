@@ -7,7 +7,8 @@ commit the changes with a clear message.
 If you write tools to modify files use bash or nim, I do not have python or
 javascript setup available. Commit before you run a script that modifies files
 to avoid losing work.
-rg is available in path, use it to search for code.
+`rg` is available in path, use it to search for code.
+Your are in /Users/jonas/projects/accodeing/accelerate/liquid
 
 # Fixing defecits
 

@@ -43,11 +43,19 @@ proc nodeComparison*(op: string, left, right: Node): Node =
 proc nodeLogical*(op: string, left, right: Node): Node =
   Node(kind: nkLogical, op: op, left: left, right: right)
 
+proc nodeArgument*(argName: string, argValue: Node): Node
+
 proc nodeFilter*(filterName: string, arguments: seq[Node]): Node =
   Node(kind: nkFilter, filterName: filterName, arguments: arguments)
 
 proc nodeFilter*(input: Node, filterName: string, arguments: seq[Node] = @[]): Node =
-  Node(kind: nkFilter, filterName: filterName, arguments: @[input] & arguments)
+  var args = @[input]
+  for arg in arguments:
+    if arg.kind == nkArgument:
+      args.add(arg)
+    else:
+      args.add(nodeArgument("", arg))
+  Node(kind: nkFilter, filterName: filterName, arguments: args)
 
 proc nodeEq*(left: Node, right: Node): Node =
   Node(kind: nkComparison, op: "==", left: left, right: right)
