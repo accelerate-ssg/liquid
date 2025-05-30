@@ -112,11 +112,8 @@ proc nodeVariable*(name: string): Node =
           else:
             innerNode = nodeString(bracketContent)
         
-        # Only wrap in nkVariable if it's not already an nkVariable
-        if innerNode.kind != nkVariable:
-          segments.add(Node(kind: nkVariable, segments: @[innerNode]))
-        else:
-          segments.add(innerNode)
+        # Add the index node directly without wrapping
+        segments.add(innerNode)
         i = j + 1
       else:
         current.add(name[i])
