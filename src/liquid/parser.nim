@@ -1,4 +1,4 @@
-import tables
+import tables, strutils
 
 import types, parser/[init, core]
 
@@ -60,11 +60,32 @@ proc parseSection*(section: Section, strict: bool): Node =
   of Text: raise newException(ValueError, "Text sections should not be parsed")
 
 proc parse*(sections: seq[Section], strict: bool = false): seq[Section] =
-  for section in sections:
+  var i = 0
+  while i < sections.len:
+    let section = sections[i]
     if section.sectionType == Text:
+      inc i
       continue
     
     section.ast = parseSection(section, strict)
+    
+    # Special handling for raw tags - extract content from rawContent field
+    if section.ast != nil and section.ast.kind == nkTag and section.ast.tagName == "raw":
+      # Check if the section has raw content in the special field
+      if section.rawContent.len > 0:
+        section.ast.parameters = @[Node(kind: nkString, strVal: section.rawContent)]
+      # Legacy handling - check if section content has embedded raw content ("raw <content>")
+      elif section.content.startsWith("raw "):
+        let rawContent = section.content[4..^1]  # Skip "raw " prefix
+        section.ast.parameters = @[Node(kind: nkString, strVal: rawContent)]
+      # Legacy handling - check if next section is text (the raw content)
+      elif i + 1 < sections.len and sections[i + 1].sectionType == Text:
+        let rawContent = sections[i + 1].content
+        section.ast.parameters = @[Node(kind: nkString, strVal: rawContent)]
+        # Skip the text section since we've consumed it
+        inc i
+    
+    inc i
   return sections
 
 when isMainModule and not defined(release):

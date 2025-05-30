@@ -441,6 +441,19 @@ proc renderSections*(sections: seq[Section], context: Context): string =
           # Already handled in evaluate
           discard evaluate(section.ast, context)
         
+        of "raw":
+          # Raw tag outputs its content literally
+          if section.ast.parameters.len > 0 and section.ast.parameters[0].kind == nkString:
+            result &= section.ast.parameters[0].strVal
+          # Skip to endraw tag
+          var j = i + 1
+          while j < sections.len:
+            if sections[j].sectionType == Tag and sections[j].ast != nil and 
+               sections[j].ast.kind == nkEnd and sections[j].ast.tagName == "raw":
+              i = j
+              break
+            j += 1
+        
         else:
           # Other tags - just evaluate them
           discard evaluate(section.ast, context)

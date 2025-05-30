@@ -9,8 +9,7 @@ const tag_info* = TagHandlerInfo(
 proc parse*(p: Parser): Node =
   case p.advance().value:
     of "raw":
-      # For now, we create a raw tag node
-      # Full implementation requires lexer changes to preserve content literally
+      # Raw tag content will be extracted by the main parser from section content
       result = Node(kind: nkTag, tagName: "raw", parameters: @[])
     of "endraw", "end":
       result = Node(kind: nkEnd, tagName: "raw", parameters: @[])

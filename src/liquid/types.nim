@@ -68,6 +68,7 @@ type
   Section* = ref object
     sectionType*: SectionType
     content*: string
+    rawContent*: string  # For raw tags, stores the raw content separately
     startRow*, startCol*: int
     endRow*, endCol*: int
     stripLeft*, stripRight*: bool

@@ -11,14 +11,12 @@ suite "raw tag":
         nodeRaw(" {% some raw content %} ")
       ),
       section(
-        SectionType.Output,
-        @[token(TkIdentifier, "a"), token(TkIdentifier, "literal")],
-        nodeOutput(@[
-          nodeIdentifier("a"),
-          nodeIdentifier("literal")
-        ])
+        SectionType.Text,
+        @[],
+        nil
       )
-    ]
+    ],
+    output = " {% some raw content %} a literal"
   )
 
   testCase(
@@ -30,7 +28,8 @@ suite "raw tag":
         @[token(TkIdentifier, "raw")],
         nodeRaw("foo")
       )
-    ]
+    ],
+    output = "foo"
   )
 
   testCase(
@@ -42,7 +41,8 @@ suite "raw tag":
         @[token(TkIdentifier, "raw")],
         nodeRaw(" %} {% }} {{ ")
       )
-    ]
+    ],
+    output = " %} {% }} {{ "
   )
 
   testCase(
@@ -54,7 +54,8 @@ suite "raw tag":
         @[token(TkIdentifier, "raw")],
         nodeRaw("{{ foo }}")
       )
-    ]
+    ],
+    output = "{{ foo }}"
   )
 
   testCase(
@@ -66,5 +67,6 @@ suite "raw tag":
         @[token(TkIdentifier, "raw")],
         nodeRaw("{% assign x = 1 %}")
       )
-    ]
+    ],
+    output = "{% assign x = 1 %}"
   )

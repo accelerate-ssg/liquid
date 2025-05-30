@@ -19,6 +19,22 @@ proc peek_and_advance(l: var Lexer, s: string): bool =
     return true
   false
 
+proc findNextEndrawPattern(l: Lexer): int =
+  # Returns the position where the endraw pattern starts, or -1 if not found
+  var pos = l.position
+  while pos < l.input.len:
+    if pos + 12 <= l.input.len and l.input[pos..<pos+12] == "{% endraw %}":
+      return pos
+    elif pos + 14 <= l.input.len and l.input[pos..<pos+14] == "{%- endraw %}":
+      return pos
+    elif pos + 14 <= l.input.len and l.input[pos..<pos+14] == "{% endraw -%}":
+      return pos
+    elif pos + 16 <= l.input.len and l.input[pos..<pos+16] == "{%- endraw -%}":
+      return pos
+    else:
+      pos += 1
+  return -1
+
 template with(self: SectionLexer, body: untyped) =
   template lexer: untyped = self.lexer
   template inSpecialSection: untyped = self.inSpecialSection
@@ -50,7 +66,9 @@ proc closeCurrentSection(sectionLexer: SectionLexer) =
       currentSection.endRow = lexer.line
       currentSection.endCol = lexer.column - 1
       if currentSection.sectionType in {Output, Tag}:
-        currentSection.content = currentSection.content.strip()
+        # Don't strip raw tags since they preserve whitespace
+        if not (currentSection.sectionType == Tag and currentSection.content.startsWith("raw ")):
+          currentSection.content = currentSection.content.strip()
         openBrackets -= 1
       
       sections.add(currentSection)
@@ -184,8 +202,47 @@ proc lexSections*(input: string): seq[Section] =
         elif currentSection.sectionType == Tag and (lexer.peek("%}") or lexer.peek("-%}")):
           currentSection.stripRight = lexer.peek_and_advance("-")
           discard lexer.peek_and_advance("%}")
-          closeCurrentSection()
-          inString = false  # Reset string state when section closes
+          
+          # Special handling for raw tag - capture everything until endraw
+          if currentSection.content.strip() == "raw":
+            # Don't close the section yet - we need to capture the raw content
+            inString = false
+            
+            # Capture raw content until we find endraw
+            let endrawPos = findNextEndrawPattern(lexer)
+            var rawContent = ""
+            if endrawPos != -1:
+              # Extract everything from current position to endraw position
+              rawContent = input[lexer.position..<endrawPos]
+              # Move lexer position to the start of endraw
+              for i in lexer.position..<endrawPos:
+                discard lexer.advance()
+            else:
+              # No endraw found - consume everything
+              while lexer.position < input.len:
+                rawContent.add(lexer.advance)
+            
+            # Store the raw content in the current section's content
+            # The parser will extract this and create the proper AST
+            currentSection.content = "raw " & rawContent
+            
+            # Now consume the endraw tag without creating a new section
+            if lexer.position < input.len:
+              discard lexer.peek_and_advance("-")
+              discard lexer.peek_and_advance("{%")
+              # Skip whitespace and "endraw"
+              while lexer.position < input.len and lexer.peek() in {' ', '\t', '\r', '\n'}:
+                discard lexer.advance()
+              discard lexer.peek_and_advance("endraw")
+              while lexer.position < input.len and lexer.peek() in {' ', '\t', '\r', '\n'}:
+                discard lexer.advance()
+              discard lexer.peek_and_advance("-")
+              discard lexer.peek_and_advance("%}")
+            
+            closeCurrentSection()
+          else:
+            closeCurrentSection()
+            inString = false  # Reset string state when section closes
         elif not inString and (lexer.peek("{{") or lexer.peek("{%")):
           raise newException(LexerError, "Unbalanced brackets: Found new opening tag before closing tag opened at line " & 
             $currentSection.startRow & " column " & $currentSection.startCol)
