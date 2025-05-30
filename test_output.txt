@@ -1,0 +1,3324 @@
+Hint: used config file '/Users/jonas/.asdf/installs/nim/2.0.6/config/nim.cfg' [Conf]
+Hint: used config file '/Users/jonas/.asdf/installs/nim/2.0.6/config/config.nims' [Conf]
+Hint: mm: orc; threads: on; opt: none (DEBUG BUILD, `-d:release` generates faster code)
+10123 lines; 0.047s; 10.477MiB peakmem; proj: /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid.nim; out: /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid.out [SuccessX]
+Hint: /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid.out [Exec]
+Registered default tags:
+  unless
+  assign
+  decrement
+  cycle
+  break
+  ifchanged
+  capture
+  comment
+  #
+  render
+  case
+  for
+  echo
+  raw
+  tablerow
+  increment
+  continue
+  include
+  if
+  liquid
+[1m[34m
+[Suite] [0massign tag[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+Handling assign tag
+[1m[32m  [OK] [0massign a filtered literal[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+Handling assign tag
+[1m[33m  [ABORT][0m AST mismatch[0m
+Actual AST:
+<nkOutput>
+
+
+Expected AST:
+<nkOutput>
+
+[1m[31m  [FAILED] [0massign a range literal[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightBracket: > -> <TkRightBracket: ]>
+Handling assign tag
+[1m[32m  [OK] [0massign an existing array[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkString: baz> -> <TkString: baz>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+Handling assign tag
+[1m[32m  [OK] [0massign an item from an existing object with quoted notation[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: some-thing> -> <TkIdentifier: some-thing>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: some-thing> -> <TkIdentifier: some-thing>
+Handling assign tag
+[1m[32m  [OK] [0massign to variable with a hyphen[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkString: baz> -> <TkString: baz>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+Handling assign tag
+[1m[32m  [OK] [0massign with quoted notation and extra whitespace[0m
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+Handling assign tag
+[1m[32m  [OK] [0mlocal variables shadow global variables[0m
+[1m[34m
+[Suite] [0mcapture tag[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: other> -> <TkIdentifier: other>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: other> -> <TkIdentifier: other>
+Handling assign tag
+[1m[32m  [OK] [0massign to a variable from a captured variable[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: this-thing> -> <TkIdentifier: this-thing>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first_name> -> <TkIdentifier: first_name>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: this-thing> -> <TkIdentifier: this-thing>
+[1m[32m  [OK] [0mcapture into a variable with a hyphen[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: greeting> -> <TkIdentifier: greeting>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first_name> -> <TkIdentifier: first_name>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: greeting> -> <TkIdentifier: greeting>
+[1m[32m  [OK] [0mcapture template literal and global variable[0m
+[1m[34m
+[Suite] [0mcase/when[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkIdentifier: other> -> <TkIdentifier: other>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: goodbye> -> <TkString: goodbye>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0m'when' expression using an identifier[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: Hello> -> <TkString: Hello>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0m'when' expression using an out of scope identifier[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: bar> -> <TkString: bar>
+<TkComma: > -> <TkComma: ,>
+<TkString: Hello> -> <TkString: Hello>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0mcomma separated when expression[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: bar> -> <TkString: bar>
+<TkOr: > -> <TkOr: or>
+<TkString: Hello> -> <TkString: Hello>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0m'or' separated when expression[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: ,> -> <TkString: ,>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0mcomma string literal[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0mempty when tag[0m
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+[1m[32m  [OK] [0mwith default[0m
+[1m[34m
+[Suite] [0mcomment tag[0m
+<TkIdentifier: comment> -> <TkIdentifier: comment>
+<TkIdentifier: endcomment> -> <TkIdentifier: endcomment>
+[1m[32m  [OK] [0mdon't render comments[0m
+<TkIdentifier: comment> -> <TkIdentifier: comment>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: endcomment> -> <TkIdentifier: endcomment>
+[1m[32m  [OK] [0mdon't render comments with tags[0m
+<TkIdentifier: comment> -> <TkIdentifier: comment>
+<TkIdentifier: endcomment> -> <TkIdentifier: endcomment>
+[1m[32m  [OK] [0mrespect whitespace control in comments[0m
+[1m[34m
+[Suite] [0mcycle tag[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+Handling assign tag
+[1m[32m  [OK] [0mchanging variable name[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkComma: > -> <TkComma: ,>
+<TkString: 3> -> <TkString: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkComma: > -> <TkComma: ,>
+<TkString: 3> -> <TkString: 3>
+[1m[32m  [OK] [0mdifferent items[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+[1m[32m  [OK] [0mintegers[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: b> -> <TkIdentifier: b>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+[1m[32m  [OK] [0mmultiple undefined variable names[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: a> -> <TkString: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: a> -> <TkString: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 7> -> <TkNumber: 7>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 8> -> <TkNumber: 8>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 9> -> <TkNumber: 9>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: a> -> <TkString: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+[1m[32m  [OK] [0mnamed with different items[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkComma: > -> <TkComma: ,>
+<TkString: 3> -> <TkString: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+[1m[32m  [OK] [0mnamed with different number of arguments[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkComma: > -> <TkComma: ,>
+<TkString: 3> -> <TkString: 3>
+[1m[32m  [OK] [0mnamed with growing number of arguments[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkComma: > -> <TkComma: ,>
+<TkString: 3> -> <TkString: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+<TkComma: > -> <TkComma: ,>
+<TkString: 2> -> <TkString: 2>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkString: 1> -> <TkString: 1>
+[1m[32m  [OK] [0mnamed with shrinking number of arguments[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: some> -> <TkString: some>
+<TkComma: > -> <TkComma: ,>
+<TkString: other> -> <TkString: other>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: some> -> <TkString: some>
+<TkComma: > -> <TkComma: ,>
+<TkString: other> -> <TkString: other>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: some> -> <TkString: some>
+<TkComma: > -> <TkComma: ,>
+<TkString: other> -> <TkString: other>
+[1m[32m  [OK] [0mno identifier[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: b> -> <TkIdentifier: b>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+[1m[32m  [OK] [0mundefined variable names mixed with no name[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkNumber: 3> -> <TkNumber: 3>
+[1m[32m  [OK] [0mvariable name[0m
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: foo> -> <TkString: foo>
+<TkColon: > -> <TkColon: :>
+<TkString: some> -> <TkString: some>
+<TkComma: > -> <TkComma: ,>
+<TkString: other> -> <TkString: other>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: some> -> <TkString: some>
+<TkComma: > -> <TkComma: ,>
+<TkString: other> -> <TkString: other>
+<TkIdentifier: cycle> -> <TkIdentifier: cycle>
+<TkString: foo> -> <TkString: foo>
+<TkColon: > -> <TkColon: :>
+<TkString: some> -> <TkString: some>
+<TkComma: > -> <TkComma: ,>
+<TkString: other> -> <TkString: other>
+[1m[32m  [OK] [0mwith identifier[0m
+[1m[34m
+[Suite] [0mincrement and decrement[0m
+<TkIdentifier: decrement> -> <TkIdentifier: decrement>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: decrement> -> <TkIdentifier: decrement>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mincrement and decrement named counter[0m
+<TkIdentifier: decrement> -> <TkIdentifier: decrement>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: decrement> -> <TkIdentifier: decrement>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mnamed counter[0m
+[1m[34m
+[Suite] [0mecho tag[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0maccess an array item by index[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: -2> -> <TkNumber: -2>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0maccess an array item by negative index[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0maccess an undefined variable by index[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkAssign: > -> <TkAssign: =>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkRightBracket: > -> <TkRightBracket: ]>
+Handling assign tag
+[1m[33m  [ABORT][0m AST mismatch[0m
+Actual AST:
+<nkTag>
+  name: echo
+  parameters:
+  <nkVariable>
+    <nkString: product>
+    <nkString: tags>
+    <nkVariable>
+      <nkString: i>
+      
+
+Expected AST:
+<nkTag>
+  name: echo
+  parameters:
+  <nkVariable>
+    <nkString: product>
+    <nkString: tags>
+    <nkString: i>
+    
+[1m[31m  [FAILED] [0maccess array item by index stored in a local variable[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: other> -> <TkIdentifier: other>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: other> -> <TkIdentifier: other>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0massign a variable the value of an existing variable[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+[1m[32m  [OK] [0mdump an array from the global context[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+[1m[32m  [OK] [0mnothing to echo[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkNumber: 1.23> -> <TkNumber: 1.23>
+[1m[32m  [OK] [0mrender a float literal[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+[1m[32m  [OK] [0mrender a global identifier with a filter[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString: hello> -> <TkString: hello>
+[1m[32m  [OK] [0mrender a string literal[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+[1m[32m  [OK] [0mrender a variable from the global namespace[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: name> -> <TkIdentifier: name>
+<TkAssign: > -> <TkAssign: =>
+<TkString: Brian> -> <TkString: Brian>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: name> -> <TkIdentifier: name>
+Handling assign tag
+[1m[32m  [OK] [0mrender a variable from the local namespace[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkNumber: 123> -> <TkNumber: 123>
+[1m[32m  [OK] [0mrender an integer literal[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: age> -> <TkIdentifier: age>
+[1m[32m  [OK] [0mrender an undefined property[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: age> -> <TkIdentifier: age>
+[1m[32m  [OK] [0mrender an undefined variable[0m
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: site> -> <TkIdentifier: site>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: data> -> <TkIdentifier: data>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: menu> -> <TkIdentifier: menu>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: include> -> <TkIdentifier: include>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: menu> -> <TkIdentifier: menu>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: include> -> <TkIdentifier: include>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: locale> -> <TkIdentifier: locale>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mtraverse variables with bracketed identifiers[0m
+[1m[34m
+[Suite] [0mloop functionality[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: j> -> <TkIdentifier: j>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: j> -> <TkIdentifier: j>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: parentloop> -> <TkIdentifier: parentloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0maccess parentloop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: x> -> <TkIdentifier: x>
+Handling assign tag
+[1m[32m  [OK] [0massign inside loop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 10> -> <TkNumber: 10>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mblank empty loops[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: sports> -> <TkString: sports>
+<TkIdentifier: break> -> <TkIdentifier: break>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mbreak[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[33m  [ABORT][0m AST mismatch[0m
+Actual AST:
+<nkTag>
+  name: for
+  parameters:
+  <nkVariable>
+    <nkString: i>
+    
+  <nkRange>
+    <nkNumber: 1.0>
+    ..
+    <nkNumber: 6.0>
+    
+
+Expected AST:
+<nkTag>
+  name: for
+  parameters:
+  <nkVariable>
+    <nkString: i>
+    
+  <nkRange>
+    <nkNumber: 1.0>
+    ..
+    <nkNumber: 6.0>
+    
+  <nkArgument: limit>
+    <nkNumber: 4.0>
+    
+  <nkArgument: offset>
+    <nkNumber: 2.0>
+    
+[1m[31m  [FAILED] [0mcomma separated arguments[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: sports> -> <TkString: sports>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mcontinue[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mcontinue a loop[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: 1,2,3,4,5,6> -> <TkString: 1,2,3,4,5,6>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: split> -> <TkIdentifier: split>
+<TkColon: > -> <TkColon: :>
+<TkString: ,> -> <TkString: ,>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: u,v,w,x,y,z> -> <TkString: u,v,w,x,y,z>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: split> -> <TkIdentifier: split>
+<TkColon: > -> <TkColon: :>
+<TkString: ,> -> <TkString: ,>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mcontinue a loop over a changing array[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: nums> -> <TkIdentifier: nums>
+<TkAssign: > -> <TkAssign: =>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: nums> -> <TkIdentifier: nums>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: nums> -> <TkIdentifier: nums>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+Handling assign tag
+[1m[32m  [OK] [0mcontinue a loop over an assigned range[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 99> -> <TkNumber: 99>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mcontinue from a limit that is greater than length[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mcontinue from a range expression[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mcontinue with changing loop var[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: img> -> <TkIdentifier: img>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: emptythings> -> <TkIdentifier: emptythings>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: img> -> <TkIdentifier: img>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: url> -> <TkIdentifier: url>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mempty array with default[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mfirst and last with an offset and limit[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mfirst and last with offset continue[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+[1m[32m  [OK] [0mforloop goes out of scope[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop length[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop length with limit[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop length with offset[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: name> -> <TkIdentifier: name>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop name[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: name> -> <TkIdentifier: name>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop name of a range[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop no such attribute[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop.first[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop.index[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index0> -> <TkIdentifier: index0>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop.index0[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop.last[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: rindex> -> <TkIdentifier: rindex>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop.rindex[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: rindex0> -> <TkIdentifier: rindex0>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mforloop.rindex0[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: emptythings> -> <TkIdentifier: emptythings>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0miterate an empty array[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: emptythings> -> <TkIdentifier: emptythings>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0miterate an empty array with default[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mlimit[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mlimit is a non-number string[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkString: 2> -> <TkString: 2>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mlimit is a string[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mlimit is not a string or number[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mlookup a filter from an outer context[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mloop over a string literal[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mloop over a string variable[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: reversed> -> <TkIdentifier: reversed>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mloop over an array in reverse[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+Handling assign tag
+[1m[32m  [OK] [0mloop over an existing range object[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: link> -> <TkIdentifier: link>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: linklists> -> <TkIdentifier: linklists>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: section> -> <TkIdentifier: section>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: settings> -> <TkIdentifier: settings>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: menu> -> <TkIdentifier: menu>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: links> -> <TkIdentifier: links>
+<TkIdentifier: link> -> <TkIdentifier: link>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mloop over nested and chained object from context with trailing identifier[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkAssign: > -> <TkAssign: =>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 2.4> -> <TkNumber: 2.4>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+Handling assign tag
+[1m[32m  [OK] [0mloop over range with float start[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mloop over undefined[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: array> -> <TkIdentifier: array>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mnothing to continue from[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset and limit[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: length> -> <TkIdentifier: length>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset continue forloop length[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: break> -> <TkIdentifier: break>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset continue from a broken loop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: break> -> <TkIdentifier: break>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset continue from a broken loop with preceding limit[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: continue> -> <TkIdentifier: continue>
+<TkIdentifier: item> -> <TkIdentifier: item>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset continue twice with changing limit[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset is a non-number string[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkString: 2> -> <TkString: 2>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset is a string[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0moffset is not a string or number[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: j> -> <TkIdentifier: j>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: k> -> <TkIdentifier: k>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: parentloop> -> <TkIdentifier: parentloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: parentloop> -> <TkIdentifier: parentloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: parentloop> -> <TkIdentifier: parentloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mparent's parentloop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: j> -> <TkIdentifier: j>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: j> -> <TkIdentifier: j>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: parentloop> -> <TkIdentifier: parentloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mparentloop goes out of scope[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: forloop> -> <TkIdentifier: forloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: parentloop> -> <TkIdentifier: parentloop>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: index> -> <TkIdentifier: index>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mparentloop is normally undefined[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRange: > -> <TkRange: ..>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: end_range> -> <TkIdentifier: end_range>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[33m  [ABORT][0m AST mismatch[0m
+Actual AST:
+<nkOutput>
+
+
+Expected AST:
+<nkOutput>
+
+[1m[31m  [FAILED] [0mrange loop using identifier[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mrange start and stop are the same[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mrange start and stop are zero[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mshare outer scope[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkIdentifier: tag> -> <TkIdentifier: tag>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0msimple array loop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: c> -> <TkIdentifier: c>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: collection> -> <TkIdentifier: collection>
+<TkIdentifier: c> -> <TkIdentifier: c>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: c> -> <TkIdentifier: c>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0msimple hash loop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0msimple range loop[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 6> -> <TkNumber: 6>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: limit> -> <TkIdentifier: limit>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 4> -> <TkNumber: 4>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: offset> -> <TkIdentifier: offset>
+<TkColon: > -> <TkColon: :>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0msome comma separated arguments[0m
+[1m[34m
+[Suite] [0midentifiers[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+Handling assign tag
+[1m[32m  [OK] [0mascii lowercase[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: FOO> -> <TkIdentifier: FOO>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: FOO> -> <TkIdentifier: FOO>
+<TkIdentifier: BAR> -> <TkIdentifier: BAR>
+Handling assign tag
+[1m[32m  [OK] [0mascii uppercase[0m
+[1m[32m  [OK] [0mat sign[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mcapture ascii lowercase[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: FOO> -> <TkIdentifier: FOO>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: FOO> -> <TkIdentifier: FOO>
+[1m[32m  [OK] [0mcapture ascii uppercase[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: foo1> -> <TkIdentifier: foo1>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: foo1> -> <TkIdentifier: foo1>
+[1m[32m  [OK] [0mcapture digits[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: foo-a> -> <TkIdentifier: foo-a>
+<TkIdentifier: bar-b> -> <TkIdentifier: bar-b>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: foo-a> -> <TkIdentifier: foo-a>
+[1m[32m  [OK] [0mcapture hyphens[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mcapture leading hyphen[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: _foo> -> <TkIdentifier: _foo>
+<TkIdentifier: _bar> -> <TkIdentifier: _bar>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: _foo> -> <TkIdentifier: _foo>
+[1m[32m  [OK] [0mcapture leading underscore[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkNumber: 123> -> <TkNumber: 123>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkNumber: 123> -> <TkNumber: 123>
+[1m[32m  [OK] [0mcapture only digits[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: _> -> <TkIdentifier: _>
+<TkIdentifier: __> -> <TkIdentifier: __>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: _> -> <TkIdentifier: _>
+[1m[32m  [OK] [0mcapture only underscore[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: foo_a> -> <TkIdentifier: foo_a>
+<TkIdentifier: bar_b> -> <TkIdentifier: bar_b>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: foo_a> -> <TkIdentifier: foo_a>
+[1m[32m  [OK] [0mcapture underscore[0m
+<TkIdentifier: decrement> -> <TkIdentifier: decrement>
+<TkIdentifier: f-oo> -> <TkIdentifier: f-oo>
+<TkIdentifier: decrement> -> <TkIdentifier: decrement>
+<TkIdentifier: f-oo> -> <TkIdentifier: f-oo>
+[1m[32m  [OK] [0mdecrement with a hyphen[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo1> -> <TkIdentifier: foo1>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: foo1> -> <TkIdentifier: foo1>
+<TkIdentifier: bar2> -> <TkIdentifier: bar2>
+Handling assign tag
+[1m[32m  [OK] [0mdigits[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: f-oo> -> <TkIdentifier: f-oo>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mhyphen in for loop target[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: x-y> -> <TkIdentifier: x-y>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: x-y> -> <TkIdentifier: x-y>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mhyphen in for loop variable[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo-a> -> <TkIdentifier: foo-a>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: foo-a> -> <TkIdentifier: foo-a>
+<TkIdentifier: bar-b> -> <TkIdentifier: bar-b>
+Handling assign tag
+[1m[32m  [OK] [0mhyphens[0m
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: f-oo> -> <TkIdentifier: f-oo>
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: f-oo> -> <TkIdentifier: f-oo>
+[1m[32m  [OK] [0mincrement with a hyphen[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+[1m[32m  [OK] [0mleading hyphen[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: in> -> <TkOperator: in>
+<TkOperator: -> -> <TkOperator: ->
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mleading hyphen in for loop target[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: _foo> -> <TkIdentifier: _foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: _foo> -> <TkIdentifier: _foo>
+<TkIdentifier: _bar> -> <TkIdentifier: _bar>
+Handling assign tag
+[1m[32m  [OK] [0mleading underscore[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkNumber: 123> -> <TkNumber: 123>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkNumber: 123> -> <TkNumber: 123>
+<TkNumber: 456> -> <TkNumber: 456>
+Handling assign tag
+[1m[32m  [OK] [0monly digits[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: _> -> <TkIdentifier: _>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: _> -> <TkIdentifier: _>
+<TkIdentifier: __> -> <TkIdentifier: __>
+Handling assign tag
+[1m[32m  [OK] [0monly underscore[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo?> -> <TkIdentifier: foo?>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: foo?> -> <TkIdentifier: foo?>
+Handling assign tag
+[1m[32m  [OK] [0mtrailing question mark assign[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo?> -> <TkIdentifier: foo?>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mtrailing question mark in for loop target[0m
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: x?> -> <TkIdentifier: x?>
+<TkOperator: in> -> <TkOperator: in>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: x?> -> <TkIdentifier: x?>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[32m  [OK] [0mtrailing question mark in for loop variable[0m
+<TkIdentifier: bar?> -> <TkIdentifier: bar?>
+[1m[32m  [OK] [0mtrailing question mark output[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo_a> -> <TkIdentifier: foo_a>
+<TkAssign: > -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: foo_a> -> <TkIdentifier: foo_a>
+<TkIdentifier: bar_b> -> <TkIdentifier: bar_b>
+Handling assign tag
+[1m[32m  [OK] [0munderscore[0m
+[1m[34m
+[Suite] [0mif statement[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 0.0> -> <TkNumber: 0.0>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0m0.0 is truthy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: !=> -> <TkOperator: !=>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0malternate not equal condition[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkAssign: > -> <TkAssign: =>
+<TkString: a,b,c> -> <TkString: a,b,c>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: split> -> <TkIdentifier: split>
+<TkColon: > -> <TkColon: :>
+<TkString: ,> -> <TkString: ,>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: y> -> <TkIdentifier: y>
+<TkAssign: > -> <TkAssign: =>
+<TkString: a,b,c> -> <TkString: a,b,c>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: split> -> <TkIdentifier: split>
+<TkColon: > -> <TkColon: :>
+<TkString: ,> -> <TkString: ,>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkIdentifier: y> -> <TkIdentifier: y>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0marray is equal to array[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: y> -> <TkIdentifier: y>
+<TkAssign: > -> <TkAssign: =>
+<TkString: a,b,c> -> <TkString: a,b,c>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: split> -> <TkIdentifier: split>
+<TkColon: > -> <TkColon: :>
+<TkString: ,> -> <TkString: ,>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkIdentifier: y> -> <TkIdentifier: y>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+[1m[32m  [OK] [0marray is equal to array from context[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: comment> -> <TkIdentifier: comment>
+<TkIdentifier: endcomment> -> <TkIdentifier: endcomment>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mblocks that contain only whitespace and comments are not rendered[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mblocks that contain only whitespace are not rendered[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mcondition with conditional alternative[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: goodbye> -> <TkString: goodbye>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mcondition with conditional alternative and final alternative[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mcondition with literal consequence[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: hello> -> <TkString: hello>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mcondition with literal consequence and literal alternative[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mconditional alternative with default[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkOperator: contains> -> <TkOperator: contains>
+<TkString: garden> -> <TkString: garden>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mcontains condition[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: nonsense> -> <TkIdentifier: nonsense>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0melse tag expressions are ignored[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkEmpty: > -> <TkEmpty: empty>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mempty array equals special empty[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mempty array is truthy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkEmpty: > -> <TkEmpty: empty>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mempty object equals special empty[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mempty object is truthy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: > -> <TkString: >
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mempty string is truthy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mextra else blocks are ignored[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mextra elsif blocks are ignored[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: 1> -> <TkString: 1>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mint does not equal string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkNumber: 1.0> -> <TkNumber: 1.0>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mint equals float[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mliteral false condition[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNil: > -> <TkNil: nil>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mliteral nil is falsy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkAnd: > -> <TkAnd: and>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkAnd: > -> <TkAnd: and>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkOr: > -> <TkOr: or>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mlogical operators are right associative[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: Hello> -> <TkString: Hello>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mnested condition in the consequence block[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkString: goodbye> -> <TkString: goodbye>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mnested condition, alternative in the consequence block[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mnon-empty hash is truthy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkOperator: !=> -> <TkOperator: !=>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mnot equal condition[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mone is not equal to true[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 3> -> <TkNumber: 3>
+<TkRightParen: > -> <TkRightParen: )>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+[1m[32m  [OK] [0mrange equals range[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: hel9lo> -> <TkString: hel9lo>
+<TkOperator: contains> -> <TkOperator: contains>
+<TkNumber: 9> -> <TkNumber: 9>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring contains int[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: 1> -> <TkString: 1>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring does not equal int[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: 2> -> <TkString: 2>
+<TkOperator: >> -> <TkOperator: >>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring greater than int[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: abc> -> <TkString: abc>
+<TkOperator: >=> -> <TkOperator: >=>
+<TkString: acb> -> <TkString: acb>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is greater than or equal to string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: abc> -> <TkString: abc>
+<TkOperator: >> -> <TkOperator: >>
+<TkString: acb> -> <TkString: acb>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is greater than string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: abc> -> <TkString: abc>
+<TkOperator: <=> -> <TkOperator: <=>
+<TkString: acb> -> <TkString: acb>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is less than or equal to string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: abc> -> <TkString: abc>
+<TkOperator: <> -> <TkOperator: <>
+<TkString: acb> -> <TkString: acb>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is less than string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: bbb> -> <TkString: bbb>
+<TkOperator: >=> -> <TkOperator: >=>
+<TkString: aaa> -> <TkString: aaa>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is not greater than or equal to string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: bbb> -> <TkString: bbb>
+<TkOperator: >> -> <TkOperator: >>
+<TkString: aaa> -> <TkString: aaa>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is not greater than string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: bbb> -> <TkString: bbb>
+<TkOperator: <=> -> <TkOperator: <=>
+<TkString: aaa> -> <TkString: aaa>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is not less than or equal to string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkString: bbb> -> <TkString: bbb>
+<TkOperator: <> -> <TkOperator: <>
+<TkString: aaa> -> <TkString: aaa>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mstring is not less than string[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkNil: > -> <TkNil: nil>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mundefined is equal to nil[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkNil: > -> <TkNil: null>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mundefined is equal to null[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mundefined variables are falsy[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mzero is not equal to false[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mzero is truthy[0m
+[1m[34m
+[Suite] [0mifchanged tag[0m
+<TkIdentifier: ifchanged> -> <TkIdentifier: ifchanged>
+<TkIdentifier: endifchanged> -> <TkIdentifier: endifchanged>
+[1m[32m  [OK] [0mbasic ifchanged[0m
+<TkIdentifier: ifchanged> -> <TkIdentifier: ifchanged>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: endifchanged> -> <TkIdentifier: endifchanged>
+[1m[32m  [OK] [0mifchanged with expression[0m
+<TkIdentifier: ifchanged> -> <TkIdentifier: ifchanged>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endifchanged> -> <TkIdentifier: endifchanged>
+[1m[32m  [OK] [0mifchanged with else[0m
+[1m[34m
+[Suite] [0millegal operations[0m
+[1m[33m  [SKIPPED] [0munknown tag should fail[0m
+[1m[33m  [SKIPPED] [0marithmetic in assign should fail in strict mode[0m
+[1m[34m
+[Suite] [0minclude tag[0m
+<TkIdentifier: include> -> <TkIdentifier: include>
+<TkString: template> -> <TkString: template>
+[1m[32m  [OK] [0mbasic include[0m
+<TkIdentifier: include> -> <TkIdentifier: include>
+<TkString: template> -> <TkString: template>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkColon: > -> <TkColon: :>
+<TkString: bar> -> <TkString: bar>
+[1m[32m  [OK] [0minclude with parameters[0m
+[1m[34m
+[Suite] [0mincrement tag[0m
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mbasic increment[0m
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mincrement twice[0m
+<TkIdentifier: increment> -> <TkIdentifier: increment>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+[1m[32m  [OK] [0mincrement and variable access[0m
+[1m[34m
+[Suite] [0minline comment tag[0m
+[1m[33m  [ABORT] [0mLexing sections failed with: Unbalanced brackets: Found new opening tag before closing tag opened at line 1 column 0[0m
+  Traceback (most recent call last)
+  /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid/inline_comment_tag.nim(2) golden_liquid
+  /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid/helpers.nim(528) testCase
+  /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid/helpers.nim(463) testCode
+  
+[1m[31m  [FAILED] [0mcan't comment tags[0m
+[1m[32m  [OK] [0mcomment with double quote[0m
+[1m[32m  [OK] [0mcomment with newline[0m
+[1m[32m  [OK] [0mcomment with single quote[0m
+[1m[32m  [OK] [0mcomment with tag delimiter[0m
+[1m[32m  [OK] [0minline tag comment does not require whitespace[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkSymbol: #> -> <TkSymbol: #>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: my_variable> -> <TkIdentifier: my_variable>
+<TkAssign: => -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mliquid inline comment[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkSymbol: #> -> <TkSymbol: #>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: my_variable> -> <TkIdentifier: my_variable>
+<TkAssign: => -> <TkAssign: =>
+<TkString: hello> -> <TkString: hello>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mliquid inline comment on last line[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mliquid tag comment using legacy syntax[0m
+[1m[32m  [OK] [0mno whitespace control[0m
+[1m[32m  [OK] [0mtag delimiter can be commented out[0m
+[1m[32m  [OK] [0mwhitespace and newlines are not required[0m
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mwhitespace control[0m
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mwhitespace control either side[0m
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mwhitespace control leading[0m
+<TkSymbol: #> -> <TkSymbol: #>
+[1m[32m  [OK] [0mwhitespace control trailing[0m
+[1m[34m
+[Suite] [0mliquid tag[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+[1m[32m  [OK] [0mempty liquid tag[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString: hello> -> <TkString: hello>
+[1m[32m  [OK] [0mliquid tag with echo[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+[1m[33m  [ABORT] [0mAssertion failed: actual[i].tokens.len == expected[i].tokens.len[0m
+[1m[31m  [FAILED] [0mnested liquid with if[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString: foo> -> <TkString: foo>
+[1m[32m  [OK] [0mliquid tag in liquid tag[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString:  World! > -> <TkString:  World! >
+[1m[32m  [OK] [0mwhitespace control[0m
+<TkIdentifier: liquid> -> <TkIdentifier: liquid>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: .> -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: .> -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkPipe: |> -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString: product-1> -> <TkString: product-1>
+<TkPipe: |> -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkOperator: in> -> <TkOperator: in>
+<TkLeftParen: (> -> <TkLeftParen: (>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRange: ..> -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: )> -> <TkRightParen: )>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkNewline: 
+> -> <TkNewline: 
+>
+<TkIdentifier: endfor> -> <TkIdentifier: endfor>
+[1m[33m  [ABORT][0m AST mismatch[0m
+Actual AST:
+<nkTag>
+  name: liquid
+  parameters:
+  <nkTag>
+    name: if
+    parameters:
+    <nkVariable>
+      <nkString: product>
+      <nkString: title>
+      
+  <nkTag>
+    name: echo
+    parameters:
+    
+  <nkTag>
+    name: echo
+    parameters:
+    <nkFilter: upcase>
+      <nkString: product-1>
+      
+  <nkTag>
+    name: for
+    parameters:
+    <nkVariable>
+      <nkString: i>
+      
+    <nkRange>
+      <nkNumber: 0.0>
+      ..
+      <nkNumber: 5.0>
+      
+  <nkTag>
+    name: echo
+    parameters:
+    
+
+Expected AST:
+<nkTag>
+  name: liquid
+  parameters:
+  <nkTag>
+    name: if
+    parameters:
+    <nkVariable>
+      <nkString: product>
+      <nkString: title>
+      
+  <nkTag>
+    name: echo
+    parameters:
+    <nkFilter: upcase>
+      <nkVariable>
+        <nkString: product>
+        <nkString: title>
+        
+  <nkTag>
+    name: echo
+    parameters:
+    <nkFilter: upcase>
+      <nkString: product-1>
+      
+  <nkTag>
+    name: for
+    parameters:
+    <nkVariable>
+      <nkString: i>
+      
+    <nkRange>
+      <nkNumber: 0.0>
+      ..
+      <nkNumber: 5.0>
+      
+  <nkTag>
+    name: echo
+    parameters:
+    <nkVariable>
+      <nkString: i>
+      
+[1m[31m  [FAILED] [0mnewline terminated tags[0m
+[1m[34m
+[Suite] [0mnot liquid[0m
+[1m[32m  [OK] [0mcss text gets passed through unchanged[0m
+[1m[32m  [OK] [0mplain text gets passed through unchanged[0m
+[1m[34m
+[Suite] [0moutput statement[0m
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0maccess an array item by index[0m
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: -2> -> <TkNumber: -2>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0maccess an array item by negative index[0m
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0maccess an undefined variable by index[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkAssign: > -> <TkAssign: =>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: i> -> <TkIdentifier: i>
+<TkRightBracket: > -> <TkRightBracket: ]>
+Handling assign tag
+[1m[32m  [OK] [0maccess array item by index stored in a local variable[0m
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: other> -> <TkIdentifier: other>
+<TkAssign: > -> <TkAssign: =>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: some> -> <TkIdentifier: some>
+<TkIdentifier: other> -> <TkIdentifier: other>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0massign a variable the value of an existing variable[0m
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: something> -> <TkIdentifier: something>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mbracketed variable resolves to a string[0m
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: something> -> <TkIdentifier: something>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mbracketed variable resolves to a string without leading identifier[0m
+<TkIdentifier: products> -> <TkIdentifier: products>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+[1m[32m  [OK] [0mchained bracketed identifier index[0m
+<TkIdentifier: products> -> <TkIdentifier: products>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: title> -> <TkIdentifier: title>
+[1m[32m  [OK] [0mchained bracketed identifier index no dot[0m
+<TkIdentifier: products> -> <TkIdentifier: products>
+<TkDot: > -> <TkDot: .>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+[1m[32m  [OK] [0mchained identifier dot separated index[0m
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: tags> -> <TkIdentifier: tags>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mdump an array from the global context[0m
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: list> -> <TkIdentifier: list>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: settings> -> <TkIdentifier: settings>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: zero> -> <TkIdentifier: zero>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mnested bracketed variable resolving to a string[0m
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkString: bar> -> <TkString: bar>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mquoted, bracketed variable name[0m
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkString: bar baz> -> <TkString: bar baz>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mquoted, bracketed variable name with whitespace[0m
+<TkBoolean: false> -> <TkBoolean: false>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: default> -> <TkIdentifier: default>
+<TkColon: > -> <TkColon: :>
+<TkString: bar> -> <TkString: bar>
+[1m[32m  [OK] [0mrender a default given a literal false[0m
+<TkBoolean: false> -> <TkBoolean: false>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: default> -> <TkIdentifier: default>
+<TkColon: > -> <TkColon: :>
+<TkString: bar> -> <TkString: bar>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: allow_false> -> <TkIdentifier: allow_false>
+<TkColon: > -> <TkColon: :>
+<TkBoolean: false> -> <TkBoolean: false>
+[1m[32m  [OK] [0mrender a default given a literal false with 'allow false' equal to false[0m
+<TkBoolean: false> -> <TkBoolean: false>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: default> -> <TkIdentifier: default>
+<TkColon: > -> <TkColon: :>
+<TkString: bar> -> <TkString: bar>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: allow_false> -> <TkIdentifier: allow_false>
+<TkColon: > -> <TkColon: :>
+<TkBoolean: true> -> <TkBoolean: true>
+[1m[32m  [OK] [0mrender a default given a literal false with 'allow false' equal to true[0m
+<TkNumber: 1.23> -> <TkNumber: 1.23>
+[1m[32m  [OK] [0mrender a float literal[0m
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: upcase> -> <TkIdentifier: upcase>
+[1m[32m  [OK] [0mrender a global variable with a filter[0m
+<TkNumber: -123> -> <TkNumber: -123>
+[1m[32m  [OK] [0mrender a negative integer literal[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mrender a range object[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkNumber: 1.4> -> <TkNumber: 1.4>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mrender a range object that uses a float[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mrender a range object that uses an identifier[0m
+<TkString: hello> -> <TkString: hello>
+[1m[32m  [OK] [0mrender a string literal[0m
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: title> -> <TkIdentifier: title>
+[1m[32m  [OK] [0mrender a variable from the global namespace[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: name> -> <TkIdentifier: name>
+<TkAssign: > -> <TkAssign: =>
+<TkString: Brian> -> <TkString: Brian>
+<TkIdentifier: name> -> <TkIdentifier: name>
+Handling assign tag
+[1m[32m  [OK] [0mrender a variable from the local namespace[0m
+<TkNumber: 123> -> <TkNumber: 123>
+[1m[32m  [OK] [0mrender an integer literal[0m
+<TkString: {{> -> <TkString: {{>
+[1m[32m  [OK] [0mrender an output start sequence as a string literal[0m
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: age> -> <TkIdentifier: age>
+[1m[32m  [OK] [0mrender an undefined property[0m
+<TkIdentifier: age> -> <TkIdentifier: age>
+[1m[32m  [OK] [0mrender an undefined variable[0m
+<TkNil: > -> <TkNil: nil>
+[1m[32m  [OK] [0mrender nil[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkRange: > -> <TkRange: ..>
+<TkNumber: 5> -> <TkNumber: 5>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: reverse> -> <TkIdentifier: reverse>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mreverse a range[0m
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkString: bar baz> -> <TkString: bar baz>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mtop-level quoted, bracketed variable name with whitespace[0m
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkString: bar baz> -> <TkString: bar baz>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: qux> -> <TkIdentifier: qux>
+[1m[32m  [OK] [0mtop-level quoted, bracketed variable name with whitespace followed by dot notation[0m
+<TkIdentifier: site> -> <TkIdentifier: site>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: data> -> <TkIdentifier: data>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: menu> -> <TkIdentifier: menu>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: include> -> <TkIdentifier: include>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: menu> -> <TkIdentifier: menu>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkIdentifier: include> -> <TkIdentifier: include>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: locale> -> <TkIdentifier: locale>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mtraverse variables with bracketed identifiers[0m
+<TkNumber: 12> -> <TkNumber: 12>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0munexpected left value for the `join` filter passes through[0m
+[1m[34m
+[Suite] [0mrange objects[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: start> -> <TkIdentifier: start>
+<TkRange: > -> <TkRange: ..>
+<TkIdentifier: end> -> <TkIdentifier: end>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mend is less than start[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: start> -> <TkIdentifier: start>
+<TkRange: > -> <TkRange: ..>
+<TkIdentifier: end> -> <TkIdentifier: end>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mend is not a number[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: start> -> <TkIdentifier: start>
+<TkRange: > -> <TkRange: ..>
+<TkIdentifier: end> -> <TkIdentifier: end>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mstart and end are negative[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: start> -> <TkIdentifier: start>
+<TkRange: > -> <TkRange: ..>
+<TkIdentifier: end> -> <TkIdentifier: end>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mstart is negative[0m
+<TkLeftParen: > -> <TkLeftParen: (>
+<TkIdentifier: start> -> <TkIdentifier: start>
+<TkRange: > -> <TkRange: ..>
+<TkIdentifier: end> -> <TkIdentifier: end>
+<TkRightParen: > -> <TkRightParen: )>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mstart is not a number[0m
+[1m[34m
+[Suite] [0mraw tag[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mcontinue after raw[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mliteral[0m
+[1m[33m  [ABORT] [0mLexing sections failed with: Unbalanced brackets: Found new opening tag before closing tag opened at line 1 column 13[0m
+  Traceback (most recent call last)
+  /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid/raw_tag.nim(36) golden_liquid
+  /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid/helpers.nim(528) testCase
+  /Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid/helpers.nim(463) testCode
+  
+[1m[31m  [FAILED] [0mpartial tag[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mstatement[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mtag[0m
+[1m[34m
+[Suite] [0mrender tag[0m
+<TkIdentifier: render> -> <TkIdentifier: render>
+<TkString: product-hero> -> <TkString: product-hero>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: product> -> <TkIdentifier: product>
+<TkColon: > -> <TkColon: :>
+<TkIdentifier: product> -> <TkIdentifier: product>
+[1m[32m  [OK] [0mstring literal name[0m
+<TkIdentifier: render> -> <TkIdentifier: render>
+<TkString: product-args> -> <TkString: product-args>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkColon: > -> <TkColon: :>
+<TkString: hello> -> <TkString: hello>
+<TkComma: > -> <TkComma: ,>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkColon: > -> <TkColon: :>
+<TkString: there> -> <TkString: there>
+[1m[32m  [OK] [0mrender with keyword arguments[0m
+<TkIdentifier: render> -> <TkIdentifier: render>
+<TkString: product-title> -> <TkString: product-title>
+<TkIdentifier: with> -> <TkIdentifier: with>
+<TkIdentifier: collection> -> <TkIdentifier: collection>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: products> -> <TkIdentifier: products>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightBracket: > -> <TkRightBracket: ]>
+[1m[32m  [OK] [0mrender with bound variable[0m
+<TkIdentifier: render> -> <TkIdentifier: render>
+<TkString: product-alias> -> <TkString: product-alias>
+<TkIdentifier: with> -> <TkIdentifier: with>
+<TkIdentifier: collection> -> <TkIdentifier: collection>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: products> -> <TkIdentifier: products>
+<TkLeftBracket: > -> <TkLeftBracket: [>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkRightBracket: > -> <TkRightBracket: ]>
+<TkIdentifier: as> -> <TkIdentifier: as>
+<TkIdentifier: product> -> <TkIdentifier: product>
+[1m[33m  [ABORT][0m AST mismatch[0m
+Actual AST:
+<nkTag>
+  name: render
+  parameters:
+  <nkString: product-alias>
+  <nkVariable>
+    <nkString: collection>
+    <nkString: products>
+    <nkNumber: 1.0>
+    <nkString: as>
+    
+
+Expected AST:
+<nkTag>
+  name: render
+  parameters:
+  <nkString: product-alias>
+  <nkVariable>
+    <nkString: collection>
+    <nkString: products>
+    <nkNumber: 1.0>
+    
+  <nkString: product>
+  
+[1m[31m  [FAILED] [0mrender with bound variable and alias[0m
+<TkIdentifier: render> -> <TkIdentifier: render>
+<TkString: prod> -> <TkString: prod>
+<TkIdentifier: for> -> <TkIdentifier: for>
+<TkIdentifier: collection> -> <TkIdentifier: collection>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: products> -> <TkIdentifier: products>
+[1m[32m  [OK] [0mrender for array[0m
+[1m[34m
+[Suite] [0mspecial[0m
+<TkIdentifier: s> -> <TkIdentifier: s>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+[1m[32m  [OK] [0mfirst of a string[0m
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+[1m[32m  [OK] [0mfirst of an array[0m
+<TkIdentifier: obj> -> <TkIdentifier: obj>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mfirst of an empty object[0m
+<TkIdentifier: obj> -> <TkIdentifier: obj>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+<TkPipe: > -> <TkPipe: |>
+<TkIdentifier: join> -> <TkIdentifier: join>
+<TkColon: > -> <TkColon: :>
+<TkString: #> -> <TkString: #>
+[1m[32m  [OK] [0mfirst of an object[0m
+<TkIdentifier: obj> -> <TkIdentifier: obj>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first> -> <TkIdentifier: first>
+[1m[32m  [OK] [0mfirst of an object with a first property[0m
+<TkIdentifier: obj> -> <TkIdentifier: obj>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+[1m[32m  [OK] [0mlast of a object[0m
+<TkIdentifier: s> -> <TkIdentifier: s>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+[1m[32m  [OK] [0mlast of a string[0m
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+[1m[32m  [OK] [0mlast of an array[0m
+<TkIdentifier: obj> -> <TkIdentifier: obj>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+[1m[32m  [OK] [0mlast of an object with a last property[0m
+<TkIdentifier: s> -> <TkIdentifier: s>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: size> -> <TkIdentifier: size>
+[1m[32m  [OK] [0msize of a string[0m
+<TkIdentifier: a> -> <TkIdentifier: a>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: size> -> <TkIdentifier: size>
+[1m[32m  [OK] [0msize of an array[0m
+<TkIdentifier: obj> -> <TkIdentifier: obj>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: size> -> <TkIdentifier: size>
+[1m[32m  [OK] [0msize of an object with a size property[0m
+<TkIdentifier: nosuchthing> -> <TkIdentifier: nosuchthing>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: last> -> <TkIdentifier: last>
+[1m[32m  [OK] [0msize of undefined[0m
+[1m[34m
+[Suite] [0mtablerow tag[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mone row[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mtwo columns[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mone row with limit[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mone row with offset[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mtwo column range[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mcols is a string[0m
+[1m[34m
+[Suite] [0munless tag[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mliteral false condition[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mliteral true condition[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0malternative block[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mconditional alternative block[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: elsif> -> <TkIdentifier: elsif>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mconditional alternative block with default[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mblocks that contain only whitespace are not rendered[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mone is not equal to true[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkOperator: ==> -> <TkOperator: ==>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mzero is not equal to false[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkNumber: 0> -> <TkNumber: 0>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+[1m[32m  [OK] [0mzero is truthy[0m
+[1m[34m
+[Suite] [0mwhitespace control[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: echo> -> <TkIdentifier: echo>
+<TkString: > -> <TkString: >
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mdon't suppress whitespace only blocks containing echo[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkString: > -> <TkString: >
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mdon't suppress whitespace only blocks containing output[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkString: > -> <TkString: >
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mdon't suppress whitespace only blocks containing output in nested block[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: else> -> <TkIdentifier: else>
+<TkString: > -> <TkString: >
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mdon't suppress whitespace only blocks containing output in unreachable blocks[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkAssign: > -> <TkAssign: =>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkNumber: 2> -> <TkNumber: 2>
+<TkString: > -> <TkString: >
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mdon't suppress whitespace only case blocks containing output[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkString: > -> <TkString: >
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0mdon't suppress whitespace only unless blocks containing output in nested blocks[0m
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkAssign: > -> <TkAssign: =>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: case> -> <TkIdentifier: case>
+<TkIdentifier: x> -> <TkIdentifier: x>
+<TkIdentifier: when> -> <TkIdentifier: when>
+<TkNumber: 1> -> <TkNumber: 1>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endcase> -> <TkIdentifier: endcase>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0msuppress whitespace only case blocks[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0msuppress whitespace only if blocks[0m
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: bar> -> <TkIdentifier: bar>
+<TkAssign: > -> <TkAssign: =>
+<TkString: foo> -> <TkString: foo>
+<TkIdentifier: unless> -> <TkIdentifier: unless>
+<TkBoolean: false> -> <TkBoolean: false>
+<TkIdentifier: assign> -> <TkIdentifier: assign>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkAssign: > -> <TkAssign: =>
+<TkString: bar> -> <TkString: bar>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+<TkIdentifier: endunless> -> <TkIdentifier: endunless>
+Handling assign tag
+Handling assign tag
+[1m[32m  [OK] [0msuppress whitespace only unless blocks[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkString: > -> <TkString: >
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0msuppress whitespace surrounding a capture block[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkBoolean: true> -> <TkBoolean: true>
+<TkIdentifier: capture> -> <TkIdentifier: capture>
+<TkIdentifier: foo> -> <TkIdentifier: foo>
+<TkIdentifier: endcapture> -> <TkIdentifier: endcapture>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0msuppress whitespace surrounding an empty capture block[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first_name> -> <TkIdentifier: first_name>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mwhite space control with  carriage return, newline and spaces[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first_name> -> <TkIdentifier: first_name>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mwhite space control with carriage return and spaces[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first_name> -> <TkIdentifier: first_name>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mwhite space control with newlines and spaces[0m
+<TkIdentifier: if> -> <TkIdentifier: if>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkIdentifier: customer> -> <TkIdentifier: customer>
+<TkDot: > -> <TkDot: .>
+<TkIdentifier: first_name> -> <TkIdentifier: first_name>
+<TkIdentifier: endif> -> <TkIdentifier: endif>
+[1m[32m  [OK] [0mwhite space control with newlines, tabs and spaces[0m
+[1m[33m  [ABORT] [0mAssertion failed: actual.len == expected.len[0m
+[1m[31m  [FAILED] [0mwhite space control with raw tags[0m
+
+Failures:
+
+  assign tag
+    assign a range literal
+
+  echo tag
+    access array item by index stored in a local variable
+
+  loop functionality
+    comma separated arguments
+    range loop using identifier
+
+  inline comment tag
+    can't comment tags
+
+  liquid tag
+    nested liquid with if
+    newline terminated tags
+
+  raw tag
+    continue after raw
+    literal
+    partial tag
+    statement
+    tag
+
+  render tag
+    render with bound variable and alias
+
+  tablerow tag
+    one row
+    two columns
+    one row with limit
+    one row with offset
+    two column range
+    cols is a string
+
+  whitespace control
+    white space control with raw tags
+
+Duration: 0.054641 seconds
+Total tests: 315, Successes: 295, Failures: 20
+Error: execution of an external program failed: '/Users/jonas/projects/accodeing/accelerate/liquid/test/golden_liquid.out'

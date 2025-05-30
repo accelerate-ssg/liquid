@@ -287,8 +287,33 @@ suite "unless tag":
         nodeUnless(
           nodeEq(nodeLiteral(0), nodeLiteral(false))
         )
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "else")
+        ],
+        nodeElse()
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endunless")
+        ],
+        nodeEndUnless()
       )
-    ]
+    ],
+    output = "Hello"
   )
 
   testCase(
@@ -304,8 +329,33 @@ suite "unless tag":
         nodeUnless(
           nodeLiteral(0)
         )
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "else")
+        ],
+        nodeElse()
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endunless")
+        ],
+        nodeEndUnless()
       )
-    ]
+    ],
+    output = "Goodbye"
   )
 
   # Skip tests that depend on execution
