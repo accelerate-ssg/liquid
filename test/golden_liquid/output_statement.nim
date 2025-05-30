@@ -551,8 +551,7 @@ suite "output statement":
       section(
         SectionType.Output,
         @[
-          token(TkOperator, "-"),
-          token(TkNumber, "123")
+          token(TkNumber, "-123")
         ],
         nodeOutput(@[nodeNumber(-123)])
       )
