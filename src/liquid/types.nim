@@ -80,6 +80,8 @@ type
     currentSection*: Section
     openBrackets*: int
     sections*: seq[Section]
+    inString*: bool
+    stringDelimiter*: char
 
   LexerError* = object of CatchableError
 

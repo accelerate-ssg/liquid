@@ -44,8 +44,17 @@ proc parseVariable*(p: Parser): Node =
   while p.current().kind in [TkDot, TkLeftBracket]:
     if p.current.kind == TkDot:
       discard p.advance()
-      let prop = p.advance()
-      segments.add(Node(kind: nkString, strVal: prop.value))
+      # Check if next token is a number (for array access like products.0.title)
+      if p.current().kind == TkNumber:
+        if p.strict_mode:
+          raise newException(ValueError, "Numeric indices after dots are not allowed in strict mode")
+        # Convert dot notation with number to bracket notation
+        let numToken = p.advance()
+        let numVal = parseFloat(numToken.value)
+        segments.add(Node(kind: nkNumber, numVal: numVal))
+      else:
+        let prop = p.advance()
+        segments.add(Node(kind: nkString, strVal: prop.value))
     else:
       let prop = p.parseArrayAccess()
       segments.add(prop)

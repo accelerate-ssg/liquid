@@ -25,6 +25,8 @@ template with(self: SectionLexer, body: untyped) =
   template currentSection: untyped = self.currentSection
   template openBrackets: untyped = self.openBrackets
   template sections: untyped = self.sections
+  template inString: untyped = self.inString
+  template stringDelimiter: untyped = self.stringDelimiter
   template closeCurrentSection(): untyped = self.closeCurrentSection()
   template startNewSection(sectionType: SectionType): untyped = self.startNewSection(sectionType)
     
@@ -36,7 +38,9 @@ proc initSectionLexer(input: string): SectionLexer =
     inSpecialSection: false,
     currentSection: nil,
     openBrackets: 0,
-    sections: @[]
+    sections: @[],
+    inString: false,
+    stringDelimiter: ' '
   )
 
 proc closeCurrentSection(sectionLexer: SectionLexer) =
@@ -161,15 +165,28 @@ proc lexSections*(input: string): seq[Section] =
             startNewSection(Text)
           currentSection.content.add(lexer.advance)
       else:
+        # Track string state inside special sections
+        if lexer.position < input.len:
+          let ch = lexer.input[lexer.position]
+          if not inString and (ch == '"' or ch == '\''): 
+            inString = true
+            stringDelimiter = ch
+          elif inString and ch == stringDelimiter:
+            # Check if escaped
+            if lexer.position > 0 and lexer.input[lexer.position - 1] != '\\':
+              inString = false
+        
         if currentSection.sectionType == Output and (lexer.peek("}}") or lexer.peek("-}}")):
           currentSection.stripRight = lexer.peek_and_advance("-")
           discard lexer.peek_and_advance("}}")
           closeCurrentSection()
+          inString = false  # Reset string state when section closes
         elif currentSection.sectionType == Tag and (lexer.peek("%}") or lexer.peek("-%}")):
           currentSection.stripRight = lexer.peek_and_advance("-")
           discard lexer.peek_and_advance("%}")
           closeCurrentSection()
-        elif lexer.peek("{{") or lexer.peek("{%"):
+          inString = false  # Reset string state when section closes
+        elif not inString and (lexer.peek("{{") or lexer.peek("{%")):
           raise newException(LexerError, "Unbalanced brackets: Found new opening tag before closing tag opened at line " & 
             $currentSection.startRow & " column " & $currentSection.startCol)
         else:
