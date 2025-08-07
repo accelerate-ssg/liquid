@@ -3,28 +3,16 @@ import strutils, sequtils
 import ../types, helpers
 
 proc peek(l: Lexer, next: string): bool =
-  if l.position + next.len <= l.input.len and l.input[l.position..<l.position+next.len] == next:
-    return true
-  false
+  l.matchPattern(next)
 
 proc peek_and_advance(l: var Lexer, s: string): bool =
-  if l.peek(s):
-    for ch in s:
-      if ch == '\n':
-        l.line += 1
-        l.column = 0
-      else:
-        l.column += 1
-    l.position += s.len
+  if l.matchPattern(s):
+    discard l.advanceBulk(s.len)
     return true
   false
 
 proc findNextEndrawPattern(l: Lexer): int =
   # Returns the position where the endraw pattern starts, or -1 if not found
-  var pos = l.position
-  let search_text = l.input[pos..^1]
-  
-  # Check for all possible endraw patterns and find the earliest one
   let patterns = @[
     "{% endraw %}",      # 12 chars
     "{%- endraw %}",     # 14 chars 
@@ -33,12 +21,13 @@ proc findNextEndrawPattern(l: Lexer): int =
   ]
   
   var earliest_pos = -1
+  # Create a temporary lexer at current position to use findPattern
+  var tempLexer = l
   for pattern in patterns:
-    let pattern_pos = search_text.find(pattern)
+    let pattern_pos = tempLexer.findPattern(pattern)
     if pattern_pos != -1:
-      let absolute_pos = pos + pattern_pos
-      if earliest_pos == -1 or absolute_pos < earliest_pos:
-        earliest_pos = absolute_pos
+      if earliest_pos == -1 or pattern_pos < earliest_pos:
+        earliest_pos = pattern_pos
   
   return earliest_pos
 
@@ -171,8 +160,8 @@ proc lexSections*(input: string): seq[Section] =
                 
                 # Now create a text section for any remaining content  
                 startNewSection(Text)
-                while lexer.position < input.len:
-                  currentSection.content.add(lexer.advance)
+                if lexer.position < input.len:
+                  currentSection.content = lexer.advanceBulk(input.len - lexer.position)
               # Don't create any section for the comment itself - it's consumed
             else:
               # Normal comment tag without nested syntax
@@ -196,7 +185,24 @@ proc lexSections*(input: string): seq[Section] =
         else:
           if currentSection == nil:
             startNewSection(Text)
-          currentSection.content.add(lexer.advance)
+          # Optimize text scanning by finding next tag boundary
+          let outputPos = lexer.findPattern("{{")
+          let tagPos = lexer.findPattern("{%")
+          var nextTagPos = -1
+          
+          if outputPos != -1 and tagPos != -1:
+            nextTagPos = min(outputPos, tagPos)
+          elif outputPos != -1:
+            nextTagPos = outputPos
+          elif tagPos != -1:
+            nextTagPos = tagPos
+            
+          if nextTagPos != -1 and nextTagPos > lexer.position:
+            # Read all text until next tag
+            currentSection.content.add(lexer.advanceBulk(nextTagPos - lexer.position))
+          else:
+            # Single character if no tags found nearby
+            currentSection.content.add(lexer.advance)
       else:
         # Track string state inside special sections
         if lexer.position < input.len:
