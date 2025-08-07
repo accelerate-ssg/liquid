@@ -17,9 +17,13 @@ suite "tablerow tag":
         ],
         nodeTablerow(
           "tag",
-          nodeDot(nodeIdentifier("collection"), "tags"),
-          @[nodeOutput(@[nodeIdentifier("tag")])]
+          nodeDot(nodeIdentifier("collection"), "tags")
         )
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "tag")],
+        nodeOutput(@[nodeIdentifier("tag")])
       ),
       section(
         SectionType.Tag,
@@ -51,8 +55,20 @@ suite "tablerow tag":
         nodeTablerow(
           "tag",
           nodeDot(nodeIdentifier("collection"), "tags"),
-          @[nodeOutput(@[nodeIdentifier("tag")])]
+          @[nodeArgument("cols", nodeNumber(2))]
         )
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "tag")],
+        nodeOutput(@[nodeIdentifier("tag")])
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endtablerow")
+        ],
+        nodeEndTablerow()
       )
     ]
   )
@@ -77,8 +93,20 @@ suite "tablerow tag":
         nodeTablerow(
           "tag",
           nodeDot(nodeIdentifier("collection"), "tags"),
-          @[nodeOutput(@[nodeIdentifier("tag")])]
+          @[nodeArgument("limit", nodeNumber(2))]
         )
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "tag")],
+        nodeOutput(@[nodeIdentifier("tag")])
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endtablerow")
+        ],
+        nodeEndTablerow()
       )
     ]
   )
@@ -103,8 +131,20 @@ suite "tablerow tag":
         nodeTablerow(
           "tag",
           nodeDot(nodeIdentifier("collection"), "tags"),
-          @[nodeOutput(@[nodeIdentifier("tag")])]
+          @[nodeArgument("offset", nodeNumber(2))]
         )
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "tag")],
+        nodeOutput(@[nodeIdentifier("tag")])
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endtablerow")
+        ],
+        nodeEndTablerow()
       )
     ]
   )
@@ -131,14 +171,34 @@ suite "tablerow tag":
         nodeTablerow(
           "i",
           nodeRange(nodeLiteral(1), nodeLiteral(4)),
-          @[
-            nodeOutput(@[nodeIdentifier("i")]),
-            nodeOutput(@[
-              nodeLiteral(" "),
-              nodeDot(nodeIdentifier("tablerowloop"), "col_first")
-            ])
-          ]
+          @[nodeArgument("cols", nodeNumber(2))]
         )
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "i")],
+        nodeOutput(@[nodeIdentifier("i")])
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Output,
+        @[
+          token(TkIdentifier, "tablerowloop"),
+          token(TkDot),
+          token(TkIdentifier, "col_first")
+        ],
+        nodeOutput(@[nodeDot(nodeIdentifier("tablerowloop"), "col_first")])
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endtablerow")
+        ],
+        nodeEndTablerow()
       )
     ]
   )
@@ -165,14 +225,34 @@ suite "tablerow tag":
         nodeTablerow(
           "i",
           nodeRange(nodeLiteral(1), nodeLiteral(4)),
-          @[
-            nodeOutput(@[nodeIdentifier("i")]),
-            nodeOutput(@[
-              nodeLiteral(" "),
-              nodeDot(nodeIdentifier("tablerowloop"), "col_first")
-            ])
-          ]
+          @[nodeArgument("cols", nodeString("'2'"))]
         )
+      ),
+      section(
+        SectionType.Output,
+        @[token(TkIdentifier, "i")],
+        nodeOutput(@[nodeIdentifier("i")])
+      ),
+      section(
+        SectionType.Text,
+        @[],
+        nil
+      ),
+      section(
+        SectionType.Output,
+        @[
+          token(TkIdentifier, "tablerowloop"),
+          token(TkDot),
+          token(TkIdentifier, "col_first")
+        ],
+        nodeOutput(@[nodeDot(nodeIdentifier("tablerowloop"), "col_first")])
+      ),
+      section(
+        SectionType.Tag,
+        @[
+          token(TkIdentifier, "endtablerow")
+        ],
+        nodeEndTablerow()
       )
     ]
   )

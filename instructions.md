@@ -30,6 +30,14 @@ When the test does not pass we need to verify the following:
 - ✅ **Fixed for tag comma-separated arguments**: Parser now correctly consumes comma after range expression and parses limit/offset arguments
 - ✅ **Progress**: Failures reduced from 14 to 12 (96.2% pass rate: 303/315 tests passing)
 
+**Current Failing Tests (12 remaining):**
+1. **Range loop using identifier** (1 test) - Loop over range with variable bounds
+2. **Tablerow tag functionality** (6 tests) - HTML table generation with various options
+3. **Whitespace control with raw tags** (1 test) - Raw tag content preservation
+4. **Liquid tag nested functionality** (2 tests) - Multi-command execution
+5. **Render tag bound variables** (1 test) - Partial template rendering
+6. **Inline comment tag** (1 test) - Comment parsing issue
+
 ## What's Already Implemented
 
 **Core Renderer Architecture:**
@@ -184,73 +192,65 @@ When the test does not pass we need to verify the following:
    - ~~Impact: Array/object access fundamentally broken~~
    - **Resolution**: Parser now correctly handles all bracket notation patterns including `[expr]`, `foo["bar"]`, nested brackets, and identifier-after-bracket cases
 
-## High Priority (Next to implement)
+## High Priority (Current 12 failing tests)
 
-2. **Implement range object rendering** (6+ failing tests)
+1. **Fix tablerow tag HTML generation** (6 failing tests)
+   - Files: `src/liquid/parser/tags/tablerow.nim`, renderer
+   - Issue: No HTML table generation implementation
+   - Impact: Table rendering completely broken
+   - Tests: `one row`, `two columns`, `one row with limit`, `one row with offset`, `two column range`, `cols is a string`
 
+2. **Fix liquid tag nested functionality** (2 failing tests)
+   - Files: `src/liquid/parser/tags/liquid.nim`, renderer
+   - Issue: Multi-command execution not working properly
+   - Impact: Multi-command blocks broken
+   - Tests: `nested liquid with if`, `newline terminated tags`
+
+3. **Fix range loop with identifier** (1 failing test)
    - Files: `src/liquid/renderer.nim`
-   - Issue: Range evaluation not implemented
-   - Impact: Range expressions don't work
+   - Issue: Range evaluation with variable bounds not working
+   - Impact: Dynamic range loops broken
+   - Tests: `range loop using identifier`
 
-3. **Fix output statement rendering** (8+ failing tests)
-
-   - Files: `src/liquid/renderer.nim`
-   - Issue: Complex expression evaluation edge cases
-   - Impact: Basic template features broken
-
-4. **Implement 'unless' tag else/elsif branches** (6+ failing tests)
-
-   - Files: `src/liquid/parser/tags/unless.nim`
-   - Issue: Parser expects branches but they're not implemented
-   - Impact: Conditional logic incomplete
-
-5. **Implement 'raw' tag content preservation** (5+ failing tests)
+4. **Fix whitespace control with raw tags** (1 failing test)
    - Files: `src/liquid/parser/tags/raw.nim`, renderer
-   - Issue: Raw content not preserved
-   - Impact: Literal content rendering broken
+   - Issue: Raw content not preserving whitespace correctly
+   - Impact: Raw content rendering broken
+   - Tests: `white space control with raw tags`
 
-## Medium Priority (Important Features)
+5. **Fix render tag bound variables** (1 failing test)
+   - Files: `src/liquid/parser/tags/render.nim`, renderer
+   - Issue: Partial template rendering with variable binding
+   - Impact: Advanced template composition broken
+   - Tests: `render with bound variable and alias`
 
-6. **Implement 'tablerow' tag HTML generation**
+6. **Fix inline comment tag** (1 failing test)
+   - Files: `src/liquid/parser/tags/comment.nim`, renderer  
+   - Issue: Comment tag parsing issue
+   - Impact: Comment functionality broken
+   - Tests: `can't comment tags`
 
-   - Files: `src/liquid/parser/tags/tablerow.nim`
-   - Issue: No HTML table generation
-   - Impact: Table rendering not available
+## Medium Priority (Future Enhancements)
 
-7. **Implement 'capture' tag variable assignment**
-
+1. **Implement 'capture' tag variable assignment**
    - Files: `src/liquid/parser/tags/capture.nim`
    - Issue: Parsing exists but no rendering logic
    - Impact: Content capture not working
 
-8. **Implement 'case/when' tag conditional logic**
-
+2. **Implement 'case/when' tag conditional logic**
    - Files: `src/liquid/parser/tags/case_tag.nim`
    - Issue: No rendering implementation
    - Impact: Switch-case conditionals missing
 
-9. **Implement 'cycle' tag state management**
-
+3. **Implement 'cycle' tag state management**
    - Files: `src/liquid/parser/tags/cycle.nim`
    - Issue: No state management
    - Impact: Value cycling not available
 
-10. **Implement 'liquid' tag multi-command execution**
-
-    - Files: `src/liquid/parser/tags/liquid.nim`
-    - Issue: Parsing works but rendering doesn't execute
-    - Impact: Multi-command blocks broken
-
-11. **Implement 'render' tag partial template system**
-
-    - Files: `src/liquid/parser/tags/render.nim`
-    - Issue: No partial template support
-    - Impact: Template composition not available
-
-12. **Implement special variable properties**
-    - Files: `src/liquid/renderer.nim`
-    - Issue: `.first`, `.last`, `.size` for objects not implemented
-    - Impact: Object property access limited
+4. **Implement special variable properties**
+   - Files: `src/liquid/renderer.nim`
+   - Issue: `.first`, `.last`, `.size` for objects not implemented
+   - Impact: Object property access limited
 
 ## Low Priority (Nice to Have)
 
@@ -345,11 +345,13 @@ When the test does not pass we need to verify the following:
 
 # Success Metrics
 
-## Short-term (1-2 weeks)
+## Short-term (Next Sprint)
 
-- ~~Reduce test failures from 54 to under 20~~ ✅ (Already at 45)
-- ~~Fix all bracket notation issues~~ ✅ (Completed)
-- Implement range object rendering (Next priority)
+- ✅ **Reduced failures from 45 to 12** (303/315 tests passing - 96.2% success rate)
+- ✅ **Fixed all bracket notation issues** 
+- ✅ **Fixed echo tag and for tag parsing**
+- **Next Goal: Fix tablerow tag (6 tests) - biggest impact**
+- **Target: Get below 6 failing tests (98%+ pass rate)**
 
 ## Medium-term (1 month)
 
