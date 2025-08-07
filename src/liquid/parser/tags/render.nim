@@ -1,4 +1,39 @@
-import ../../types, ../core
+import ../../types, ../core, strutils
+
+# Parse a variable expression but stop if we encounter "as" keyword
+proc parseVariableWithAsContext(p: Parser): Node =
+  var segments: seq[Node] = @[]
+  let firstToken = p.advance()
+  segments.add(Node(kind: nkString, strVal: firstToken.value))
+  
+  while p.current().kind in [TkDot, TkLeftBracket]:
+    if p.current.kind == TkDot:
+      discard p.advance()
+      # Check if next token is a number (for array access like products.0.title)
+      if p.current().kind == TkNumber:
+        if p.strict_mode:
+          raise newException(ValueError, "Numeric indices after dots are not allowed in strict mode")
+        # Convert dot notation with number to bracket notation
+        let numToken = p.advance()
+        let numVal = parseFloat(numToken.value)
+        segments.add(Node(kind: nkNumber, numVal: numVal))
+      else:
+        let prop = p.advance()
+        segments.add(Node(kind: nkString, strVal: prop.value))
+    else: # TkLeftBracket
+      discard p.advance() # consume [
+      let prop = p.parseExpression()
+      segments.add(prop)
+      if p.current().kind != TkRightBracket:
+        raise newException(ValueError, "Expected ] at end of array access")
+      discard p.advance() # consume ]
+      # After bracket access, check if there's an identifier following
+      # BUT STOP if it's the "as" keyword
+      if p.current().kind == TkIdentifier and p.current().value != "as":
+        let prop = p.advance()
+        segments.add(Node(kind: nkString, strVal: prop.value))
+  
+  result = Node(kind: nkVariable, segments: segments)
 
 const tag_info* = TagHandlerInfo(
   opening_tag: "render",
@@ -43,7 +78,8 @@ proc parse*(p: Parser): Node =
           case token.value:
           of "with":
             discard p.advance()
-            let value = p.parseExpression()
+            # Parse expression but be aware of "as" keyword
+            let value = p.parseVariableWithAsContext()
             parameters.add(value)  # Add bound variable directly
             
             # Check for "as" clause
