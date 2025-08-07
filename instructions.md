@@ -23,6 +23,13 @@ When the test does not pass we need to verify the following:
 
 # Current State Overview
 
+## Latest Progress Update
+
+**Recent Fixes Completed:**
+- ✅ **Fixed echo tag bracket notation test**: Corrected test expectation to properly handle variable index evaluation in `product.tags[i]`
+- ✅ **Fixed for tag comma-separated arguments**: Parser now correctly consumes comma after range expression and parses limit/offset arguments
+- ✅ **Progress**: Failures reduced from 14 to 12 (96.2% pass rate: 303/315 tests passing)
+
 ## What's Already Implemented
 
 **Core Renderer Architecture:**
@@ -114,9 +121,9 @@ When the test does not pass we need to verify the following:
 ## Current Test Status
 
 - **Total tests**: 315
-- **Successes**: 270
-- **Failures**: 45
-- **Success rate**: 85.7%
+- **Successes**: 303
+- **Failures**: 12
+- **Success rate**: 96.2%
 
 ## Major Failure Categories
 
@@ -128,7 +135,19 @@ When the test does not pass we need to verify the following:
 - ~~Root cause: Parser not handling bracket notation correctly~~ ✅
 - **Resolution**: Fixed parser to handle all bracket notation patterns correctly
 
-**2. Range Object Evaluation (6+ tests)**
+**2. ~~Echo Tag Variable Index Tests~~ ✅ FIXED (1 test)**
+
+- ~~`product.tags[i]` where `i` is a variable~~ ✅
+- ~~Root cause: Test expectation was incorrect - should evaluate variable at runtime~~ ✅
+- **Resolution**: Fixed test to expect proper variable node structure for bracket notation
+
+**3. ~~For Tag Comma-Separated Arguments~~ ✅ FIXED (2 tests)**
+
+- ~~`{% for i in (1..6), limit: 4, offset: 2 %}`~~ ✅
+- ~~Root cause: Parser not consuming comma after range expression~~ ✅
+- **Resolution**: Added comma consumption before parsing arguments
+
+**4. Range Object Evaluation (remaining tests)**
 
 - `(1..5)` - basic range rendering
 - `(foo..5)` - range with variables
