@@ -55,9 +55,13 @@ proc parseVariable*(p: Parser): Node =
       else:
         let prop = p.advance()
         segments.add(Node(kind: nkString, strVal: prop.value))
-    else:
+    else: # TkLeftBracket
       let prop = p.parseArrayAccess()
       segments.add(prop)
+      # After bracket access, check if there's an identifier directly following
+      if p.current().kind == TkIdentifier:
+        let prop = p.advance()
+        segments.add(Node(kind: nkString, strVal: prop.value))
   
   if segments.len == 1 and segments[0].kind == nkString:
     case segments[0].strVal

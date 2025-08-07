@@ -6,6 +6,8 @@
   commit the changes with a clear message.
 - If you write tools to modify files use bash or nim, I do not have python or
   javascript setup available.
+- Cleanup any temporary debug/test files created during the session before
+  committing
 - Commit before you run a script that modifies project files to avoid losing
   work.
 - Use two sections in commit messages: Feature and Bug

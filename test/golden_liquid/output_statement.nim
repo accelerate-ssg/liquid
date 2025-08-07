@@ -267,13 +267,11 @@ suite "output statement":
           token(TkIdentifier, "title")
         ],
         nodeOutput(@[
-          nodeDot(
-            nodeIndex(
-              nodeIdentifier("products"),
-              nodeNumber(0)
-            ),
-            "title"
-          )
+          Node(kind: nkVariable, segments: @[
+            nodeString("products"),
+            nodeNumber(0),
+            nodeString("title")
+          ])
         ])
       )
     ],
