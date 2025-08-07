@@ -624,7 +624,8 @@ suite "whitespace control":
         SectionType.Tag,
         @[token(TkIdentifier, "raw")],
         nodeRaw("{{ hello }}")
-      )
+      ),
+      section(SectionType.Text, @[], nil)
     ],
     output = "! {{ hello }} !\n!{{ hello }}!"
   )
