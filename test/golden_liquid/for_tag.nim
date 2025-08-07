@@ -1748,7 +1748,12 @@ suite "loop functionality":
         token(TkLeftBracket),
         token(TkIdentifier, "i"),
         token(TkRightBracket)
-      ], nodeOutput(@[nodeVariable("product.tags[i]")])),
+      ], nodeOutput(@[
+        nodeIndex(
+          nodeDot(nodeIdentifier("product"), "tags"),
+          nodeIdentifier("i")
+        )
+      ])),
       section(SectionType.Text, @[], nil),
       section(SectionType.Tag, @[
         token(TkIdentifier, "endfor")

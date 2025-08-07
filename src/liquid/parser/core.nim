@@ -58,10 +58,6 @@ proc parseVariable*(p: Parser): Node =
     else:
       let prop = p.parseArrayAccess()
       segments.add(prop)
-      # After array access, check if identifier follows without dot
-      if p.current().kind == TkIdentifier:
-        let prop = p.advance()
-        segments.add(Node(kind: nkString, strVal: prop.value))
   
   if segments.len == 1 and segments[0].kind == nkString:
     case segments[0].strVal
