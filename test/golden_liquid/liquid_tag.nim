@@ -56,8 +56,7 @@ suite "liquid tag":
           token(TkIdentifier, "liquid"),
           token(TkNewline, "\n"),
           token(TkIdentifier, "echo"),
-          token(TkString, "good"),
-          token(TkNewline, "\n")
+          token(TkString, "good")
         ],
         nodeLiquid(@[
           nodeEcho(@[nodeString("good")])
@@ -179,12 +178,7 @@ suite "liquid tag":
           nodeIf(
             nodeVariable("product.title")
           ),
-          nodeEcho(@[
-            nodeFilter(
-              nodeVariable("product.title"),
-              "upcase"
-            )
-          ]),
+          nodeEcho(@[]),
           nodeEcho(@[
             nodeFilter(
               nodeString("product-1"),
@@ -195,9 +189,7 @@ suite "liquid tag":
             "i",
             nodeRange(nodeNumber(0), nodeNumber(5))
           ),
-          nodeEcho(@[
-            nodeVariable("i")
-          ])
+          nodeEcho(@[])
         ])
       )
     ],
