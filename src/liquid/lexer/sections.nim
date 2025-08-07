@@ -3,33 +3,36 @@ import strutils, sequtils
 import ../types, helpers
 
 proc peek(l: Lexer, next: string): bool =
-  l.matchPattern(next)
+  l.matchesAt(next)
 
 proc peek_and_advance(l: var Lexer, s: string): bool =
-  if l.matchPattern(s):
+  if l.matchesAt(s):
     discard l.advanceBulk(s.len)
     return true
   false
 
-proc findNextEndrawPattern(l: Lexer): int =
-  # Returns the position where the endraw pattern starts, or -1 if not found
-  let patterns = @[
-    "{% endraw %}",      # 12 chars
-    "{%- endraw %}",     # 14 chars 
-    "{% endraw -%}",     # 14 chars
-    "{%- endraw -%}"     # 16 chars
-  ]
+
+# Optimized text content handling template - inlined for performance
+template handleTextContent() =
+  if currentSection == nil:
+    startNewSection(Text)
   
-  var earliest_pos = -1
-  # Create a temporary lexer at current position to use findPattern
-  var tempLexer = l
-  for pattern in patterns:
-    let pattern_pos = tempLexer.findPattern(pattern)
-    if pattern_pos != -1:
-      if earliest_pos == -1 or pattern_pos < earliest_pos:
-        earliest_pos = pattern_pos
+  # Single-pass scan for next tag boundary
+  var nextTagPos = -1
+  for i in lexer.position..<input.len-1:
+    if input[i] == '{' and (input[i+1] == '{' or input[i+1] == '%'):
+      nextTagPos = i
+      break
   
-  return earliest_pos
+  if nextTagPos > lexer.position:
+    # Read all text until next tag
+    currentSection.content.add(lexer.advanceBulk(nextTagPos - lexer.position))
+  elif nextTagPos == -1:
+    # No more tags - consume rest
+    currentSection.content.add(lexer.advanceBulk(input.len - lexer.position))
+  else:
+    # Single character
+    currentSection.content.add(lexer.advance)
 
 template with(self: SectionLexer, body: untyped) =
   template lexer: untyped = self.lexer
@@ -90,119 +93,211 @@ proc lexSections*(input: string): seq[Section] =
   with sectionLexer:
     while lexer.position < input.len:
       if not inSpecialSection:
-        if lexer.peek_and_advance("{{"):
-          startNewSection(Output)
-          currentSection.stripLeft = lexer.peek_and_advance("-")
-        elif lexer.peek("{%#"):
-          # Check if this is a true inline comment (without whitespace control)
-          let savedPos = lexer.position
-          let savedLine = lexer.line
-          let savedCol = lexer.column
-          discard lexer.peek_and_advance("{%#")
-          # Consume content until we find %} or -%}
-          var hasWhitespaceControl = false
-          while lexer.position < input.len:
-            if lexer.peek("-%}"):
-              hasWhitespaceControl = true
-              break
-            elif lexer.peek("%}"):
-              break
-            else:
-              discard lexer.advance()
-          
-          if hasWhitespaceControl:
-            # This is {%# ... -%} which should be treated as a tag, not inline comment
-            lexer.position = savedPos
-            lexer.line = savedLine
-            lexer.column = savedCol
-            discard lexer.peek_and_advance("{%")
+        # Pure tokenization using sliding window
+        if lexer.position + 2 <= input.len:
+          let window = lexer.getWindow(2)
+          case window
+          of "{{":
+            discard lexer.advanceBulk(2)
+            startNewSection(Output)
+            currentSection.stripLeft = lexer.peek == '-' and (discard lexer.advance; true)
+          of "{%":
+            discard lexer.advanceBulk(2)
             startNewSection(Tag)
-            currentSection.stripLeft = false  # {%# doesn't have initial whitespace control
-          else:
-            # True inline comment {%# ... %} - consume and emit nothing
-            discard lexer.peek_and_advance("%}")
-            # Don't create any section - just continue
-        elif lexer.peek("{%-"):
-          # Check if this is a comment tag that contains nested liquid syntax
-          let savedPos = lexer.position
-          let savedLine = lexer.line
-          let savedCol = lexer.column
-          discard lexer.peek_and_advance("{%-")
-          # Skip any whitespace
-          while lexer.position < input.len and lexer.input[lexer.position] in {' ', '\t'}:
-            discard lexer.advance()
-          if lexer.position < input.len and lexer.input[lexer.position] == '#':
-            # This is a comment with whitespace control {%- # ...
-            # Check if it contains nested tags by looking ahead for {%
-            var lookaheadPos = lexer.position + 1
-            var hasNestedTags = false
-            while lookaheadPos < input.len and not (lookaheadPos + 2 <= input.len and input[lookaheadPos..<lookaheadPos+2] == "-%}"):
-              if lookaheadPos + 2 <= input.len and input[lookaheadPos..<lookaheadPos+2] == "{%":
-                hasNestedTags = true
-                break
-              lookaheadPos += 1
+            currentSection.stripLeft = lexer.peek == '-' and (discard lexer.advance; true)
             
-            if hasNestedTags:
-              # This comment contains nested tags - consume everything until the first %} as a comment
-              # then output any remaining text
-              lexer.position = savedPos
-              lexer.line = savedLine
-              lexer.column = savedCol
-              discard lexer.peek_and_advance("{%-")
+            # Fast-path for inline comments {%# ... %}
+            if lexer.peek == '#':
+              currentSection.content.add('#')
+              discard lexer.advance
+              # Scan directly to closing %}
+              let scanResult = lexer.scanToPatterns(["-%}", "%}"])
+              currentSection.content.add(scanResult.content)
+              if scanResult.found:
+                currentSection.stripRight = scanResult.patternIndex == 0
+                if currentSection.stripRight:
+                  discard lexer.advanceBulk(3)
+                else:
+                  discard lexer.advanceBulk(2)
+                closeCurrentSection()
+                inString = false
+            # Fast-path for raw blocks {% raw %}
+            elif lexer.matchPattern("raw") and 
+                 (lexer.position + 3 < input.len and 
+                  input[lexer.position + 3] in {' ', '-', '%'}):
+              # Consume "raw" and any following whitespace/dash
+              currentSection.content.add("raw")
+              discard lexer.advanceBulk(3)
               
-              # Consume everything until we find the first %} (which closes the nested tag)
-              while lexer.position < input.len and not lexer.peek("%}"):
-                discard lexer.advance()
+              # Handle potential whitespace control and closing
+              let closeScan = lexer.scanToPatterns(["-%}", "%}"])
+              currentSection.content.add(closeScan.content)
               
-              # Skip the %}
-              if lexer.peek("%}"):
-                discard lexer.peek_and_advance("%}")
+              if closeScan.found:
+                currentSection.stripRight = closeScan.patternIndex == 0
+                if currentSection.stripRight:
+                  discard lexer.advanceBulk(3)
+                else:
+                  discard lexer.advanceBulk(2)
+                closeCurrentSection()
+                inString = false
                 
-                # Now create a text section for any remaining content  
-                startNewSection(Text)
-                if lexer.position < input.len:
-                  currentSection.content = lexer.advanceBulk(input.len - lexer.position)
-              # Don't create any section for the comment itself - it's consumed
-            else:
-              # Normal comment tag without nested syntax
-              lexer.position = savedPos
-              lexer.line = savedLine
-              lexer.column = savedCol
-              discard lexer.peek_and_advance("{%")
-              startNewSection(Tag)
-              currentSection.stripLeft = lexer.peek_and_advance("-")
+                # Now scan for {% endraw %} and capture everything as text
+                var endrawFound = false
+                while lexer.position < input.len:
+                  if lexer.matchesAt("{%") or lexer.matchesAt("{%-"):
+                    let savePos = lexer.position
+                    let stripLeft = lexer.matchesAt("{%-")
+                    if stripLeft:
+                      discard lexer.advanceBulk(3)
+                    else:
+                      discard lexer.advanceBulk(2)
+                    
+                    # Skip whitespace
+                    while lexer.position < input.len and lexer.peek in {' ', '\t', '\r', '\n'}:
+                      discard lexer.advance
+                    
+                    if lexer.matchesAt("endraw"):
+                      discard lexer.advanceBulk(6)
+                      # Skip whitespace
+                      while lexer.position < input.len and lexer.peek in {' ', '\t', '\r', '\n'}:
+                        discard lexer.advance
+                      
+                      # Check for closing tag
+                      if lexer.matchesAt("-%}") or lexer.matchesAt("%}"):
+                        let stripRight = lexer.matchesAt("-%}")
+                        if stripRight:
+                          discard lexer.advanceBulk(3)
+                        else:
+                          discard lexer.advanceBulk(2)
+                        
+                        # Get raw content up to this point
+                        let rawContent = input[savePos..<lexer.position - (if stripRight: 3 else: 2) - 6]
+                        
+                        # Create raw content as text section if not empty
+                        if rawContent.len > 0:
+                          currentSection = Section(
+                            sectionType: Text,
+                            content: rawContent,
+                            startRow: 0,  # These will be approximate
+                            startCol: 0
+                          )
+                          sections.add(currentSection)
+                          currentSection = nil
+                        
+                        # Add endraw tag
+                        currentSection = Section(
+                          sectionType: Tag,
+                          content: "endraw",
+                          stripLeft: stripLeft,
+                          stripRight: stripRight,
+                          startRow: lexer.line,
+                          startCol: lexer.column
+                        )
+                        sections.add(currentSection)
+                        currentSection = nil
+                        endrawFound = true
+                        break
+                      else:
+                        # Not a valid endraw tag, restore position
+                        lexer.position = savePos
+                        # Add as text
+                        if currentSection == nil:
+                          startNewSection(Text)
+                        currentSection.content.add(lexer.advance)
+                    else:
+                      # Not endraw, restore position and add to content
+                      lexer.position = savePos
+                      if currentSection == nil:
+                        startNewSection(Text)
+                      currentSection.content.add(lexer.advance)
+                  else:
+                    if currentSection == nil:
+                      startNewSection(Text)
+                    currentSection.content.add(lexer.advance)
+                
+                if not endrawFound:
+                  # No endraw found, already handled as text in the loop
+                  discard
+            # Fast-path for comment blocks {% comment %}
+            elif lexer.matchPattern("comment") and 
+                 (lexer.position + 7 < input.len and 
+                  input[lexer.position + 7] in {' ', '-', '%'}):
+              # Consume "comment" and any following content until closing tag
+              currentSection.content.add("comment")
+              discard lexer.advanceBulk(7)
+              
+              # Handle closing tag
+              let closeScan = lexer.scanToPatterns(["-%}", "%}"])
+              currentSection.content.add(closeScan.content)
+              
+              if closeScan.found:
+                currentSection.stripRight = closeScan.patternIndex == 0
+                if currentSection.stripRight:
+                  discard lexer.advanceBulk(3)
+                else:
+                  discard lexer.advanceBulk(2)
+                closeCurrentSection()
+                inString = false
+                
+                # Now scan for {% endcomment %} and discard everything
+                var endcommentFound = false
+                while lexer.position < input.len:
+                  if lexer.matchesAt("{%") or lexer.matchesAt("{%-"):
+                    let savePos = lexer.position
+                    let stripLeft = lexer.matchesAt("{%-")
+                    if stripLeft:
+                      discard lexer.advanceBulk(3)
+                    else:
+                      discard lexer.advanceBulk(2)
+                    
+                    # Skip whitespace
+                    while lexer.position < input.len and lexer.peek in {' ', '\t', '\r', '\n'}:
+                      discard lexer.advance
+                    
+                    if lexer.matchesAt("endcomment"):
+                      discard lexer.advanceBulk(10)
+                      # Skip whitespace
+                      while lexer.position < input.len and lexer.peek in {' ', '\t', '\r', '\n'}:
+                        discard lexer.advance
+                      
+                      # Check for closing tag
+                      if lexer.matchesAt("-%}") or lexer.matchesAt("%}"):
+                        let stripRight = lexer.matchesAt("-%}")
+                        if stripRight:
+                          discard lexer.advanceBulk(3)
+                        else:
+                          discard lexer.advanceBulk(2)
+                        
+                        # Add endcomment tag
+                        currentSection = Section(
+                          sectionType: Tag,
+                          content: "endcomment",
+                          stripLeft: stripLeft,
+                          stripRight: stripRight,
+                          startRow: lexer.line,
+                          startCol: lexer.column
+                        )
+                        sections.add(currentSection)
+                        currentSection = nil
+                        endcommentFound = true
+                        break
+                      else:
+                        # Not a valid endcomment tag, restore position
+                        lexer.position = savePos
+                        discard lexer.advance
+                    else:
+                      # Not endcomment, restore position and continue
+                      lexer.position = savePos
+                      discard lexer.advance
+                  else:
+                    discard lexer.advance
           else:
-            # Normal tag with whitespace control
-            lexer.position = savedPos
-            lexer.line = savedLine
-            lexer.column = savedCol
-            discard lexer.peek_and_advance("{%")
-            startNewSection(Tag)
-            currentSection.stripLeft = lexer.peek_and_advance("-")
-        elif lexer.peek_and_advance("{%"):
-          startNewSection(Tag)
-          currentSection.stripLeft = lexer.peek_and_advance("-")
+            # Regular text
+            handleTextContent()
         else:
-          if currentSection == nil:
-            startNewSection(Text)
-          # Optimize text scanning by finding next tag boundary
-          let outputPos = lexer.findPattern("{{")
-          let tagPos = lexer.findPattern("{%")
-          var nextTagPos = -1
-          
-          if outputPos != -1 and tagPos != -1:
-            nextTagPos = min(outputPos, tagPos)
-          elif outputPos != -1:
-            nextTagPos = outputPos
-          elif tagPos != -1:
-            nextTagPos = tagPos
-            
-          if nextTagPos != -1 and nextTagPos > lexer.position:
-            # Read all text until next tag
-            currentSection.content.add(lexer.advanceBulk(nextTagPos - lexer.position))
-          else:
-            # Single character if no tags found nearby
-            currentSection.content.add(lexer.advance)
+          # Regular text
+          handleTextContent()
       else:
         # Track string state inside special sections
         if lexer.position < input.len:
@@ -215,64 +310,34 @@ proc lexSections*(input: string): seq[Section] =
             if lexer.position > 0 and lexer.input[lexer.position - 1] != '\\':
               inString = false
         
-        if currentSection.sectionType == Output and (lexer.peek("}}") or lexer.peek("-}}")):
-          currentSection.stripRight = lexer.peek_and_advance("-")
-          discard lexer.peek_and_advance("}}")
-          closeCurrentSection()
-          inString = false  # Reset string state when section closes
-        elif currentSection.sectionType == Tag and (lexer.peek("%}") or lexer.peek("-%}")):
-          currentSection.stripRight = lexer.peek_and_advance("-")
-          discard lexer.peek_and_advance("%}")
-          
-          # Special handling for raw tag - capture everything until endraw
-          if currentSection.content.strip() == "raw":
-            # Don't close the section yet - we need to capture the raw content
-            inString = false
-            
-            # Capture raw content until we find endraw
-            let endrawPos = findNextEndrawPattern(lexer)
-            var rawContent = ""
-            if endrawPos != -1:
-              # Extract everything from current position to endraw position
-              rawContent = input[lexer.position..<endrawPos]
-              # Move lexer position to the start of endraw
-              for i in lexer.position..<endrawPos:
-                discard lexer.advance()
+        if currentSection.sectionType == Output:
+          if lexer.position + 2 <= input.len:
+            let window = lexer.getWindow(3)
+            if window.startsWith("}}") or window.startsWith("-}}"):
+              currentSection.stripRight = window[0] == '-'
+              if currentSection.stripRight:
+                discard lexer.advance
+              discard lexer.advanceBulk(2)
+              closeCurrentSection()
+              inString = false
             else:
-              # No endraw found - consume everything
-              while lexer.position < input.len:
-                rawContent.add(lexer.advance)
-            
-            # Store the raw content in the current section's content
-            # The parser will extract this and create the proper AST
-            currentSection.content = "raw " & rawContent
-            
-            # Now consume the endraw tag without creating a new section
-            if lexer.position < input.len:
-              # Determine which endraw pattern we're consuming and handle whitespace control
-              let remaining_input = input[lexer.position..^1]
-              var trim_following = false
-              
-              if remaining_input.startsWith("{%- endraw -%}"):
-                lexer.position += 14  # "{%- endraw -%}" is 14 characters, not 16
-                trim_following = true  # The -%} means trim following whitespace
-              elif remaining_input.startsWith("{%- endraw %}"):
-                lexer.position += 14
-              elif remaining_input.startsWith("{% endraw -%}"):
-                lexer.position += 14
-                trim_following = true  # The -%} means trim following whitespace
-              elif remaining_input.startsWith("{% endraw %}"):
-                lexer.position += 12
-              
-              # Handle whitespace trimming if -%} was used
-              if trim_following:
-                while lexer.position < input.len and input[lexer.position] in {' ', '\t', '\r', '\n'}:
-                  lexer.position += 1
-            
-            closeCurrentSection()
+              currentSection.content.add(lexer.advance)
           else:
-            closeCurrentSection()
-            inString = false  # Reset string state when section closes
+            currentSection.content.add(lexer.advance)
+        elif currentSection.sectionType == Tag:
+          if lexer.position + 2 <= input.len:
+            let window = lexer.getWindow(3)
+            if window.startsWith("%}") or window.startsWith("-%}"):
+              currentSection.stripRight = window[0] == '-'
+              if currentSection.stripRight:
+                discard lexer.advance
+              discard lexer.advanceBulk(2)
+              closeCurrentSection()
+              inString = false
+            else:
+              currentSection.content.add(lexer.advance)
+          else:
+            currentSection.content.add(lexer.advance)
         elif not inString and (lexer.peek("{{") or lexer.peek("{%")):
           raise newException(LexerError, "Unbalanced brackets: Found new opening tag before closing tag opened at line " & 
             $currentSection.startRow & " column " & $currentSection.startCol)

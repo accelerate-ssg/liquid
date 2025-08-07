@@ -2,11 +2,12 @@ import strutils
 import ../types, helpers, functions
 
 proc skipWhitespacePreservingNewlines(l: var Lexer) =
-  while not l.isAtEnd:
-    case l.peek
-    of ' ', '\t', '\r':
-      discard l.advance
-    else: break
+  var count = 0
+  while not l.isAtEnd and l.peek in {' ', '\t', '\r'}:
+    count += 1
+    l.position += 1
+  # Update column tracking in bulk
+  l.column += count
 
 proc lexToken(l: var Lexer, preserveNewlines: bool = false): Token =
   if preserveNewlines:
@@ -40,13 +41,34 @@ proc lexToken(l: var Lexer, preserveNewlines: bool = false): Token =
       result = l.lexOperator('<', '=', TkOperator, TkOperator)
   of '!':
     result = l.lexOperator('!', '=', TkOperator, TkOperator)
-  of ',': result = Token(kind: TkComma, value: $l.advance, startPos: l.position, endPos: l.position)
-  of ':': result = Token(kind: TkColon, value: $l.advance, startPos: l.position, endPos: l.position)
-  of '|': result = Token(kind: TkPipe, value: $l.advance, startPos: l.position, endPos: l.position)
-  of '(': result = Token(kind: TkLeftParen, value: $l.advance, startPos: l.position, endPos: l.position)
-  of ')': result = Token(kind: TkRightParen, value: $l.advance, startPos: l.position, endPos: l.position)
-  of '[': result = Token(kind: TkLeftBracket, value: $l.advance, startPos: l.position, endPos: l.position)
-  of ']': result = Token(kind: TkRightBracket, value: $l.advance, startPos: l.position, endPos: l.position)
+  of ',': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkComma, value: ",", startPos: startPos, endPos: l.position - 1)
+  of ':': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkColon, value: ":", startPos: startPos, endPos: l.position - 1)
+  of '|': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkPipe, value: "|", startPos: startPos, endPos: l.position - 1)
+  of '(': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkLeftParen, value: "(", startPos: startPos, endPos: l.position - 1)
+  of ')': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkRightParen, value: ")", startPos: startPos, endPos: l.position - 1)
+  of '[': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkLeftBracket, value: "[", startPos: startPos, endPos: l.position - 1)
+  of ']': 
+    let startPos = l.position
+    discard l.advance
+    result = Token(kind: TkRightBracket, value: "]", startPos: startPos, endPos: l.position - 1)
   of '\n':
     if preserveNewlines:
       let startPos = l.position
