@@ -11,8 +11,8 @@ proc parse*(p: Parser): Node =
   if p.current.kind == TkSymbol and p.current.value == "#":
     discard p.advance()
   
-  # Consume all tokens until end - this is a comment so we ignore everything
-  while p.position < p.tokens.len:
+  # Consume all tokens until EOF - this is a comment so we ignore everything
+  while p.current().kind != TkEOF:
     discard p.advance()
   
   # Return a comment node

@@ -1,14 +1,19 @@
 # Basic instructions
 
-Test suit: nim c -r test/golden_liquid.nim
-Validate changes against the test suite often to avoid regressions.
-As soon as a task is completed, including the failing test count going done,
-commit the changes with a clear message.
-If you write tools to modify files use bash or nim, I do not have python or
-javascript setup available. Commit before you run a script that modifies files
-to avoid losing work.
-`rg` is available in path, use it to search for code.
-Your are in /Users/jonas/projects/accodeing/accelerate/liquid
+- Run the test suit with: `nim c -r test/golden_liquid.nim`
+- Validate changes against the test suite often to avoid regressions.
+- As soon as a task is completed, including the failing test count going done,
+  commit the changes with a clear message.
+- If you write tools to modify files use bash or nim, I do not have python or
+  javascript setup available.
+- Commit before you run a script that modifies project files to avoid losing
+  work.
+- Use two sections in commit messages: Feature and Bug
+- Use imperative mood words at the beginning of each item in the sections, like:
+  Add, Remove, Change, Update etc
+- Do not add author information to commit messages
+- `rg` is available in path, use it to search for code.
+- You are in /Users/jonas/projects/accodeing/accelerate/liquid
 
 # Fixing defecits
 
@@ -26,7 +31,8 @@ When the test does not pass we need to verify the following:
 ## Latest Progress Update (Major Breakthrough!)
 
 **Recent Fixes Completed:**
-- ✅ **Fixed tablerow tag test expectations**: Corrected 5/6 tablerow tests by fixing incorrect AST expectations that included body content  
+
+- ✅ **Fixed tablerow tag test expectations**: Corrected 5/6 tablerow tests by fixing incorrect AST expectations that included body content
 - ✅ **Fixed echo tag bracket notation test**: Corrected test expectation to properly handle variable index evaluation in `product.tags[i]`
 - ✅ **Fixed for tag comma-separated arguments**: Parser now correctly consumes comma after range expression and parses limit/offset arguments
 - ✅ **Major Progress**: Failures reduced from 45 to 7 (97.8% pass rate: 308/315 tests passing)
@@ -34,8 +40,9 @@ When the test does not pass we need to verify the following:
 **Key Discovery**: Most failures were **incorrect test expectations** rather than parser bugs, validating the instructions.md approach of "verify test correctness first"
 
 **Remaining Failing Tests (7 remaining):**
+
 1. **Range loop using identifier** (1 test) - Template/expectation mismatch needs investigation
-2. **Tablerow "cols is a string"** (1 test) - Partial fix applied, minor debugging needed  
+2. **Tablerow "cols is a string"** (1 test) - Partial fix applied, minor debugging needed
 3. **Whitespace control with raw tags** (1 test) - Lexer section count mismatch
 4. **Liquid tag nested functionality** (2 tests) - Multi-command parsing issues
 5. **Render tag bound variables** (1 test) - Partial template system missing
@@ -166,26 +173,32 @@ When the test does not pass we need to verify the following:
 ## Remaining Failure Categories (7 tests)
 
 **1. Range Loop with Variable Bounds (1 test)**
+
 - `{% for i in (0..product.end_range) %}` - Template/expectation mismatch
 - Root cause: Possible test data inconsistency or range parsing issue
 
-**2. Tablerow Parameter Edge Case (1 test)**  
+**2. Tablerow Parameter Edge Case (1 test)**
+
 - `cols:'2'` string parameter handling - Partial fix applied
 - Root cause: Minor string token processing issue
 
 **3. Raw Tag Whitespace Control (1 test)**
+
 - `{%- raw -%}{{ hello }}{%- endraw -%}` - Section count mismatch
 - Root cause: Lexer architecture for raw content handling
 
 **4. Inline Comment Tag (1 test)**
+
 - `{%- # {% echo 'hello world' %} -%}` - Lexer boundary parsing
 - Root cause: Comment lexer should stop at first `%}` not consume all tokens
 
 **5. Liquid Tag Multi-Command (2 tests)**
+
 - Nested liquid with if, newline terminated tags
 - Root cause: Multi-command parsing logic incomplete
 
 **6. Render Tag Partial System (1 test)**
+
 - `render with bound variable and alias`
 - Root cause: Partial template system not implemented
 
@@ -205,30 +218,35 @@ When the test does not pass we need to verify the following:
 **Focus**: All remaining issues are **lexer architecture** problems rather than basic parser bugs
 
 1. **Fix inline comment tag lexer boundaries** (1 failing test)
+
    - Files: `src/liquid/parser/tags/comment_tag.nim`, lexer
    - Issue: Comment lexer consuming all tokens instead of stopping at tag boundary
    - Impact: Inline comments `{%- # ... %}` not parsing correctly
    - **Priority**: HIGH - Clear fix needed in token consumption logic
 
 2. **Fix tablerow 'cols is a string' edge case** (1 failing test)
+
    - Files: Test expectation debugging
-   - Issue: String parameter token processing  
+   - Issue: String parameter token processing
    - Impact: Minor parameter handling issue
    - **Priority**: HIGH - Small fix, partial solution already applied
 
 3. **Fix range loop template/expectation mismatch** (1 failing test)
+
    - Files: Test data investigation needed
    - Issue: Template `(0..product.end_range)` vs actual parsing
    - Impact: Dynamic range evaluation
    - **Priority**: MEDIUM - Requires debugging test runner
 
 4. **Fix raw tag whitespace lexer architecture** (1 failing test)
+
    - Files: `src/liquid/lexer/sections.nim`, raw tag handling
    - Issue: Section count mismatch in raw content lexing
-   - Impact: Raw tag whitespace control broken  
+   - Impact: Raw tag whitespace control broken
    - **Priority**: MEDIUM - Complex lexer changes needed
 
 5. **Fix liquid tag multi-command parsing** (2 failing tests)
+
    - Files: `src/liquid/parser/tags/liquid.nim`
    - Issue: Multi-command parsing logic incomplete
    - Impact: Advanced liquid tag functionality
@@ -237,22 +255,25 @@ When the test does not pass we need to verify the following:
 6. **Implement render tag partial system** (1 failing test)
    - Files: `src/liquid/parser/tags/render.nim`, new partial system
    - Issue: Partial template system missing entirely
-   - Impact: Template composition functionality  
+   - Impact: Template composition functionality
    - **Priority**: LOW - Major new feature, not core parsing
 
 ## Medium Priority (Future Enhancements)
 
 1. **Implement 'capture' tag variable assignment**
+
    - Files: `src/liquid/parser/tags/capture.nim`
    - Issue: Parsing exists but no rendering logic
    - Impact: Content capture not working
 
 2. **Implement 'case/when' tag conditional logic**
+
    - Files: `src/liquid/parser/tags/case_tag.nim`
    - Issue: No rendering implementation
    - Impact: Switch-case conditionals missing
 
 3. **Implement 'cycle' tag state management**
+
    - Files: `src/liquid/parser/tags/cycle.nim`
    - Issue: No state management
    - Impact: Value cycling not available
@@ -366,7 +387,7 @@ When the test does not pass we need to verify the following:
 ## Short-term (Next Sprint)
 
 - **Current Goal: Fix final 7 failing tests to reach 98%+ pass rate**
-- **Priority 1**: Fix inline comment lexer boundaries (clear solution identified)  
+- **Priority 1**: Fix inline comment lexer boundaries (clear solution identified)
 - **Priority 2**: Fix tablerow 'cols is a string' edge case (partial fix applied)
 - **Target**: 312/315 tests passing (99% success rate)
 

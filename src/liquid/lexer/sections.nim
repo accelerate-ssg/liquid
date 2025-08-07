@@ -127,7 +127,7 @@ proc lexSections*(input: string): seq[Section] =
             discard lexer.peek_and_advance("%}")
             # Don't create any section - just continue
         elif lexer.peek("{%-"):
-          # Check if this is the specific invalid pattern that should fallback to text
+          # Check if this is a comment tag that contains nested liquid syntax
           let savedPos = lexer.position
           let savedLine = lexer.line
           let savedCol = lexer.column
@@ -135,40 +135,48 @@ proc lexSections*(input: string): seq[Section] =
           # Skip any whitespace
           while lexer.position < input.len and lexer.input[lexer.position] in {' ', '\t'}:
             discard lexer.advance()
-          if lexer.position < input.len and lexer.input[lexer.position] == '#' and lexer.peek("{%"):
-            # This is the specific pattern {%- # {% that should fallback to text
-            # Restore position and treat as text
-            lexer.position = savedPos
-            lexer.line = savedLine
-            lexer.column = savedCol
-            # Find the content that should be output as text
-            discard lexer.peek_and_advance("{%-")
-            # Skip until we find the actual tag content
-            while lexer.position < input.len and lexer.input[lexer.position] in {' ', '\t', '#'}:
-              discard lexer.advance()
-            # Skip to after the nested tag
-            if lexer.peek("{%"):
-              var bracketCount = 1
+          if lexer.position < input.len and lexer.input[lexer.position] == '#':
+            # This is a comment with whitespace control {%- # ...
+            # Check if it contains nested tags by looking ahead for {%
+            var lookaheadPos = lexer.position + 1
+            var hasNestedTags = false
+            while lookaheadPos < input.len and not (lookaheadPos + 2 <= input.len and input[lookaheadPos..<lookaheadPos+2] == "-%}"):
+              if lookaheadPos + 2 <= input.len and input[lookaheadPos..<lookaheadPos+2] == "{%":
+                hasNestedTags = true
+                break
+              lookaheadPos += 1
+            
+            if hasNestedTags:
+              # This comment contains nested tags - consume everything until the first %} as a comment
+              # then output any remaining text
+              lexer.position = savedPos
+              lexer.line = savedLine
+              lexer.column = savedCol
+              discard lexer.peek_and_advance("{%-")
+              
+              # Consume everything until we find the first %} (which closes the nested tag)
+              while lexer.position < input.len and not lexer.peek("%}"):
+                discard lexer.advance()
+              
+              # Skip the %}
+              if lexer.peek("%}"):
+                discard lexer.peek_and_advance("%}")
+                
+                # Now create a text section for any remaining content  
+                startNewSection(Text)
+                while lexer.position < input.len:
+                  currentSection.content.add(lexer.advance)
+              # Don't create any section for the comment itself - it's consumed
+            else:
+              # Normal comment tag without nested syntax
+              lexer.position = savedPos
+              lexer.line = savedLine
+              lexer.column = savedCol
               discard lexer.peek_and_advance("{%")
-              while lexer.position < input.len and bracketCount > 0:
-                if lexer.peek("{%"):
-                  bracketCount += 1
-                  discard lexer.peek_and_advance("{%")
-                elif lexer.peek("%}"):
-                  bracketCount -= 1
-                  discard lexer.peek_and_advance("%}")
-                else:
-                  discard lexer.advance()
-            # Now we should be at the content that needs to be output
-            if currentSection == nil:
-              startNewSection(Text)
-            # Add the remaining content until -%}
-            while lexer.position < input.len and not lexer.peek("-%}"):
-              currentSection.content.add(lexer.advance)
-            # Skip the -%}
-            discard lexer.peek_and_advance("-%}")
+              startNewSection(Tag)
+              currentSection.stripLeft = lexer.peek_and_advance("-")
           else:
-            # Normal tag with whitespace control (including {%- #comment -%})
+            # Normal tag with whitespace control
             lexer.position = savedPos
             lexer.line = savedLine
             lexer.column = savedCol
