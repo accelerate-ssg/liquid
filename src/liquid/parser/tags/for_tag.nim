@@ -35,6 +35,10 @@ proc parse*(p: Parser): Node =
         value
       ])
 
+      # Check for comma after expression
+      if p.current.kind == TkComma:
+        discard p.advance()  # consume comma
+        
       # Check for bare 'reversed' identifier and treat as keyword
       if p.current.kind == TkIdentifier and p.current.value == "reversed":
         discard p.advance()  # consume 'reversed'

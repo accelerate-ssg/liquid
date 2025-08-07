@@ -1,4 +1,4 @@
-import json, tables, macros, times
+import json, tables, std/macros, times
 
 type
   Context* = JsonNode

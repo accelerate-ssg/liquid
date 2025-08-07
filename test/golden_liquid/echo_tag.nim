@@ -73,7 +73,11 @@ suite "echo tag":
         token(TkLeftBracket),
         token(TkIdentifier, "i"),
         token(TkRightBracket)
-      ], nodeEcho(@[nodeVariable("product.tags[i]")]))
+      ], nodeEcho(@[Node(kind: nkVariable, segments: @[
+        nodeString("product"),
+        nodeString("tags"), 
+        nodeVariable("i")
+      ])]))
     ],
     context = %*{"product": {"tags": ["sports", "garden"]}},
     output = "garden"
