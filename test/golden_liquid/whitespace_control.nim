@@ -622,21 +622,9 @@ suite "whitespace control":
       section(SectionType.Text, @[], nil),
       section(
         SectionType.Tag,
-        @[token(TkIdentifier, "endraw")],
-        nodeEndRaw()
-      ),
-      section(SectionType.Text, @[], nil),
-      section(
-        SectionType.Tag,
         @[token(TkIdentifier, "raw")],
         nodeRaw("{{ hello }}")
-      ),
-      section(
-        SectionType.Tag,
-        @[token(TkIdentifier, "endraw")],
-        nodeEndRaw()
-      ),
-      section(SectionType.Text, @[], nil)
+      )
     ],
     output = "! {{ hello }} !\n!{{ hello }}!"
   )

@@ -22,18 +22,25 @@ proc peek_and_advance(l: var Lexer, s: string): bool =
 proc findNextEndrawPattern(l: Lexer): int =
   # Returns the position where the endraw pattern starts, or -1 if not found
   var pos = l.position
-  while pos < l.input.len:
-    if pos + 12 <= l.input.len and l.input[pos..<pos+12] == "{% endraw %}":
-      return pos
-    elif pos + 14 <= l.input.len and l.input[pos..<pos+14] == "{%- endraw %}":
-      return pos
-    elif pos + 14 <= l.input.len and l.input[pos..<pos+14] == "{% endraw -%}":
-      return pos
-    elif pos + 16 <= l.input.len and l.input[pos..<pos+16] == "{%- endraw -%}":
-      return pos
-    else:
-      pos += 1
-  return -1
+  let search_text = l.input[pos..^1]
+  
+  # Check for all possible endraw patterns and find the earliest one
+  let patterns = @[
+    "{% endraw %}",      # 12 chars
+    "{%- endraw %}",     # 14 chars 
+    "{% endraw -%}",     # 14 chars
+    "{%- endraw -%}"     # 16 chars
+  ]
+  
+  var earliest_pos = -1
+  for pattern in patterns:
+    let pattern_pos = search_text.find(pattern)
+    if pattern_pos != -1:
+      let absolute_pos = pos + pattern_pos
+      if earliest_pos == -1 or absolute_pos < earliest_pos:
+        earliest_pos = absolute_pos
+  
+  return earliest_pos
 
 template with(self: SectionLexer, body: untyped) =
   template lexer: untyped = self.lexer
@@ -236,16 +243,25 @@ proc lexSections*(input: string): seq[Section] =
             
             # Now consume the endraw tag without creating a new section
             if lexer.position < input.len:
-              discard lexer.peek_and_advance("-")
-              discard lexer.peek_and_advance("{%")
-              # Skip whitespace and "endraw"
-              while lexer.position < input.len and lexer.peek() in {' ', '\t', '\r', '\n'}:
-                discard lexer.advance()
-              discard lexer.peek_and_advance("endraw")
-              while lexer.position < input.len and lexer.peek() in {' ', '\t', '\r', '\n'}:
-                discard lexer.advance()
-              discard lexer.peek_and_advance("-")
-              discard lexer.peek_and_advance("%}")
+              # Determine which endraw pattern we're consuming and handle whitespace control
+              let remaining_input = input[lexer.position..^1]
+              var trim_following = false
+              
+              if remaining_input.startsWith("{%- endraw -%}"):
+                lexer.position += 14  # "{%- endraw -%}" is 14 characters, not 16
+                trim_following = true  # The -%} means trim following whitespace
+              elif remaining_input.startsWith("{%- endraw %}"):
+                lexer.position += 14
+              elif remaining_input.startsWith("{% endraw -%}"):
+                lexer.position += 14
+                trim_following = true  # The -%} means trim following whitespace
+              elif remaining_input.startsWith("{% endraw %}"):
+                lexer.position += 12
+              
+              # Handle whitespace trimming if -%} was used
+              if trim_following:
+                while lexer.position < input.len and input[lexer.position] in {' ', '\t', '\r', '\n'}:
+                  lexer.position += 1
             
             closeCurrentSection()
           else:
@@ -255,6 +271,9 @@ proc lexSections*(input: string): seq[Section] =
           raise newException(LexerError, "Unbalanced brackets: Found new opening tag before closing tag opened at line " & 
             $currentSection.startRow & " column " & $currentSection.startCol)
         else:
+          # If we don't have a current section, start a new text section
+          if currentSection == nil:
+            startNewSection(Text)
           currentSection.content.add(lexer.advance)
 
     if currentSection != nil and currentSection.sectionType == Text:
