@@ -220,12 +220,12 @@ suite "tablerow tag":
           token(TkRightParen),
           token(TkIdentifier, "cols"),
           token(TkColon),
-          token(TkString, "'2'")
+          token(TkString, "2")
         ],
         nodeTablerow(
           "i",
           nodeRange(nodeLiteral(1), nodeLiteral(4)),
-          @[nodeArgument("cols", nodeString("'2'"))]
+          @[nodeArgument("cols", nodeString("2"))]
         )
       ),
       section(
