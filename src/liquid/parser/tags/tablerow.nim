@@ -49,35 +49,15 @@ proc parse*(p: Parser): Node =
 
         case name:
           of "cols":
-            # cols can be a number or string that converts to number
-            if value.kind == nkString:
-              # Try to parse string as number
-              try:
-                let floatValue = value.strVal.parseFloat()
-                if floatValue == NAN:
-                  raise newException(ValueError, "Expected number for cols parameter")
-                value = Node(kind: nkNumber, numVal: floatValue)
-              except ValueError:
-                # Keep as string - will be converted at runtime
-                discard
-            elif value.kind != nkNumber:
-              # Allow variables and other expressions that will be evaluated at runtime
-              discard
+            # cols can be a number or string that converts to number at runtime
+            # During parsing, preserve the AST structure as-is
+            discard
           of "limit", "offset":
             if value.kind == nkVariable and value.segments.len == 1 and value.segments[0].kind == nkString and value.segments[0].strVal == "continue" and name == "offset":
               # Special case: offset:continue is allowed
               value = Node(kind: nkContinue)
-            elif value.kind == nkString:
-              # Try to parse as number
-              try:
-                let floatValue = value.strVal.parseFloat()
-                if floatValue == NAN:
-                  raise newException(ValueError, "Expected number for parameter: " & name)
-                value = Node(kind: nkNumber, numVal: floatValue)
-              except ValueError:
-                raise newException(ValueError, "Expected number for parameter: " & name)
-            elif value.kind != nkNumber:
-              # Allow variables and expressions for dynamic values
+            else:
+              # During parsing, preserve AST structure - validation happens at runtime
               discard
           else: 
             raise newException(ValueError, "Unknown tablerow parameter: " & name)

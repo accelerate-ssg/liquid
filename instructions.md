@@ -14,6 +14,8 @@
 - Do not add author information to commit messages
 - `rg` is available in path, use it to search for code.
 - You are in /Users/jonas/projects/accodeing/accelerate/liquid
+- `template` is a keyword in Nim, use `liquidTemplate` or `tmpl` as variables in
+  test files.
 
 # Fixing defecits
 
