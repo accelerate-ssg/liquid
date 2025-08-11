@@ -16,6 +16,7 @@ template matchesAt*(l: Lexer, pattern: string): bool =
   l.position + pattern.len <= l.input.len and 
   l.input[l.position..<l.position + pattern.len] == pattern
 
+
 proc isAtEnd*(l: Lexer): bool =
   l.position >= l.input.len
 
