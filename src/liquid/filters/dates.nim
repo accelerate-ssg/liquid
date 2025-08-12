@@ -68,3 +68,52 @@ create_filter:
     
     let now = now()
     result = VMValue(kind: vmString, stringVal: now.format(format))
+
+# Adds time to a date
+create_filter:
+  proc date_add(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len < 2:
+      raise newException(ValueError, "date_add filter requires 2 arguments (amount, unit)")
+    
+    let amount = if args[0].kind == vmInt: args[0].intVal.int else: 0
+    let unit = if args[1].kind == vmString: args[1].stringVal else: "days"
+    
+    var input: string
+    case value.kind
+    of vmString:
+      input = value.stringVal
+    else:
+      result = value
+      return
+    
+    try:
+      var dt: DateTime
+      try:
+        dt = parse(input, "yyyy-MM-dd'T'HH:mm:sszzz")
+      except:
+        try:
+          dt = parse(input, "yyyy-MM-dd HH:mm:ss")  
+        except:
+          dt = parse(input, "yyyy-MM-dd")
+      
+      let newDt = case unit.toLower()
+      of "seconds", "second", "s":
+        dt + initDuration(seconds = amount)
+      of "minutes", "minute", "m":
+        dt + initDuration(minutes = amount)
+      of "hours", "hour", "h":
+        dt + initDuration(hours = amount)  
+      of "days", "day", "d":
+        dt + initDuration(days = amount)
+      of "weeks", "week", "w":
+        dt + initDuration(weeks = amount)
+      of "months", "month":
+        dt + initTimeInterval(months = amount)
+      of "years", "year", "y":
+        dt + initTimeInterval(years = amount)
+      else:
+        dt
+      
+      result = VMValue(kind: vmString, stringVal: newDt.format("yyyy-MM-dd'T'HH:mm:sszzz"))
+    except:
+      result = value

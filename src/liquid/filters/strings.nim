@@ -228,3 +228,84 @@ create_filter:
       return value
     let replaced = value.stringVal.replace("\n", "<br />")
     result = VMValue(kind: vmString, stringVal: replaced)
+
+# Removes the last occurrence of a substring from a string
+create_filter:
+  proc remove_last(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len != 1:
+      raise newException(ValueError, "remove_last filter requires exactly 1 argument")
+    let substring = getStringVal(args[0])
+    let idx = value.stringVal.rfind(substring)
+    var resultStr = value.stringVal
+    if idx >= 0:
+      resultStr = value.stringVal[0..<idx] & value.stringVal[idx + substring.len..^1]
+    result = VMValue(kind: vmString, stringVal: resultStr)
+
+# Replaces the last occurrence of a substring with another string  
+create_filter:
+  proc replace_last(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len != 2:
+      raise newException(ValueError, "replace_last filter requires exactly 2 arguments")
+    let search = getStringVal(args[0])
+    let replacement = getStringVal(args[1])
+    let idx = value.stringVal.rfind(search)
+    var resultStr = value.stringVal
+    if idx >= 0:
+      resultStr = value.stringVal[0..<idx] & replacement & value.stringVal[idx + search.len..^1]
+    result = VMValue(kind: vmString, stringVal: resultStr)
+
+# Removes leading whitespace from a string
+create_filter:
+  proc lstrip(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    var s = value.stringVal
+    while s.len > 0 and s[0] in {' ', '\t', '\n', '\r'}:
+      s = s[1..^1]
+    result = VMValue(kind: vmString, stringVal: s)
+
+# Removes trailing whitespace from a string  
+create_filter:
+  proc rstrip(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    var s = value.stringVal
+    while s.len > 0 and s[^1] in {' ', '\t', '\n', '\r'}:
+      s = s[0..^2]
+    result = VMValue(kind: vmString, stringVal: s)
+
+# Extracts a substring from a string
+create_filter:
+  proc slice(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len < 1:
+      raise newException(ValueError, "slice filter requires at least 1 argument (start index)")
+    
+    let str = value.stringVal
+    let startIdx = if args[0].kind == vmInt: args[0].intVal.int else: 0
+    let length = if args.len > 1 and args[1].kind == vmInt: args[1].intVal.int else: 1
+    
+    # Handle negative indices
+    let actualStart = if startIdx < 0: str.len + startIdx else: startIdx
+    
+    if actualStart < 0 or actualStart >= str.len:
+      result = VMValue(kind: vmString, stringVal: "")
+    else:
+      let endIdx = min(actualStart + length, str.len)
+      result = VMValue(kind: vmString, stringVal: str[actualStart..<endIdx])
+
+# HTML escapes a string, but only if it hasn't been escaped already  
+create_filter:
+  proc escape_once(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    var str = value.stringVal
+    # Only escape if not already escaped
+    if "&amp;" notin str and "&lt;" notin str and "&gt;" notin str and "&quot;" notin str:
+      str = xmltree.escape(str)
+    result = VMValue(kind: vmString, stringVal: str)

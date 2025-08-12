@@ -1,4 +1,4 @@
-import strutils, tables
+import strutils, tables, sequtils
 import ../shared
 
 # Returns the default value if the input is null, false, or empty
@@ -124,3 +124,70 @@ create_filter:
     else: "unknown"
     
     result = VMValue(kind: vmString, stringVal: typeName)
+
+# Converts a value to JSON string
+create_filter:
+  proc json(value: VMValue, args: varargs[VMValue]): VMValue =
+    proc toJson(v: VMValue): string =
+      case v.kind
+      of vmNull:
+        "null"
+      of vmBool:
+        $v.boolVal
+      of vmInt:
+        $v.intVal
+      of vmFloat:
+        $v.floatVal
+      of vmString:
+        "\"" & v.stringVal.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") & "\""
+      of vmArray:
+        "[" & v.arrayVal.mapIt(toJson(it)).join(",") & "]"
+      of vmObject:
+        var pairs: seq[string] = @[]
+        for k, v in v.objectVal:
+          pairs.add("\"" & k & "\":" & toJson(v))
+        "{" & pairs.join(",") & "}"
+      else:
+        "null"
+    
+    result = VMValue(kind: vmString, stringVal: toJson(value))
+
+# URL encodes a string more comprehensively
+create_filter:
+  proc url_param_escape(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    
+    var encoded = ""
+    for c in value.stringVal:
+      case c:
+      of ' ': encoded.add("%20")
+      of '!': encoded.add("%21")
+      of '"': encoded.add("%22") 
+      of '#': encoded.add("%23")
+      of '$': encoded.add("%24")
+      of '%': encoded.add("%25")
+      of '&': encoded.add("%26")
+      of '\'': encoded.add("%27")
+      of '(': encoded.add("%28")
+      of ')': encoded.add("%29")
+      of '*': encoded.add("%2A")
+      of '+': encoded.add("%2B")
+      of ',': encoded.add("%2C")
+      of '/': encoded.add("%2F")
+      of ':': encoded.add("%3A")
+      of ';': encoded.add("%3B")
+      of '=': encoded.add("%3D")
+      of '?': encoded.add("%3F")
+      of '@': encoded.add("%40")
+      of '[': encoded.add("%5B")
+      of ']': encoded.add("%5D")
+      else: encoded.add(c)
+    
+    result = VMValue(kind: vmString, stringVal: encoded)
+
+# Escapes a string for use in URLs  
+create_filter:
+  proc url_escape(value: VMValue, args: varargs[VMValue]): VMValue =
+    # This is essentially the same as url_encode but with different name for compatibility
+    return url_encode(value, args)
