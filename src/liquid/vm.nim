@@ -6,6 +6,9 @@ import compiler/[types]
 import vm/[types]
 import std/[tables, strutils, sequtils]
 
+# Forward declarations
+proc toString(v: VMValue): string
+
 # Built-in filters
 proc registerBuiltinFilters(vm: var LiquidVM) =
   # Use seq instead of varargs for safer handling
@@ -43,6 +46,18 @@ proc registerBuiltinFilters(vm: var LiquidVM) =
       result = v.arrayVal[^1]
     else:
       result = VMValue(kind: vmNull)
+  
+  vm.filters["join"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
+    if v.kind == vmArray:
+      var separator = ", "
+      if args.len > 0 and args[0].kind == vmString:
+        separator = args[0].stringVal
+      var parts: seq[string] = @[]
+      for item in v.arrayVal:
+        parts.add(item.toString())
+      result = VMValue(kind: vmString, stringVal: parts.join(separator))
+    else:
+      result = v
 
 # Create VM with data
 proc newLiquidVM*(bytecode: seq[Instruction], strings: seq[string], 
@@ -459,6 +474,45 @@ proc execute*(vm: var LiquidVM): string =
       else:
         echo "Unknown filter: ", filterName
         vm.push(value)  # Unknown filter returns unchanged value
+    
+    of opRange:
+      # Create a range from start..end
+      let endVal = vm.pop()
+      let startVal = vm.pop()
+      
+      # Convert to integers
+      var startInt: int64
+      var endInt: int64
+      
+      case startVal.kind
+      of vmInt:
+        startInt = startVal.intVal
+      of vmFloat:
+        startInt = startVal.floatVal.int64
+      else:
+        vm.push(VMValue(kind: vmNull))
+        continue
+      
+      case endVal.kind
+      of vmInt:
+        endInt = endVal.intVal
+      of vmFloat:
+        endInt = endVal.floatVal.int64
+      else:
+        vm.push(VMValue(kind: vmNull))
+        continue
+      
+      # Create array with range values
+      var rangeArray: seq[VMValue] = @[]
+      if startInt <= endInt:
+        for i in startInt..endInt:
+          rangeArray.add(VMValue(kind: vmInt, intVal: i))
+      else:
+        # Handle reverse ranges
+        for i in countdown(startInt, endInt):
+          rangeArray.add(VMValue(kind: vmInt, intVal: i))
+      
+      vm.push(VMValue(kind: vmArray, arrayVal: rangeArray))
     
     else:
       # Unimplemented opcode
