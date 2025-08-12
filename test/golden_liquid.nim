@@ -1,55 +1,53 @@
 import times, os, strutils, sets, tables
-import golden_liquid/helpers
+import helpers
 
 resetOutputFormatters()
 addOutputFormatter(formatter)
-
-let t0 = cpuTime()
 
 # Load test groups from JSON file
 let jsonPath = currentSourcePath().parentDir() / "golden_liquid.json"
 let jsonContent = readFile(jsonPath)
 let testData = parseJson(jsonContent)
 
-# Enabled test groups - matching the previously included test files
-let enabledGroups = [
-  "liquid.golden.assign_tag",
-  "liquid.golden.capture_tag",
-  "liquid.golden.case_tag",
-  "liquid.golden.comment_tag",
-  "liquid.golden.cycle_tag",
-  "liquid.golden.decrement_tag",
-  "liquid.golden.echo_tag",
-  "liquid.golden.for_tag",
-  "liquid.golden.identifiers",
-  "liquid.golden.if_tag",
-  "liquid.golden.ifchanged_tag",
-  "liquid.golden.illegal",
-  "liquid.golden.include_tag",
-  "liquid.golden.increment_tag",
-  "liquid.golden.inline_comment_tag",
-  "liquid.golden.liquid_tag",
-  "liquid.golden.not_liquid",
-  "liquid.golden.output_statement",
-  "liquid.golden.range_objects",
-  "liquid.golden.raw_tag",
-  "liquid.golden.render_tag",
-  "liquid.golden.special",
-  "liquid.golden.tablerow_tag",
-  "liquid.golden.unless_tag",
-  "liquid.golden.whitespace_control"
+let enabledSuits = [
+  "assign tag",
+  "capture tag",
+  "case tag",
+  "comment tag",
+  "cycle tag",
+  "decrement tag",
+  "echo tag",
+  "for tag",
+  "identifiers",
+  "if tag",
+  "ifchanged tag",
+  "illegal",
+  "include tag",
+  "increment tag",
+  #"inline comment tag",
+  #"liquid tag",
+  "not liquid",
+  "output statement",
+  "range objects",
+  "raw tag",
+  "render tag",
+  "special",
+  "tablerow tag",
+  "unless tag",
+  "whitespace control"
 ].toHashSet()
+
+let t0 = cpuTime()
 
 # Run tests from JSON
 for testGroup in testData["test_groups"]:
   let groupName = testGroup["name"].getStr()
-  
-  # Skip disabled test groups
-  if groupName notin enabledGroups:
-    continue
-    
   # Extract suite name from group name (e.g., "liquid.golden.assign_tag" -> "assign tag")
   let suiteName = groupName.replace("liquid.golden.", "").replace("_", " ")
+  
+  # Skip disabled test groups
+  if suiteName notin enabledSuits:
+    continue
   
   suite suiteName:
     for test in testGroup["tests"]:

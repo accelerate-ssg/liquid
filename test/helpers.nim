@@ -1,9 +1,7 @@
 import json, unittest, tables, terminal
 
-export toTable
-
-import ../../src/liquid/compiler/[types, context_functions]
-import ../../src/liquid/[types, lexer, compiler, vm]
+import ../src/liquid/compiler/[types, context_functions]
+import ../src/liquid/[types, lexer, compiler, vm]
 
 type
   TestSection* = ref object
@@ -11,12 +9,6 @@ type
     tokens*: seq[Token]
     ast*: Node
 
-export Node, Token, TokenKind, SectionKind, Section, Parser, TestSection, unittest, json
-
-
-
-
-type
   TestFailure* = ref object
     suiteName*: string
     testName*: string
@@ -27,6 +19,8 @@ type
 
 let
   formatter* = CustomFormatter(failures: @[])
+
+export Node, Token, TokenKind, SectionKind, Section, Parser, TestSection, unittest, json
 
 method testEnded*(formatter: CustomFormatter, testResult: TestResult) =
   if testResult.status == TestStatus.FAILED:
