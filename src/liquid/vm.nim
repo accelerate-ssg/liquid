@@ -4,113 +4,13 @@
 
 import compiler/[types]
 import vm/[types]
-import std/[tables, strutils, sequtils, algorithm]
+import std/[tables, strutils, sequtils]
+import filters
 
 # Forward declarations
 proc toString(v: VMValue): string
 
-# Built-in filters
-proc registerBuiltinFilters(vm: var LiquidVM) =
-  # Use seq instead of varargs for safer handling
-  vm.filters["upcase"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmString:
-      result = VMValue(kind: vmString, stringVal: v.stringVal.toUpperAscii())
-    else:
-      result = v
-  
-  vm.filters["downcase"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmString:
-      result = VMValue(kind: vmString, stringVal: v.stringVal.toLowerAscii())
-    else:
-      result = v
-  
-  vm.filters["size"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    case v.kind
-    of vmString:
-      result = VMValue(kind: vmInt, intVal: v.stringVal.len.int64)
-    of vmArray:
-      result = VMValue(kind: vmInt, intVal: v.arrayVal.len.int64)
-    of vmObject:
-      result = VMValue(kind: vmInt, intVal: v.objectVal.len.int64)
-    else:
-      result = VMValue(kind: vmInt, intVal: 0)
-  
-  vm.filters["first"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmArray and v.arrayVal.len > 0:
-      result = v.arrayVal[0]
-    else:
-      result = VMValue(kind: vmNull)
-  
-  vm.filters["last"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmArray and v.arrayVal.len > 0:
-      result = v.arrayVal[^1]
-    else:
-      result = VMValue(kind: vmNull)
-  
-  vm.filters["join"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmArray:
-      var separator = ", "
-      if args.len > 0 and args[0].kind == vmString:
-        separator = args[0].stringVal
-      var parts: seq[string] = @[]
-      for item in v.arrayVal:
-        parts.add(item.toString())
-      result = VMValue(kind: vmString, stringVal: parts.join(separator))
-    else:
-      result = v
-  
-  vm.filters["split"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmString:
-      var separator = " "
-      if args.len > 0 and args[0].kind == vmString:
-        separator = args[0].stringVal
-      let parts = v.stringVal.split(separator)
-      var arrayVal: seq[VMValue] = @[]
-      for part in parts:
-        arrayVal.add(VMValue(kind: vmString, stringVal: part))
-      result = VMValue(kind: vmArray, arrayVal: arrayVal)
-    else:
-      result = VMValue(kind: vmArray, arrayVal: @[])
-  
-  vm.filters["sort"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmArray:
-      var sorted = v.arrayVal
-      # Sort by converting to strings and comparing
-      sorted.sort do (a, b: VMValue) -> int:
-        let aStr = a.toString()
-        let bStr = b.toString()
-        if aStr < bStr: -1
-        elif aStr > bStr: 1
-        else: 0
-      result = VMValue(kind: vmArray, arrayVal: sorted)
-    else:
-      result = v
-  
-  vm.filters["default"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    # Return default value if input is null/empty, otherwise return input
-    let shouldUseDefault = case v.kind
-      of vmNull: true
-      of vmString: v.stringVal.len == 0
-      of vmArray: v.arrayVal.len == 0
-      of vmBool: not v.boolVal  # false is considered empty for default filter
-      else: false
-    
-    if shouldUseDefault and args.len > 0:
-      result = args[0]
-    else:
-      result = v
-  
-  vm.filters["reverse"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
-    if v.kind == vmArray:
-      var reversed = v.arrayVal
-      reversed.reverse()
-      result = VMValue(kind: vmArray, arrayVal: reversed)
-    elif v.kind == vmString:
-      var reversed = v.stringVal
-      reversed.reverse()
-      result = VMValue(kind: vmString, stringVal: reversed)
-    else:
-      result = v
+# Filters are now handled by the filters module via applyFilter
 
 # Create VM with data
 proc newLiquidVM*(bytecode: seq[Instruction], strings: seq[string], 
@@ -129,11 +29,10 @@ proc newLiquidVM*(bytecode: seq[Instruction], strings: seq[string],
     escapeHtml: true,
     captureStack: @[],
     isCapturing: false,
-    filters: initTable[string, FilterProc](),
+    # filters field removed - now using filters module directly
     instructionCount: 0,
     maxStackSize: 0
   )
-  result.registerBuiltinFilters()
 
 # Stack operations
 template push(vm: var LiquidVM, val: VMValue) =
@@ -546,17 +445,13 @@ proc execute*(vm: var LiquidVM): string =
       # Pop the value to filter
       let value = vm.pop()
       
-      # Apply filter
-      if filterName in vm.filters:
-        try:
-          let filter_result = vm.filters[filterName](value, args)
-          vm.push(filter_result)
-        except Exception as e:
-          echo "Filter error: ", e.msg
-          vm.push(value)  # Push original value on error
-      else:
-        echo "Unknown filter: ", filterName
-        vm.push(value)  # Unknown filter returns unchanged value
+      # Apply filter using the filters module
+      try:
+        let filter_result = applyFilter(value, filterName, args)
+        vm.push(filter_result)
+      except Exception as e:
+        echo "Filter error: ", e.msg
+        vm.push(value)  # Push original value on error
     
     of opRange:
       # Create a range from start..end

@@ -62,3 +62,36 @@ proc toVMValue*(x: string): VMValue = VMValue(kind: vmString, stringVal: x)
 proc toVMValue*(x: seq[VMValue]): VMValue = VMValue(kind: vmArray, arrayVal: x)
 proc toVMValue*(x: Table[string, VMValue]): VMValue = VMValue(kind: vmObject, objectVal: x)
 
+# Convert VMValue to JsonNode (reverse conversion)
+proc vmValueToJson*(v: VMValue): JsonNode =
+  ## Convert a VMValue back to JsonNode
+  case v.kind
+  of vmNull:
+    result = newJNull()
+  of vmBool:
+    result = newJBool(v.boolVal)
+  of vmInt:
+    result = newJInt(v.intVal)
+  of vmFloat:
+    result = newJFloat(v.floatVal)
+  of vmString:
+    result = newJString(v.stringVal)
+  of vmArray:
+    result = newJArray()
+    for item in v.arrayVal:
+      result.add(vmValueToJson(item))
+  of vmObject:
+    result = newJObject()
+    for key, val in v.objectVal:
+      result[key] = vmValueToJson(val)
+  of vmLazy:
+    # Evaluate lazy value and convert
+    let evaluatedValue = v.lazyFn()
+    result = vmValueToJson(evaluatedValue)
+  of vmIterator:
+    # Convert iterator to array by materializing all values
+    result = newJArray()
+    for i in 0..<v.iterLen:
+      let item = v.iterFn(i)
+      result.add(vmValueToJson(item))
+

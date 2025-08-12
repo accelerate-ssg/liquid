@@ -1,230 +1,158 @@
-import json, math
+import math, strutils
 import ../shared
+
+# Helper to get numeric value
+proc getNumericVal(v: VMValue): float =
+  case v.kind
+  of vmInt: v.intVal.float
+  of vmFloat: v.floatVal
+  of vmString:
+    try:
+      v.stringVal.parseFloat()
+    except:
+      0.0
+  else: 0.0
 
 # Returns the absolute value of a number
 create_filter:
-  proc abs(input: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      result = newJInt(abs(input.getInt))
-    of JFloat:
-      result = newJFloat(abs(input.getFloat))
+  proc abs(value: VMValue, args: varargs[VMValue]): VMValue =
+    case value.kind
+    of vmInt:
+      result = VMValue(kind: vmInt, intVal: abs(value.intVal))
+    of vmFloat:
+      result = VMValue(kind: vmFloat, floatVal: abs(value.floatVal))
     else:
-      result = input
+      result = value
 
-# Rounds a number to the nearest integer or to a specified number of decimal places
+# Returns the smallest integer greater than or equal to a number
 create_filter:
-  proc round(input: JsonNode, precision: int = 0): JsonNode =
-    case input.kind
-    of JInt:
-      result = input  # Already an integer
-    of JFloat:
-      if precision == 0:
-        result = newJInt(round(input.getFloat).int)
-      else:
-        let multiplier = pow(10.0, precision.float)
-        result = newJFloat(round(input.getFloat * multiplier) / multiplier)
-    else:
-      result = input
+  proc ceil(value: VMValue, args: varargs[VMValue]): VMValue =
+    let num = getNumericVal(value)
+    result = VMValue(kind: vmInt, intVal: ceil(num).int64)
 
-# Rounds a number up to the nearest integer
+# Returns the largest integer less than or equal to a number
 create_filter:
-  proc ceil(input: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      result = input
-    of JFloat:
-      result = newJInt(ceil(input.getFloat).int)
-    else:
-      result = input
+  proc floor(value: VMValue, args: varargs[VMValue]): VMValue =
+    let num = getNumericVal(value)
+    result = VMValue(kind: vmInt, intVal: floor(num).int64)
 
-# Rounds a number down to the nearest integer
+# Rounds a number to the nearest integer
 create_filter:
-  proc floor(input: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      result = input
-    of JFloat:
-      result = newJInt(floor(input.getFloat).int)
+  proc round(value: VMValue, args: varargs[VMValue]): VMValue =
+    let decimals = if args.len > 0 and args[0].kind == vmInt: 
+      args[0].intVal.int 
+    else: 
+      0
+    
+    let num = getNumericVal(value)
+    if decimals == 0:
+      result = VMValue(kind: vmInt, intVal: round(num).int64)
     else:
-      result = input
+      let multiplier = pow(10.0, decimals.float)
+      let rounded = round(num * multiplier) / multiplier
+      result = VMValue(kind: vmFloat, floatVal: rounded)
 
-# Adds two numbers together
+# Adds a number to another number
 create_filter:
-  proc plus(input: JsonNode, value: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      case value.kind
-      of JInt:
-        result = newJInt(input.getInt + value.getInt)
-      of JFloat:
-        result = newJFloat(input.getInt.float + value.getFloat)
-      else:
-        result = input
-    of JFloat:
-      case value.kind
-      of JInt:
-        result = newJFloat(input.getFloat + value.getInt.float)
-      of JFloat:
-        result = newJFloat(input.getFloat + value.getFloat)
-      else:
-        result = input
+  proc plus(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "plus filter requires exactly 1 argument")
+    
+    let a = getNumericVal(value)
+    let b = getNumericVal(args[0])
+    
+    if value.kind == vmInt and args[0].kind == vmInt:
+      result = VMValue(kind: vmInt, intVal: value.intVal + args[0].intVal)
     else:
-      result = input
+      result = VMValue(kind: vmFloat, floatVal: a + b)
 
-# Subtracts one number from another
+# Subtracts a number from another number
 create_filter:
-  proc minus(input: JsonNode, value: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      case value.kind
-      of JInt:
-        result = newJInt(input.getInt - value.getInt)
-      of JFloat:
-        result = newJFloat(input.getInt.float - value.getFloat)
-      else:
-        result = input
-    of JFloat:
-      case value.kind
-      of JInt:
-        result = newJFloat(input.getFloat - value.getInt.float)
-      of JFloat:
-        result = newJFloat(input.getFloat - value.getFloat)
-      else:
-        result = input
+  proc minus(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "minus filter requires exactly 1 argument")
+    
+    let a = getNumericVal(value)
+    let b = getNumericVal(args[0])
+    
+    if value.kind == vmInt and args[0].kind == vmInt:
+      result = VMValue(kind: vmInt, intVal: value.intVal - args[0].intVal)
     else:
-      result = input
+      result = VMValue(kind: vmFloat, floatVal: a - b)
 
 # Multiplies a number by another number
 create_filter:
-  proc times(input: JsonNode, value: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      case value.kind
-      of JInt:
-        result = newJInt(input.getInt * value.getInt)
-      of JFloat:
-        result = newJFloat(input.getInt.float * value.getFloat)
-      else:
-        result = input
-    of JFloat:
-      case value.kind
-      of JInt:
-        result = newJFloat(input.getFloat * value.getInt.float)
-      of JFloat:
-        result = newJFloat(input.getFloat * value.getFloat)
-      else:
-        result = input
+  proc times(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "times filter requires exactly 1 argument")
+    
+    let a = getNumericVal(value)
+    let b = getNumericVal(args[0])
+    
+    if value.kind == vmInt and args[0].kind == vmInt:
+      result = VMValue(kind: vmInt, intVal: value.intVal * args[0].intVal)
     else:
-      result = input
+      result = VMValue(kind: vmFloat, floatVal: a * b)
 
 # Divides a number by another number
 create_filter:
-  proc divided_by(input: JsonNode, value: JsonNode): JsonNode =
-    # Check for division by zero
-    let isZero = case value.kind
-      of JInt: value.getInt == 0
-      of JFloat: value.getFloat == 0.0
-      else: true
+  proc divided_by(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "divided_by filter requires exactly 1 argument")
     
-    if isZero:
-      return newJNull()
+    let a = getNumericVal(value)
+    let b = getNumericVal(args[0])
     
-    case input.kind
-    of JInt:
-      case value.kind
-      of JInt:
-        # Integer division in Liquid returns integer
-        result = newJInt(input.getInt div value.getInt)
-      of JFloat:
-        result = newJFloat(input.getInt.float / value.getFloat)
-      else:
-        result = input
-    of JFloat:
-      case value.kind
-      of JInt:
-        result = newJFloat(input.getFloat / value.getInt.float)
-      of JFloat:
-        result = newJFloat(input.getFloat / value.getFloat)
-      else:
-        result = input
+    if b == 0:
+      raise newException(ValueError, "Division by zero")
+    
+    # Integer division if both are integers
+    if value.kind == vmInt and args[0].kind == vmInt:
+      result = VMValue(kind: vmInt, intVal: value.intVal div args[0].intVal)
     else:
-      result = input
+      result = VMValue(kind: vmFloat, floatVal: a / b)
 
-# Returns the remainder of a division operation
+# Returns the remainder of division
 create_filter:
-  proc modulo(input: JsonNode, value: JsonNode): JsonNode =
-    # Check for division by zero
-    let isZero = case value.kind
-      of JInt: value.getInt == 0
-      of JFloat: value.getFloat == 0.0
-      else: true
+  proc modulo(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "modulo filter requires exactly 1 argument")
     
-    if isZero:
-      return newJNull()
-    
-    case input.kind
-    of JInt:
-      case value.kind
-      of JInt:
-        result = newJInt(input.getInt mod value.getInt)
-      of JFloat:
-        result = newJFloat(input.getInt.float mod value.getFloat)
-      else:
-        result = input
-    of JFloat:
-      case value.kind
-      of JInt:
-        result = newJFloat(input.getFloat mod value.getInt.float)
-      of JFloat:
-        result = newJFloat(input.getFloat mod value.getFloat)
-      else:
-        result = input
+    if value.kind == vmInt and args[0].kind == vmInt:
+      if args[0].intVal == 0:
+        raise newException(ValueError, "Modulo by zero")
+      result = VMValue(kind: vmInt, intVal: value.intVal mod args[0].intVal)
     else:
-      result = input
+      let a = getNumericVal(value)
+      let b = getNumericVal(args[0])
+      if b == 0:
+        raise newException(ValueError, "Modulo by zero")
+      result = VMValue(kind: vmFloat, floatVal: a.mod(b))
 
 # Limits a number to a minimum value
 create_filter:
-  proc at_least(input: JsonNode, minimum: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      case minimum.kind
-      of JInt:
-        result = newJInt(max(input.getInt, minimum.getInt))
-      of JFloat:
-        result = newJFloat(max(input.getInt.float, minimum.getFloat))
-      else:
-        result = input
-    of JFloat:
-      case minimum.kind
-      of JInt:
-        result = newJFloat(max(input.getFloat, minimum.getInt.float))
-      of JFloat:
-        result = newJFloat(max(input.getFloat, minimum.getFloat))
-      else:
-        result = input
+  proc at_least(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "at_least filter requires exactly 1 argument")
+    
+    let val = getNumericVal(value)
+    let minVal = getNumericVal(args[0])
+    
+    if val < minVal:
+      result = args[0]
     else:
-      result = input
+      result = value
 
 # Limits a number to a maximum value
 create_filter:
-  proc at_most(input: JsonNode, maximum: JsonNode): JsonNode =
-    case input.kind
-    of JInt:
-      case maximum.kind
-      of JInt:
-        result = newJInt(min(input.getInt, maximum.getInt))
-      of JFloat:
-        result = newJFloat(min(input.getInt.float, maximum.getFloat))
-      else:
-        result = input
-    of JFloat:
-      case maximum.kind
-      of JInt:
-        result = newJFloat(min(input.getFloat, maximum.getInt.float))
-      of JFloat:
-        result = newJFloat(min(input.getFloat, maximum.getFloat))
-      else:
-        result = input
+  proc at_most(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "at_most filter requires exactly 1 argument")
+    
+    let val = getNumericVal(value)
+    let maxVal = getNumericVal(args[0])
+    
+    if val > maxVal:
+      result = args[0]
     else:
-      result = input
+      result = value

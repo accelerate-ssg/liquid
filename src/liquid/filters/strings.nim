@@ -1,271 +1,230 @@
-import strutils, base64, xmltree, json, sequtils, re
+import strutils, base64, xmltree, sequtils, re
 
 import ../shared
 
-# Appends a string to another string
-#append : string suffix:string
-create_filter:
-  proc append(input: string, suffix: string): string =
-    result = input & suffix
+# Helper to get string value or convert to string
+proc getStringVal(v: VMValue): string =
+  case v.kind
+  of vmString: v.stringVal
+  of vmInt: $v.intVal
+  of vmFloat: $v.floatVal
+  of vmBool: $v.boolVal
+  of vmNull: ""
+  else: ""  # Arrays and objects would need special handling
 
-# Converts a string into a base64-encoded string
-#base64_decode : string
+# Appends a string to another string
 create_filter:
-  proc base64_decode(input: string): string =
-    result = input.decode()
+  proc append(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "append filter requires exactly 1 argument")
+    let input = getStringVal(value)
+    let suffix = getStringVal(args[0])
+    result = VMValue(kind: vmString, stringVal: input & suffix)
+
+# Converts a string into a base64-decoded string
+create_filter:
+  proc base64_decode(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.decode())
 
 # Converts a base64-encoded string into a string
-#base64_encode : string
 create_filter:
-  proc base64_encode(input: string): string =
-    result = input.encode()
+  proc base64_encode(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.encode())
 
-# Converts a string into a URL-safe base64-encoded string
-#base64_url_safe_decode : string
+# Converts a string into a URL-safe base64-decoded string
 create_filter:
-  proc base64_url_safe_decode(input: string): string =
-    result = input.decode()
+  proc base64_url_safe_decode(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.decode())
 
 # Converts a URL-safe base64-encoded string into a string
-#base64_url_safe_encode : string
 create_filter:
-  proc base64_url_safe_encode(input: string): string =
-    result = input.encode(safe = true)
+  proc base64_url_safe_encode(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.encode(safe = true))
 
-##
-# Capitalizes the first word in a string and downcases the remaining characters.
-# capitalize : string
-# returns string
-##
+# Capitalizes the first word in a string and downcases the remaining characters
 create_filter:
-  proc capitalize(input: string): string =
-    result = input.toLower()
-    result = result[0..1].toUpper() & result[1..^1]
+  proc capitalize(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    var str = value.stringVal.toLower()
+    if str.len > 0:
+      str[0] = str[0].toUpperAscii()
+    result = VMValue(kind: vmString, stringVal: str)
 
 # Converts a string into a camelized string
-#camelize : string
 create_filter:
-  proc camelize(input: string): string =
-    result = input.split("_").map(proc(x: string): string = x.toUpper).join("")
+  proc camelize(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    let parts = value.stringVal.split("_")
+    let camelized = parts.mapIt(it.capitalizeAscii()).join("")
+    result = VMValue(kind: vmString, stringVal: camelized)
 
-
-# downcase
-# string | downcase
-# returns string
-# Converts a string to all lowercase characters.
+# downcase - Converts a string to all lowercase characters
 create_filter:
-  proc downcase(input: string): string =
-    result = input.toLower()
+  proc downcase(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.toLower())
 
-# escape
-# string | escape
-# returns string
-# Escapes special characters in HTML, such as <>, ', and &, and converts characters into escape sequences. The filter doesn't effect characters within the string that don’t have a corresponding escape sequence.".
+# escape - Escapes special characters in HTML
 create_filter:
-  proc escape(input: string): string =
-    result = xmltree.escape(input)
-
+  proc escape(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: xmltree.escape(value.stringVal))
 
 # Converts a string into a URL-friendly format
 create_filter:
-  proc handleize(input: string): string =
-    result = input.toLower()
-    result = strutils.replace(result, " ", "-")
-    result = re.replace(result, re"([^-\w])")
-
-
-
-# Removes HTML tags from a string
-#strip_html : string
+  proc handleize(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    var str = value.stringVal.toLower()
+    str = strutils.replace(str, " ", "-")
+    str = re.replace(str, re"[^-\w]", "")
+    result = VMValue(kind: vmString, stringVal: str)
 
 # Strips all leading and trailing whitespace from a string
 create_filter:
-  proc strip(input: string): string =
-    result = input.strip()
+  proc strip(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.strip())
 
-# Returns the first characters of a string
-#truncate : length:number [ellipsis:string]
+# Returns the first N characters of a string
 create_filter:
-  proc truncate(input: string, length: int, ellipsis: string = "..."): string =
-    result = input
+  proc truncate(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    
+    if args.len < 1:
+      raise newException(ValueError, "truncate filter requires at least 1 argument (length)")
+    
+    let length = if args[0].kind == vmInt: args[0].intVal.int else: 50
+    let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
+    
+    var str = value.stringVal
+    if str.len > length:
+      str = str[0..<length] & ellipsis
+    
+    result = VMValue(kind: vmString, stringVal: str)
 
-    if input.len > length:
-      result = input[0..length-1] & ellipsis
-
-# Returns the first characters of a string, preserving whole words
-#truncatewords : length:number [ellipsis:string]
+# Returns the first N words of a string, preserving whole words
 create_filter:
-  proc truncatewords(input: string, length: int, ellipsis: string = "..."): string =
-    result = input
+  proc truncatewords(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    
+    if args.len < 1:
+      raise newException(ValueError, "truncatewords filter requires at least 1 argument (word count)")
+    
+    let wordCount = if args[0].kind == vmInt: args[0].intVal.int else: 15
+    let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
+    
+    let words = value.stringVal.split()
+    var resultStr: string
+    if words.len <= wordCount:
+      resultStr = value.stringVal
+    else:
+      resultStr = words[0..<wordCount].join(" ") & ellipsis
+    
+    result = VMValue(kind: vmString, stringVal: resultStr)
 
-    if input.len > length:
-      result = input[0..length-1]
-      result = result.rsplit(" ", 1)[0] & ellipsis
-
-# Replaces newline characters with HTML line breaks
-#newline_to_br : string
+# upcase - Converts a string to all uppercase characters
 create_filter:
-  proc newline_to_br(input: string): string =
-    result = input.replace("\n", "<br>")
-
-# Converts a string to uppercase
-#upcase : string
-create_filter:
-  proc upcase(input: string): string =
-    result = input.toUpper()
-
-# Replaces occurrences of one string with another
-#replace : string old:string new:string
-create_filter:
-  proc replace(input: string, old: string, replacement: string): string =
-    result = strutils.replace(input, old, replacement)
-
-# Replaces the first occurrence of one string with another
-#replace_first : string old:string new:string
-create_filter:
-  proc replace_first(input: string, old: string, replacement: string): string =
-    result = strutils.split(input, old, 1).join(replacement)
-
-# Splits a string into an array using a delimiter
-#split : string delimiter:string
-create_filter:
-  proc split(input: string, delimiter: string): seq[string] =
-    result = input.split(delimiter)
-
-# Removes all whitespace from a string
-#strip_newlines : string
-create_filter:
-  proc strip_newlines(input: string): string =
-    result = input.replace("\n", "")
-
-
-# Removes specified characters from the beginning of a string
-create_filter:
-  proc lstrip(input: string, chars: string = " \t\n\r"): string =
-    var i = 0
-    while i < input.len and input[i] in chars:
-      inc i
-    result = input[i..^1]
-
-# Removes specified characters from the end of a string
-create_filter:
-  proc rstrip(input: string, chars: string = " \t\n\r"): string =
-    var i = input.len - 1
-    while i >= 0 and input[i] in chars:
-      dec i
-    result = input[0..i]
-
-# Reverses the characters in a string
-create_filter:
-  proc reverse(input: string): string =
-    result = ""
-    for i in countdown(input.len - 1, 0):
-      result.add(input[i])
-
-# Returns the size/length of a string
-create_filter:
-  proc size(input: string): int =
-    result = input.len
+  proc upcase(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal.toUpper())
 
 # Prepends a string to another string
 create_filter:
-  proc prepend(input: string, prefix: string): string =
-    result = prefix & input
+  proc prepend(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len != 1:
+      raise newException(ValueError, "prepend filter requires exactly 1 argument")
+    let input = getStringVal(value)
+    let prefix = getStringVal(args[0])
+    result = VMValue(kind: vmString, stringVal: prefix & input)
 
-# Escapes a string for use in a URL
+# Removes a substring from a string
 create_filter:
-  proc url_encode(input: string): string =
-    result = ""
-    for c in input:
-      case c
-      of 'a'..'z', 'A'..'Z', '0'..'9', '-', '_', '.', '~':
-        result.add(c)
-      of ' ':
-        result.add('+')
-      else:
-        result.add('%')
-        result.add(toHex(ord(c), 2))
-
-# Unescapes a URL-encoded string
-create_filter:
-  proc url_decode(input: string): string =
-    result = ""
-    var i = 0
-    while i < input.len:
-      if input[i] == '+':
-        result.add(' ')
-        inc i
-      elif input[i] == '%' and i + 2 < input.len:
-        try:
-          let hex = input[i+1..i+2]
-          result.add(chr(parseHexInt(hex)))
-          i += 3
-        except:
-          result.add(input[i])
-          inc i
-      else:
-        result.add(input[i])
-        inc i
-
-# escape_once was implemented above as a commented TODO, let's fix it
-create_filter:
-  proc escape_once(input: string): string =
-    # Check if string contains HTML entities
-    if "&amp;" in input or "&lt;" in input or "&gt;" in input or "&quot;" in input or "&#39;" in input:
-      # Already escaped, return as-is
-      result = input
-    else:
-      result = xmltree.escape(input)
-
-
-# Returns a slice of a string
-create_filter:
-  proc slice(input: string, start: int, length: int = -1): string =
-    let actualStart = if start < 0: input.len + start else: start
-    if actualStart < 0 or actualStart >= input.len:
-      return ""
-    
-    if length < 0:
-      result = input[actualStart..^1]
-    else:
-      let endIdx = min(actualStart + length - 1, input.len - 1)
-      result = input[actualStart..endIdx]
-
-
-# Removes all HTML tags from a string
-create_filter:
-  proc strip_html(input: string): string =
-    result = re.replace(input, re"<[^>]*>")
-
-# Removes all occurrences of a substring from a string
-create_filter:
-  proc remove(input: string, substring: string): string =
-    result = input.replace(substring, "")
+  proc remove(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len != 1:
+      raise newException(ValueError, "remove filter requires exactly 1 argument")
+    let substring = getStringVal(args[0])
+    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(substring, ""))
 
 # Removes the first occurrence of a substring from a string
 create_filter:
-  proc remove_first(input: string, substring: string): string =
-    let idx = input.find(substring)
+  proc remove_first(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len != 1:
+      raise newException(ValueError, "remove_first filter requires exactly 1 argument")
+    let substring = getStringVal(args[0])
+    let idx = value.stringVal.find(substring)
+    var resultStr = value.stringVal
     if idx >= 0:
-      result = input[0..<idx] & input[idx + substring.len..^1]
-    else:
-      result = input
+      resultStr = value.stringVal[0..<idx] & value.stringVal[idx + substring.len..^1]
+    result = VMValue(kind: vmString, stringVal: resultStr)
 
-# Removes the last occurrence of a substring from a string
+# Replaces all occurrences of a substring with another string
 create_filter:
-  proc remove_last(input: string, substring: string): string =
-    let idx = input.rfind(substring)
-    if idx >= 0:
-      result = input[0..<idx] & input[idx + substring.len..^1]
-    else:
-      result = input
+  proc replace(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len != 2:
+      raise newException(ValueError, "replace filter requires exactly 2 arguments")
+    let search = getStringVal(args[0])
+    let replacement = getStringVal(args[1])
+    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(search, replacement))
 
-# replace_last - Replaces the last occurrence of a substring
+# Replaces the first occurrence of a substring with another string
 create_filter:
-  proc replace_last(input: string, old: string, replacement: string): string =
-    let idx = input.rfind(old)
+  proc replace_first(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    if args.len != 2:
+      raise newException(ValueError, "replace_first filter requires exactly 2 arguments")
+    let search = getStringVal(args[0])
+    let replacement = getStringVal(args[1])
+    let idx = value.stringVal.find(search)
+    var resultStr = value.stringVal
     if idx >= 0:
-      result = input[0..<idx] & replacement & input[idx + old.len..^1]
-    else:
-      result = input
+      resultStr = value.stringVal[0..<idx] & replacement & value.stringVal[idx + search.len..^1]
+    result = VMValue(kind: vmString, stringVal: resultStr)
 
+# Strips HTML tags from a string
+create_filter:
+  proc strip_html(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    # Simple HTML tag removal
+    let stripped = re.replace(value.stringVal, re"<[^>]*>", "")
+    result = VMValue(kind: vmString, stringVal: stripped)
+
+# Strips newlines from a string
+create_filter:
+  proc strip_newlines(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    let stripped = value.stringVal.multiReplace([("\n", ""), ("\r", "")])
+    result = VMValue(kind: vmString, stringVal: stripped)
+
+# Converts newlines to HTML breaks
+create_filter:
+  proc newline_to_br(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmString:
+      return value
+    let replaced = value.stringVal.replace("\n", "<br />")
+    result = VMValue(kind: vmString, stringVal: replaced)

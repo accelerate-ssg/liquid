@@ -64,8 +64,7 @@ type
     captureEscapeStack*: seq[bool]  # Track escape state for nested captures
     isCapturing*: bool
     
-    # Filters (user-extensible)
-    filters*: Table[string, FilterProc]
+    # Filters are now handled by the filters module
     
     # Performance
     instructionCount*: int

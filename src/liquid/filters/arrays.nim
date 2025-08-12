@@ -1,175 +1,228 @@
-import json, sequtils, algorithm, strutils
+import sequtils, algorithm, strutils, tables
 import ../shared
+
+# Helper to convert VMValue to string
+proc toString(v: VMValue): string =
+  case v.kind
+  of vmString: v.stringVal
+  of vmInt: $v.intVal
+  of vmFloat: $v.floatVal
+  of vmBool: $v.boolVal
+  of vmNull: ""
+  else: ""
 
 # Returns the first element of an array
 create_filter:
-  proc first(input: seq[JsonNode]): JsonNode =
-    if input.len > 0:
-      result = input[0]
+  proc first(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind == vmArray and value.arrayVal.len > 0:
+      result = value.arrayVal[0]
     else:
-      result = newJNull()
+      result = VMValue(kind: vmNull)
 
 # Returns the last element of an array
 create_filter:
-  proc last(input: seq[JsonNode]): JsonNode =
-    if input.len > 0:
-      result = input[^1]
+  proc last(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind == vmArray and value.arrayVal.len > 0:
+      result = value.arrayVal[^1]
     else:
-      result = newJNull()
+      result = VMValue(kind: vmNull)
 
 # Joins the elements of an array into a string separated by a delimiter
 create_filter:
-  proc join(input: seq[JsonNode], delimiter: string = " "): string =
-    result = input.mapIt(
-      if it.kind == JString: it.getStr
-      elif it.kind == JInt: $it.getInt
-      elif it.kind == JFloat: $it.getFloat
-      elif it.kind == JBool: $it.getBool
-      else: $it
-    ).join(delimiter)
+  proc join(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    let delimiter = if args.len > 0 and args[0].kind == vmString:
+      args[0].stringVal
+    else:
+      " "
+    
+    let joined = value.arrayVal.mapIt(toString(it)).join(delimiter)
+    result = VMValue(kind: vmString, stringVal: joined)
 
-# Returns the size of an array
+# Returns the size of an array or string or object
 create_filter:
-  proc size(input: seq[JsonNode]): int =
-    result = input.len
+  proc size(value: VMValue, args: varargs[VMValue]): VMValue =
+    case value.kind
+    of vmArray:
+      result = VMValue(kind: vmInt, intVal: value.arrayVal.len.int64)
+    of vmString:
+      result = VMValue(kind: vmInt, intVal: value.stringVal.len.int64)
+    of vmObject:
+      result = VMValue(kind: vmInt, intVal: value.objectVal.len.int64)
+    else:
+      result = VMValue(kind: vmInt, intVal: 0)
 
 # Sorts an array in ascending order
 create_filter:
-  proc sort(input: seq[JsonNode]): seq[JsonNode] =
-    result = input
-    result.sort(proc(a, b: JsonNode): int =
-      if a.kind == JString and b.kind == JString:
-        return cmp(a.getStr, b.getStr)
-      elif a.kind == JInt and b.kind == JInt:
-        return cmp(a.getInt, b.getInt)
-      elif a.kind == JFloat and b.kind == JFloat:
-        return cmp(a.getFloat, b.getFloat)
+  proc sort(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    var sorted = value.arrayVal
+    sorted.sort(proc(a, b: VMValue): int =
+      # Compare based on types
+      if a.kind == vmString and b.kind == vmString:
+        return cmp(a.stringVal, b.stringVal)
+      elif a.kind == vmInt and b.kind == vmInt:
+        return cmp(a.intVal, b.intVal)
+      elif a.kind == vmFloat and b.kind == vmFloat:
+        return cmp(a.floatVal, b.floatVal)
+      elif a.kind == vmBool and b.kind == vmBool:
+        return cmp(a.boolVal, b.boolVal)
+      # Mixed numeric types
+      elif a.kind in [vmInt, vmFloat] and b.kind in [vmInt, vmFloat]:
+        let aFloat = if a.kind == vmInt: a.intVal.float else: a.floatVal
+        let bFloat = if b.kind == vmInt: b.intVal.float else: b.floatVal
+        return cmp(aFloat, bFloat)
       else:
-        return 0
+        # Different types - sort by string representation
+        return cmp(toString(a), toString(b))
     )
-
-# Sorts an array naturally (with proper number handling)
-create_filter:
-  proc sort_natural(input: seq[JsonNode]): seq[JsonNode] =
-    result = input
-    result.sort(proc(a, b: JsonNode): int =
-      if a.kind == JString and b.kind == JString:
-        # Natural sort implementation for strings with numbers
-        let aStr = a.getStr
-        let bStr = b.getStr
-        var i = 0
-        var j = 0
-        
-        while i < aStr.len and j < bStr.len:
-          if aStr[i].isDigit and bStr[j].isDigit:
-            # Compare numeric parts
-            var aNum = 0
-            var bNum = 0
-            while i < aStr.len and aStr[i].isDigit:
-              aNum = aNum * 10 + ord(aStr[i]) - ord('0')
-              inc i
-            while j < bStr.len and bStr[j].isDigit:
-              bNum = bNum * 10 + ord(bStr[j]) - ord('0')
-              inc j
-            if aNum != bNum:
-              return cmp(aNum, bNum)
-          else:
-            # Compare character by character
-            if aStr[i] != bStr[j]:
-              return cmp(aStr[i], bStr[j])
-            inc i
-            inc j
-        
-        return cmp(aStr.len, bStr.len)
-      else:
-        # Fall back to regular sort for non-strings
-        return cmp($a, $b)
-    )
+    
+    result = VMValue(kind: vmArray, arrayVal: sorted)
 
 # Reverses an array
 create_filter:
-  proc reverse(input: seq[JsonNode]): seq[JsonNode] =
-    result = input
-    result.reverse()
-
-# Maps an array of objects to an array of values from a specified property
-create_filter:
-  proc map(input: seq[JsonNode], property: string): seq[JsonNode] =
-    result = @[]
-    for item in input:
-      if item.kind == JObject and item.hasKey(property):
-        result.add(item[property])
-      else:
-        result.add(newJNull())
-
-# Removes duplicate elements from an array
-create_filter:
-  proc uniq(input: seq[JsonNode]): seq[JsonNode] =
-    result = @[]
-    for item in input:
-      var found = false
-      for existing in result:
-        if $item == $existing:
-          found = true
-          break
-      if not found:
-        result.add(item)
-
-# Returns a slice of an array
-create_filter:
-  proc slice(input: seq[JsonNode], start: int, length: int = -1): seq[JsonNode] =
-    let actualStart = if start < 0: input.len + start else: start
-    if actualStart < 0 or actualStart >= input.len:
-      return @[]
-    
-    if length < 0:
-      result = input[actualStart..^1]
+  proc reverse(value: VMValue, args: varargs[VMValue]): VMValue =
+    case value.kind
+    of vmArray:
+      var reversed = value.arrayVal
+      reversed.reverse()
+      result = VMValue(kind: vmArray, arrayVal: reversed)
+    of vmString:
+      var reversed = value.stringVal
+      reversed.reverse()
+      result = VMValue(kind: vmString, stringVal: reversed)
     else:
-      let endIdx = min(actualStart + length - 1, input.len - 1)
-      result = input[actualStart..endIdx]
+      result = value
 
-# Filters an array where a property equals a value
+# Maps an attribute from each object in an array
 create_filter:
-  proc where(input: seq[JsonNode], property: string, value: JsonNode = newJNull()): seq[JsonNode] =
-    result = @[]
-    for item in input:
-      if item.kind == JObject and item.hasKey(property):
-        if value.kind == JNull:
-          # If no value specified, just check for truthy property
-          let prop = item[property]
-          if prop.kind != JNull and prop.kind != JBool or (prop.kind == JBool and prop.getBool):
-            result.add(item)
-        else:
-          # Check if property equals value
-          if $item[property] == $value:
-            result.add(item)
+  proc map(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    if args.len != 1 or args[0].kind != vmString:
+      raise newException(ValueError, "map filter requires exactly 1 string argument (property name)")
+    
+    let propName = args[0].stringVal
+    var mapped: seq[VMValue] = @[]
+    
+    for item in value.arrayVal:
+      if item.kind == vmObject and propName in item.objectVal:
+        mapped.add(item.objectVal[propName])
+      else:
+        mapped.add(VMValue(kind: vmNull))
+    
+    result = VMValue(kind: vmArray, arrayVal: mapped)
+
+# Removes nil values from an array
+create_filter:
+  proc compact(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    let filtered = value.arrayVal.filterIt(it.kind != vmNull)
+    result = VMValue(kind: vmArray, arrayVal: filtered)
 
 # Concatenates arrays
 create_filter:
-  proc concat(input: seq[JsonNode], other: seq[JsonNode]): seq[JsonNode] =
-    result = input & other
+  proc concat(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    var concatenated = value.arrayVal
+    for arg in args:
+      if arg.kind == vmArray:
+        concatenated.add(arg.arrayVal)
+    
+    result = VMValue(kind: vmArray, arrayVal: concatenated)
 
-# Removes nil/null values from an array
+# Returns unique elements from an array
 create_filter:
-  proc compact(input: seq[JsonNode]): seq[JsonNode] =
-    result = @[]
-    for item in input:
-      if item.kind != JNull:
-        result.add(item)
+  proc uniq(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    var unique: seq[VMValue] = @[]
+    
+    for item in value.arrayVal:
+      var found = false
+      for existing in unique:
+        # Manual comparison to avoid case object equality issues
+        if item.kind == existing.kind:
+          case item.kind
+          of vmNull:
+            found = true
+            break
+          of vmBool:
+            if item.boolVal == existing.boolVal:
+              found = true
+              break
+          of vmInt:
+            if item.intVal == existing.intVal:
+              found = true
+              break
+          of vmFloat:
+            if item.floatVal == existing.floatVal:
+              found = true
+              break
+          of vmString:
+            if item.stringVal == existing.stringVal:
+              found = true
+              break
+          else:
+            # For arrays and objects, just consider them not equal for now
+            discard
+      
+      if not found:
+        unique.add(item)
+    
+    result = VMValue(kind: vmArray, arrayVal: unique)
 
-# Sum of all elements in an array
+# Filters array based on a property value
 create_filter:
-  proc sum(input: seq[JsonNode], property: string = ""): float =
-    result = 0.0
-    for item in input:
-      if property != "" and item.kind == JObject and item.hasKey(property):
-        let val = item[property]
-        if val.kind == JInt:
-          result += val.getInt.float
-        elif val.kind == JFloat:
-          result += val.getFloat
-      else:
-        if item.kind == JInt:
-          result += item.getInt.float
-        elif item.kind == JFloat:
-          result += item.getFloat
+  proc where(value: VMValue, args: varargs[VMValue]): VMValue =
+    if value.kind != vmArray:
+      return value
+    
+    if args.len < 1 or args[0].kind != vmString:
+      raise newException(ValueError, "where filter requires at least 1 argument (property name)")
+    
+    let propName = args[0].stringVal
+    
+    if args.len == 1:
+      # Filter for objects that have the property (non-null)
+      let filtered = value.arrayVal.filterIt(
+        it.kind == vmObject and 
+        propName in it.objectVal and 
+        it.objectVal[propName].kind != vmNull
+      )
+      result = VMValue(kind: vmArray, arrayVal: filtered)
+    else:
+      # Filter for objects where property equals value  
+      let propValue = args[1]
+      var filtered: seq[VMValue] = @[]
+      for item in value.arrayVal:
+        if item.kind == vmObject and propName in item.objectVal:
+          let itemPropValue = item.objectVal[propName]
+          var matches = false
+          if itemPropValue.kind == propValue.kind:
+            case itemPropValue.kind
+            of vmNull:
+              matches = true
+            of vmBool:
+              matches = itemPropValue.boolVal == propValue.boolVal
+            of vmInt:
+              matches = itemPropValue.intVal == propValue.intVal
+            of vmFloat:
+              matches = itemPropValue.floatVal == propValue.floatVal
+            of vmString:
+              matches = itemPropValue.stringVal == propValue.stringVal
+            else:
+              matches = false
+          if matches:
+            filtered.add(item)
+      result = VMValue(kind: vmArray, arrayVal: filtered)
