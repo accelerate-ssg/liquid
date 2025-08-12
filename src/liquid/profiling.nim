@@ -1,4 +1,4 @@
-import std/[times, monotimes, tables, algorithm, strformat, strutils]
+import std/[times, monotimes, tables]
 
 when defined(profile):
   var timingData {.threadvar.}: Table[string, Duration]

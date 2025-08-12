@@ -4,7 +4,7 @@
 
 import compiler/[types]
 import vm/[types]
-import std/[tables, strutils, sequtils]
+import std/[tables, strutils, sequtils, algorithm]
 
 # Forward declarations
 proc toString(v: VMValue): string
@@ -56,6 +56,59 @@ proc registerBuiltinFilters(vm: var LiquidVM) =
       for item in v.arrayVal:
         parts.add(item.toString())
       result = VMValue(kind: vmString, stringVal: parts.join(separator))
+    else:
+      result = v
+  
+  vm.filters["split"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
+    if v.kind == vmString:
+      var separator = " "
+      if args.len > 0 and args[0].kind == vmString:
+        separator = args[0].stringVal
+      let parts = v.stringVal.split(separator)
+      var arrayVal: seq[VMValue] = @[]
+      for part in parts:
+        arrayVal.add(VMValue(kind: vmString, stringVal: part))
+      result = VMValue(kind: vmArray, arrayVal: arrayVal)
+    else:
+      result = VMValue(kind: vmArray, arrayVal: @[])
+  
+  vm.filters["sort"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
+    if v.kind == vmArray:
+      var sorted = v.arrayVal
+      # Sort by converting to strings and comparing
+      sorted.sort do (a, b: VMValue) -> int:
+        let aStr = a.toString()
+        let bStr = b.toString()
+        if aStr < bStr: -1
+        elif aStr > bStr: 1
+        else: 0
+      result = VMValue(kind: vmArray, arrayVal: sorted)
+    else:
+      result = v
+  
+  vm.filters["default"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
+    # Return default value if input is null/empty, otherwise return input
+    let shouldUseDefault = case v.kind
+      of vmNull: true
+      of vmString: v.stringVal.len == 0
+      of vmArray: v.arrayVal.len == 0
+      of vmBool: not v.boolVal  # false is considered empty for default filter
+      else: false
+    
+    if shouldUseDefault and args.len > 0:
+      result = args[0]
+    else:
+      result = v
+  
+  vm.filters["reverse"] = proc(v: VMValue, args: seq[VMValue]): VMValue =
+    if v.kind == vmArray:
+      var reversed = v.arrayVal
+      reversed.reverse()
+      result = VMValue(kind: vmArray, arrayVal: reversed)
+    elif v.kind == vmString:
+      var reversed = v.stringVal
+      reversed.reverse()
+      result = VMValue(kind: vmString, stringVal: reversed)
     else:
       result = v
 
