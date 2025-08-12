@@ -195,10 +195,24 @@ create_filter:
 # Filters array based on a property value
 create_filter:
   proc where(value: VMValue, args: varargs[VMValue]): VMValue =
+    # Check for empty or undefined value first
+    if value.kind == vmNull:
+      return VMValue(kind: vmArray, arrayVal: @[])
+      
     if value.kind != vmArray:
-      return value
+      raise newException(ValueError, "where filter can only be applied to arrays")
     
-    if args.len < 1 or args[0].kind != vmString:
+    if args.len > 2:
+      raise newException(ValueError, "where filter takes at most 2 arguments")
+    
+    if args.len < 1:
+      raise newException(ValueError, "where filter requires at least 1 argument (property name)")
+      
+    # Handle undefined/null first argument
+    if args[0].kind == vmNull:
+      return VMValue(kind: vmArray, arrayVal: @[])
+    
+    if args[0].kind != vmString:
       raise newException(ValueError, "where filter requires at least 1 argument (property name)")
     
     let propName = args[0].stringVal
