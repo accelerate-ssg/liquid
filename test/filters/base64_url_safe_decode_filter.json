@@ -1,0 +1,49 @@
+[
+  {
+    "name": "from string",
+    "template": "{{ \"XyMvLg==\" | base64_url_safe_decode }}",
+    "want": "_#/.",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "from string with URL unsafe",
+    "template": "{{ a | base64_url_safe_decode }}",
+    "want": "abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ 1234567890 !@#$%^&*()-=_+/?.:;[]{}\\|",
+    "context": {
+      "a": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXogQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMTIzNDU2Nzg5MCAhQCMkJV4mKigpLT1fKy8_Ljo7W117fVx8"
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "not a string",
+    "template": "{{ 5 | base64_url_safe_decode }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "undefined left value",
+    "template": "{{ nosuchthing | base64_url_safe_decode }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "unexpected argument",
+    "template": "{{ \"hello\" | base64_url_safe_decode: 5 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  }
+]

@@ -1,0 +1,184 @@
+[
+  {
+    "name": "0.0 is not falsy",
+    "template": "{{ 0.0 | default: \"bar\" }}",
+    "want": "0.0",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "allow false",
+    "template": "{{ false | default: 'bar', allow_false:true }}",
+    "want": "false",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "allow false from context",
+    "template": "{{ false | default: 'bar', allow_false:foo }}",
+    "want": "false",
+    "context": {
+      "foo": true
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "empty",
+    "template": "{{ empty | default: bar }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "empty array",
+    "template": "{{ a | default: 'foo' }}",
+    "want": "foo",
+    "context": {
+      "a": []
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "empty object",
+    "template": "{{ a | default: 'foo' }}",
+    "want": "foo",
+    "context": {
+      "a": {}
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "empty string",
+    "template": "{{ \"\" | default: \"foo\" }}",
+    "want": "foo",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "false",
+    "template": "{{ false | default: 'foo' }}",
+    "want": "foo",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "false keyword argument before positional",
+    "template": "{{ false | default: allow_false: false, \"bar\" }}",
+    "want": "bar",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "missing argument",
+    "template": "{{ false | default }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "nil",
+    "template": "{{ nil | default: 'foo' }}",
+    "want": "foo",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "not empty list",
+    "template": "{{ a | default: \"foo\" | join: \"#\" }}",
+    "want": "hello#world",
+    "context": {
+      "a": ["hello", "world"]
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "not empty object",
+    "template": "{% assign b = a | default: foo %}{% for item in b %}({{ item[0] }},{{ item[1] }}){% endfor %}",
+    "want": "(greeting,hello)",
+    "context": {
+      "a": {"greeting": "hello"},
+      "foo": {"greeting": "goodbye"}
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "not empty string",
+    "template": "{{ \"hello\" | default: \"foo\" }}",
+    "want": "hello",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "too many arguments",
+    "template": "{{ None | default: 'foo', 'bar', 'baz' }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "true keyword argument before positional",
+    "template": "{{ false | default: allow_false: true, \"bar\" }}",
+    "want": "false",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "undefined left value",
+    "template": "{{ nosuchthing | default: \"bar\" }}",
+    "want": "bar",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "zero is not falsy",
+    "template": "{{ 0 | default: \"bar\" }}",
+    "want": "0",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "zero is not falsy with allow_false",
+    "template": "{{ 0 | default: \"bar\", allow_false: true }}",
+    "want": "0",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  }
+]

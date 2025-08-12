@@ -1,0 +1,68 @@
+[
+  {
+    "name": "array of objects with key property",
+    "template": "{% assign x = a | compact: 'title' %}{% for obj in x %}{% for i in obj %}({{ i[0] }},{{ i[1] }}){% endfor %}{% endfor %}",
+    "want": "(title,foo)(name,a)(title,bar)(name,c)",
+    "context": {
+      "a": [
+        {"title": "foo", "name": "a"},
+        {"title": null, "name": "b"},
+        {"title": "bar", "name": "c"}
+      ]
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "array with a nil",
+    "template": "{{ a | compact | join: '#' }}",
+    "want": "b#a#A",
+    "context": {
+      "a": ["b", "a", null, "A"]
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "empty array",
+    "template": "{{ a | compact | join: '#' }}",
+    "want": "",
+    "context": {
+      "a": []
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "left value is not an array",
+    "template": "{{ a | compact | first }}",
+    "want": "123",
+    "context": {
+      "a": 123
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "left value is undefined",
+    "template": "{{ nosuchthing | compact }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "too many arguments",
+    "template": "{{ a | compact: 'foo', 'bar' }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "name": "already capitalized string",
+    "template": "{{ \"Hello\" | capitalize }}",
+    "want": "Hello",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "lower case string",
+    "template": "{{ \"hello\" | capitalize }}",
+    "want": "Hello",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "undefined left value",
+    "template": "{{ nosuchthing | capitalize }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "unexpected argument",
+    "template": "{{ \"hello\" | capitalize: 2 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  }
+]

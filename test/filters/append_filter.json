@@ -1,0 +1,65 @@
+[
+  {
+    "name": "argument not a string",
+    "template": "{{ \"hello\" | append: 5 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "concat",
+    "template": "{{ \"hello\" | append: \"there\" }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "missing argument",
+    "template": "{{ \"hello\" | append }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "not a string",
+    "template": "{{ 5 | append: 'there' }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "too many arguments",
+    "template": "{{ \"hello\" | append: \"how\", \"are\", \"you\" }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "undefined argument",
+    "template": "{{ \"hi\" | append: nosuchthing }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "undefined left value",
+    "template": "{{ nosuchthing | append: \"hi\" }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  }
+]
