@@ -1,32 +1,8 @@
-import json,tables
+import tables
 
 import shared, filters/[strings, arrays, numbers, dates, misc]
-import compiler/[types, context_functions]
 
-# Legacy JsonNode version for compatibility
-proc applyFilter*(value: JsonNode, filterName: string, args: seq[JsonNode], context: Context): JsonNode =
-  try:
-    # Convert to VMValue and use the VM version
-    let vmValue = jsonToVMValue(value)
-    var vmArgs: seq[VMValue] = @[]
-    for arg in args:
-      vmArgs.add(jsonToVMValue(arg))
-    
-    # Directly call the filter instead of recursive call
-    if filterName notin shared.filters:
-      echo "Unknown filter: ", filterName
-      result = newJString("")
-      return
-    
-    let filter = shared.filters[filterName] 
-    let vmResult = filter(vmValue, vmArgs)
-    result = vmValueToJson(vmResult)
-
-  except CatchableError as e:
-    echo "Error applying filter '" & filterName & "': " & e.msg
-    result = newJString("")
-
-# Main VMValue version of applyFilter
+# VMValue version of applyFilter
 proc applyFilter*(value: VMValue, filterName: string, args: seq[VMValue]): VMValue =
   ## Apply a filter to a VMValue
   try:
