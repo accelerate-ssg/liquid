@@ -27,4 +27,4 @@ proc applyFilter*(value: VMValue, filterName: string, args: seq[VMValue]): VMVal
     
   except CatchableError as e:
     echo "Error applying filter '" & filterName & "': " & e.msg
-    result = VMValue(kind: vmString, stringVal: "")
+    raise e  # Re-throw the exception so tests can catch it

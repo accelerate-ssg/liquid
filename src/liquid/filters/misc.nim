@@ -3,10 +3,7 @@ import ../shared
 
 # Returns the default value if the input is null, false, or empty
 create_filter:
-  proc default(value: VMValue, args: varargs[VMValue]): VMValue =
-    if args.len != 1:
-      raise newException(ValueError, "default filter requires exactly 1 argument")
-    
+  proc default(value: VMValue, defaultValue: VMValue): VMValue =
     let shouldUseDefault = case value.kind
     of vmNull:
       true
@@ -22,7 +19,7 @@ create_filter:
       false
     
     if shouldUseDefault:
-      result = args[0]
+      result = defaultValue
     else:
       result = value
 

@@ -14,44 +14,42 @@ proc getStringVal(v: VMValue): string =
 
 # Appends a string to another string
 create_filter:
-  proc append(value: VMValue, args: varargs[VMValue]): VMValue =
-    if args.len != 1:
-      raise newException(ValueError, "append filter requires exactly 1 argument")
+  proc append(value: VMValue, suffix: VMValue): VMValue =
     let input = getStringVal(value)
-    let suffix = getStringVal(args[0])
-    result = VMValue(kind: vmString, stringVal: input & suffix)
+    let suffixStr = getStringVal(suffix)
+    result = VMValue(kind: vmString, stringVal: input & suffixStr)
 
 # Converts a string into a base64-decoded string
 create_filter:
-  proc base64_decode(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc base64_decode(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.decode())
 
 # Converts a base64-encoded string into a string
 create_filter:
-  proc base64_encode(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc base64_encode(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.encode())
 
 # Converts a string into a URL-safe base64-decoded string
 create_filter:
-  proc base64_url_safe_decode(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc base64_url_safe_decode(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.decode())
 
 # Converts a URL-safe base64-encoded string into a string
 create_filter:
-  proc base64_url_safe_encode(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc base64_url_safe_encode(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.encode(safe = true))
 
 # Capitalizes the first word in a string and downcases the remaining characters
 create_filter:
-  proc capitalize(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc capitalize(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     var str = value.stringVal.toLower()
@@ -70,14 +68,14 @@ create_filter:
 
 # downcase - Converts a string to all lowercase characters
 create_filter:
-  proc downcase(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc downcase(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.toLower())
 
 # escape - Escapes special characters in HTML
 create_filter:
-  proc escape(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc escape(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: xmltree.escape(value.stringVal))
@@ -94,7 +92,7 @@ create_filter:
 
 # Strips all leading and trailing whitespace from a string
 create_filter:
-  proc strip(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc strip(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.strip())
@@ -107,6 +105,8 @@ create_filter:
     
     if args.len < 1:
       raise newException(ValueError, "truncate filter requires at least 1 argument (length)")
+    if args.len > 2:
+      raise newException(ValueError, "truncate filter takes at most 2 arguments")
     
     let length = if args[0].kind == vmInt: args[0].intVal.int else: 50
     let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
@@ -125,6 +125,8 @@ create_filter:
     
     if args.len < 1:
       raise newException(ValueError, "truncatewords filter requires at least 1 argument (word count)")
+    if args.len > 2:
+      raise newException(ValueError, "truncatewords filter takes at most 2 arguments")
     
     let wordCount = if args[0].kind == vmInt: args[0].intVal.int else: 15
     let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
@@ -140,68 +142,58 @@ create_filter:
 
 # upcase - Converts a string to all uppercase characters
 create_filter:
-  proc upcase(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc upcase(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal.toUpper())
 
 # Prepends a string to another string
 create_filter:
-  proc prepend(value: VMValue, args: varargs[VMValue]): VMValue =
-    if args.len != 1:
-      raise newException(ValueError, "prepend filter requires exactly 1 argument")
+  proc prepend(value: VMValue, prefix: VMValue): VMValue =
     let input = getStringVal(value)
-    let prefix = getStringVal(args[0])
-    result = VMValue(kind: vmString, stringVal: prefix & input)
+    let prefixStr = getStringVal(prefix)
+    result = VMValue(kind: vmString, stringVal: prefixStr & input)
 
 # Removes a substring from a string
 create_filter:
-  proc remove(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc remove(value: VMValue, substring: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    if args.len != 1:
-      raise newException(ValueError, "remove filter requires exactly 1 argument")
-    let substring = getStringVal(args[0])
-    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(substring, ""))
+    let substringStr = getStringVal(substring)
+    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(substringStr, ""))
 
 # Removes the first occurrence of a substring from a string
 create_filter:
-  proc remove_first(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc remove_first(value: VMValue, substring: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    if args.len != 1:
-      raise newException(ValueError, "remove_first filter requires exactly 1 argument")
-    let substring = getStringVal(args[0])
-    let idx = value.stringVal.find(substring)
+    let substringStr = getStringVal(substring)
+    let idx = value.stringVal.find(substringStr)
     var resultStr = value.stringVal
     if idx >= 0:
-      resultStr = value.stringVal[0..<idx] & value.stringVal[idx + substring.len..^1]
+      resultStr = value.stringVal[0..<idx] & value.stringVal[idx + substringStr.len..^1]
     result = VMValue(kind: vmString, stringVal: resultStr)
 
 # Replaces all occurrences of a substring with another string
 create_filter:
-  proc replace(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc replace(value: VMValue, search: VMValue, replacement: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    if args.len != 2:
-      raise newException(ValueError, "replace filter requires exactly 2 arguments")
-    let search = getStringVal(args[0])
-    let replacement = getStringVal(args[1])
-    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(search, replacement))
+    let searchStr = getStringVal(search)
+    let replacementStr = getStringVal(replacement)
+    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(searchStr, replacementStr))
 
 # Replaces the first occurrence of a substring with another string
 create_filter:
-  proc replace_first(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc replace_first(value: VMValue, search: VMValue, replacement: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    if args.len != 2:
-      raise newException(ValueError, "replace_first filter requires exactly 2 arguments")
-    let search = getStringVal(args[0])
-    let replacement = getStringVal(args[1])
-    let idx = value.stringVal.find(search)
+    let searchStr = getStringVal(search)
+    let replacementStr = getStringVal(replacement)
+    let idx = value.stringVal.find(searchStr)
     var resultStr = value.stringVal
     if idx >= 0:
-      resultStr = value.stringVal[0..<idx] & replacement & value.stringVal[idx + search.len..^1]
+      resultStr = value.stringVal[0..<idx] & replacementStr & value.stringVal[idx + searchStr.len..^1]
     result = VMValue(kind: vmString, stringVal: resultStr)
 
 # Strips HTML tags from a string
@@ -231,36 +223,32 @@ create_filter:
 
 # Removes the last occurrence of a substring from a string
 create_filter:
-  proc remove_last(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc remove_last(value: VMValue, substring: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    if args.len != 1:
-      raise newException(ValueError, "remove_last filter requires exactly 1 argument")
-    let substring = getStringVal(args[0])
-    let idx = value.stringVal.rfind(substring)
+    let substringStr = getStringVal(substring)
+    let idx = value.stringVal.rfind(substringStr)
     var resultStr = value.stringVal
     if idx >= 0:
-      resultStr = value.stringVal[0..<idx] & value.stringVal[idx + substring.len..^1]
+      resultStr = value.stringVal[0..<idx] & value.stringVal[idx + substringStr.len..^1]
     result = VMValue(kind: vmString, stringVal: resultStr)
 
 # Replaces the last occurrence of a substring with another string  
 create_filter:
-  proc replace_last(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc replace_last(value: VMValue, search: VMValue, replacement: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    if args.len != 2:
-      raise newException(ValueError, "replace_last filter requires exactly 2 arguments")
-    let search = getStringVal(args[0])
-    let replacement = getStringVal(args[1])
-    let idx = value.stringVal.rfind(search)
+    let searchStr = getStringVal(search)
+    let replacementStr = getStringVal(replacement)
+    let idx = value.stringVal.rfind(searchStr)
     var resultStr = value.stringVal
     if idx >= 0:
-      resultStr = value.stringVal[0..<idx] & replacement & value.stringVal[idx + search.len..^1]
+      resultStr = value.stringVal[0..<idx] & replacementStr & value.stringVal[idx + searchStr.len..^1]
     result = VMValue(kind: vmString, stringVal: resultStr)
 
 # Removes leading whitespace from a string
 create_filter:
-  proc lstrip(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc lstrip(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     var s = value.stringVal
@@ -270,7 +258,7 @@ create_filter:
 
 # Removes trailing whitespace from a string  
 create_filter:
-  proc rstrip(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc rstrip(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
     var s = value.stringVal
@@ -285,10 +273,44 @@ create_filter:
       return value
     if args.len < 1:
       raise newException(ValueError, "slice filter requires at least 1 argument (start index)")
+    if args.len > 2:
+      raise newException(ValueError, "slice filter takes at most 2 arguments")
     
     let str = value.stringVal
-    let startIdx = if args[0].kind == vmInt: args[0].intVal.int else: 0
-    let length = if args.len > 1 and args[1].kind == vmInt: args[1].intVal.int else: 1
+    
+    # Handle undefined first argument
+    if args[0].kind == vmNull:
+      raise newException(ValueError, "slice filter: first argument cannot be undefined")
+    
+    # Convert arguments to integers with proper validation
+    var startIdx: int
+    if args[0].kind == vmInt:
+      startIdx = args[0].intVal.int
+    elif args[0].kind == vmFloat:
+      raise newException(ValueError, "slice filter: first argument must be an integer, not a float")
+    elif args[0].kind == vmString:
+      try:
+        startIdx = args[0].stringVal.parseInt()
+      except:
+        raise newException(ValueError, "slice filter: first argument must be an integer")
+    else:
+      raise newException(ValueError, "slice filter: first argument must be an integer")
+    
+    var length = 1
+    if args.len > 1:
+      if args[1].kind == vmNull:
+        length = 1  # undefined second argument defaults to 1
+      elif args[1].kind == vmInt:
+        length = args[1].intVal.int
+      elif args[1].kind == vmFloat:
+        raise newException(ValueError, "slice filter: second argument must be an integer, not a float")
+      elif args[1].kind == vmString:
+        try:
+          length = args[1].stringVal.parseInt()
+        except:
+          raise newException(ValueError, "slice filter: second argument must be an integer")
+      else:
+        raise newException(ValueError, "slice filter: second argument must be an integer")
     
     # Handle negative indices
     let actualStart = if startIdx < 0: str.len + startIdx else: startIdx
@@ -309,3 +331,14 @@ create_filter:
     if "&amp;" notin str and "&lt;" notin str and "&gt;" notin str and "&quot;" notin str:
       str = xmltree.escape(str)
     result = VMValue(kind: vmString, stringVal: str)
+
+# Splits a string into an array using a delimiter
+create_filter:
+  proc split(value: VMValue, delimiter: VMValue): VMValue =
+    if value.kind != vmString:
+      return VMValue(kind: vmArray, arrayVal: @[])
+    
+    let delim = getStringVal(delimiter)
+    let parts = value.stringVal.split(delim)
+    let vmParts = parts.mapIt(VMValue(kind: vmString, stringVal: it))
+    result = VMValue(kind: vmArray, arrayVal: vmParts)

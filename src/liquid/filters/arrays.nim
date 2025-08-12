@@ -13,7 +13,7 @@ proc toString(v: VMValue): string =
 
 # Returns the first element of an array
 create_filter:
-  proc first(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc first(value: VMValue): VMValue =
     if value.kind == vmArray and value.arrayVal.len > 0:
       result = value.arrayVal[0]
     else:
@@ -21,7 +21,7 @@ create_filter:
 
 # Returns the last element of an array
 create_filter:
-  proc last(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc last(value: VMValue): VMValue =
     if value.kind == vmArray and value.arrayVal.len > 0:
       result = value.arrayVal[^1]
     else:
@@ -30,6 +30,8 @@ create_filter:
 # Joins the elements of an array into a string separated by a delimiter
 create_filter:
   proc join(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len > 1:
+      raise newException(ValueError, "join filter takes at most 1 argument")
     if value.kind != vmArray:
       return value
     
@@ -43,7 +45,7 @@ create_filter:
 
 # Returns the size of an array or string or object
 create_filter:
-  proc size(value: VMValue, args: varargs[VMValue]): VMValue =
+  proc size(value: VMValue): VMValue =
     case value.kind
     of vmArray:
       result = VMValue(kind: vmInt, intVal: value.arrayVal.len.int64)
@@ -57,35 +59,43 @@ create_filter:
 # Sorts an array in ascending order
 create_filter:
   proc sort(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len > 1:
+      raise newException(ValueError, "sort filter takes at most 1 argument")
     if value.kind != vmArray:
       return value
     
     var sorted = value.arrayVal
-    sorted.sort(proc(a, b: VMValue): int =
-      # Compare based on types
-      if a.kind == vmString and b.kind == vmString:
-        return cmp(a.stringVal, b.stringVal)
-      elif a.kind == vmInt and b.kind == vmInt:
-        return cmp(a.intVal, b.intVal)
-      elif a.kind == vmFloat and b.kind == vmFloat:
-        return cmp(a.floatVal, b.floatVal)
-      elif a.kind == vmBool and b.kind == vmBool:
-        return cmp(a.boolVal, b.boolVal)
-      # Mixed numeric types
-      elif a.kind in [vmInt, vmFloat] and b.kind in [vmInt, vmFloat]:
-        let aFloat = if a.kind == vmInt: a.intVal.float else: a.floatVal
-        let bFloat = if b.kind == vmInt: b.intVal.float else: b.floatVal
-        return cmp(aFloat, bFloat)
-      else:
-        # Different types - sort by string representation
-        return cmp(toString(a), toString(b))
-    )
+    try:
+      sorted.sort(proc(a, b: VMValue): int =
+        # Compare based on types
+        if a.kind == vmString and b.kind == vmString:
+          return cmp(a.stringVal, b.stringVal)
+        elif a.kind == vmInt and b.kind == vmInt:
+          return cmp(a.intVal, b.intVal)
+        elif a.kind == vmFloat and b.kind == vmFloat:
+          return cmp(a.floatVal, b.floatVal)
+        elif a.kind == vmBool and b.kind == vmBool:
+          return cmp(a.boolVal, b.boolVal)
+        # Mixed numeric types
+        elif a.kind in [vmInt, vmFloat] and b.kind in [vmInt, vmFloat]:
+          let aFloat = if a.kind == vmInt: a.intVal.float else: a.floatVal
+          let bFloat = if b.kind == vmInt: b.intVal.float else: b.floatVal
+          return cmp(aFloat, bFloat)
+        else:
+          # Different types - sort by string representation
+          return cmp(toString(a), toString(b))
+      )
+    except:
+      # Return original array if sorting fails (incompatible types)
+      return value
     
     result = VMValue(kind: vmArray, arrayVal: sorted)
 
 # Reverses an array
 create_filter:
   proc reverse(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len > 0:
+      raise newException(ValueError, "reverse filter takes no arguments")
     case value.kind
     of vmArray:
       var reversed = value.arrayVal
@@ -278,3 +288,53 @@ create_filter:
     )
     
     result = VMValue(kind: vmArray, arrayVal: sorted)
+
+# Sums all numeric values in an array
+create_filter:
+  proc sum(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len > 1:
+      raise newException(ValueError, "sum filter takes at most 1 argument")
+    if value.kind != vmArray:
+      return VMValue(kind: vmInt, intVal: 0)
+    
+    let propName = if args.len > 0 and args[0].kind == vmString: args[0].stringVal else: ""
+    
+    var sumInt: int64 = 0
+    var sumFloat: float64 = 0.0
+    var hasFloat = false
+    
+    for item in value.arrayVal:
+      var val = item
+      
+      # If property name specified, extract that property
+      if propName != "":
+        if val.kind == vmObject and propName in val.objectVal:
+          val = val.objectVal[propName]
+        else:
+          continue  # Skip if property doesn't exist
+      
+      case val.kind
+      of vmInt:
+        sumInt += val.intVal
+        sumFloat += val.intVal.float
+      of vmFloat:
+        hasFloat = true
+        sumFloat += val.floatVal
+      of vmString:
+        try:
+          if '.' in val.stringVal:
+            hasFloat = true
+            sumFloat += val.stringVal.parseFloat()
+          else:
+            let intVal = val.stringVal.parseInt()
+            sumInt += intVal
+            sumFloat += intVal.float
+        except:
+          continue  # Skip non-numeric strings
+      else:
+        continue  # Skip non-numeric values
+    
+    if hasFloat:
+      result = VMValue(kind: vmFloat, floatVal: sumFloat)
+    else:
+      result = VMValue(kind: vmInt, intVal: sumInt)

@@ -451,7 +451,7 @@ proc execute*(vm: var LiquidVM): string =
         vm.push(filter_result)
       except Exception as e:
         echo "Filter error: ", e.msg
-        vm.push(value)  # Push original value on error
+        raise e  # Re-throw the exception so tests can catch it
     
     of opRange:
       # Create a range from start..end

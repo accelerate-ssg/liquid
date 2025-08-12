@@ -6,6 +6,8 @@ create_filter:
   proc date(value: VMValue, args: varargs[VMValue]): VMValue =
     if args.len < 1:
       raise newException(ValueError, "date filter requires 1 argument (format)")
+    if args.len > 1:
+      raise newException(ValueError, "date filter takes at most 1 argument")
     
     let format = if args[0].kind == vmString:
       args[0].stringVal
