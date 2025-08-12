@@ -1,4 +1,4 @@
-import times
+import times, os, strutils, sets, tables
 import golden_liquid/helpers
 
 resetOutputFormatters()
@@ -6,32 +6,68 @@ addOutputFormatter(formatter)
 
 let t0 = cpuTime()
 
-include "golden_liquid/assign_tag"
-include "golden_liquid/capture_tag"
-include "golden_liquid/case_tag"
-include "golden_liquid/comment_tag"
-include "golden_liquid/cycle_tag"
-include "golden_liquid/decrement_tag"
-include "golden_liquid/echo_tag"
-include "golden_liquid/for_tag"
-include "golden_liquid/identifiers"
-include "golden_liquid/if_tag"
+# Load test groups from JSON file
+let jsonPath = currentSourcePath().parentDir() / "golden_liquid.json"
+let jsonContent = readFile(jsonPath)
+let testData = parseJson(jsonContent)
 
-include "golden_liquid/ifchanged_tag"
-# include "golden_liquid/illegal"
-# include "golden_liquid/include_tag"
-# include "golden_liquid/increment_tag"
-# include "golden_liquid/inline_comment_tag"
-# include "golden_liquid/liquid_tag"
-# include "golden_liquid/not_liquid"
-# include "golden_liquid/output_statement"
-# include "golden_liquid/range_objects"
-# include "golden_liquid/raw_tag"
-# include "golden_liquid/render_tag"
-# include "golden_liquid/special"
-# include "golden_liquid/tablerow_tag"
-# include "golden_liquid/unless_tag"
-# include "golden_liquid/whitespace_control"
+# Enabled test groups - matching the previously included test files
+let enabledGroups = [
+  "liquid.golden.assign_tag",
+  "liquid.golden.capture_tag",
+  "liquid.golden.case_tag",
+  "liquid.golden.comment_tag",
+  "liquid.golden.cycle_tag",
+  "liquid.golden.decrement_tag",
+  "liquid.golden.echo_tag",
+  "liquid.golden.for_tag",
+  "liquid.golden.identifiers",
+  "liquid.golden.if_tag",
+  "liquid.golden.ifchanged_tag",
+  "liquid.golden.illegal",
+  "liquid.golden.include_tag",
+  "liquid.golden.increment_tag",
+  "liquid.golden.inline_comment_tag",
+  "liquid.golden.liquid_tag",
+  "liquid.golden.not_liquid",
+  "liquid.golden.output_statement",
+  "liquid.golden.range_objects",
+  "liquid.golden.raw_tag",
+  "liquid.golden.render_tag",
+  "liquid.golden.special",
+  "liquid.golden.tablerow_tag",
+  "liquid.golden.unless_tag",
+  "liquid.golden.whitespace_control"
+].toHashSet()
+
+# Run tests from JSON
+for testGroup in testData["test_groups"]:
+  let groupName = testGroup["name"].getStr()
+  
+  # Skip disabled test groups
+  if groupName notin enabledGroups:
+    continue
+    
+  # Extract suite name from group name (e.g., "liquid.golden.assign_tag" -> "assign tag")
+  let suiteName = groupName.replace("liquid.golden.", "").replace("_", " ")
+  
+  suite suiteName:
+    for test in testGroup["tests"]:
+      let name = test["name"].getStr()
+      let source = test["template"].getStr()
+      let want = test["want"].getStr()
+      let context = test["context"]
+      let partials = if test.hasKey("partials"):
+        var p = initTable[string, string]()
+        for key, val in test["partials"]:
+          p[key] = val.getStr()
+        p
+      else:
+        initTable[string, string]()
+      let error = test["error"].getBool()
+      let strict = test["strict"].getBool()
+      
+      testCase(name, source, context, want, partials, error, strict)
 
 let t1 = cpuTime()
 let duration = t1 - t0
