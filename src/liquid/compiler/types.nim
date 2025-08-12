@@ -205,6 +205,9 @@ type
     input*: string
     currentSection*: int
     
+    # Compilation options
+    strict*: bool  # Strict mode for Ruby Liquid compatibility
+    
     # Output being built
     instructions*: seq[Instruction]
     strings*: seq[string]

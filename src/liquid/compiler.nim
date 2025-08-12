@@ -13,6 +13,7 @@ proc compileIf(c: var Compiler, tokens: openArray[Token])
 proc compileFor(c: var Compiler, tokens: openArray[Token])
 proc compileAssign(c: var Compiler, tokens: openArray[Token])
 proc compileCapture(c: var Compiler, tokens: openArray[Token])
+proc compileCase(c: var Compiler, tokens: openArray[Token])
 proc compileBreak(c: var Compiler)
 proc compileContinue(c: var Compiler)
 proc compileUntil(c: var Compiler, stopTags: seq[TokenKind])
@@ -116,6 +117,9 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
   case token.kind
   of tkIdentifier:
     let name = c.input[token.start..<token.stop]
+    # Validate identifier - @ signs are not allowed in strict mode
+    if c.strict and '@' in name:
+      raise newException(ValueError, "Invalid identifier: '@' character not allowed in identifiers in strict mode")
     # Check if it's a local variable first
     if name notin c.localVars:
       c.requiredVars.incl(name)
@@ -211,6 +215,9 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
         let propId = c.internString(propName)
         c.emit(Instruction(op: opGetProp, stringId: propId))
         inc pos
+      elif pos < stop and tokens[pos].kind == tkNumber:
+        # Numeric index after dot is not allowed in standard Liquid - should error
+        raise newException(ValueError, "Numeric index after dot notation is not allowed. Use bracket notation instead: [" & $tokens[pos].start & "]")
         
     of tkLeftBracket:
       # Array index
@@ -278,6 +285,17 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       return  # Binary operators consume rest of expression
       
     of tkPlus, tkMinus, tkMul, tkDiv, tkMod:
+      # In strict mode, arithmetic operations are not supported in expressions
+      if c.strict:
+        let opName = case op.kind
+          of tkPlus: "addition"
+          of tkMinus: "subtraction" 
+          of tkMul: "multiplication"
+          of tkDiv: "division"
+          of tkMod: "modulo"
+          else: "arithmetic"
+        raise newException(ValueError, opName & " operator not supported in strict mode")
+      
       let opKind = op.kind
       inc pos
       # For now, compile rest as right operand
@@ -438,7 +456,19 @@ proc compileFor(c: var Compiler, tokens: openArray[Token]) =
     c.currentSection += 1  # Skip malformed for
     return
   
-  # Compile collection expression
+  # Simple validation for limit/offset - check for obvious string literals
+  for i in (inPos + 1)..<tokens.len:
+    if tokens[i].kind == tkIdentifier:
+      let tokenText = c.input[tokens[i].start..<tokens[i].stop]
+      if tokenText in ["limit", "offset"] and i + 2 < tokens.len and 
+         tokens[i + 1].kind == tkColon and tokens[i + 2].kind == tkString:
+        let strVal = c.input[tokens[i + 2].start + 1..<tokens[i + 2].stop - 1]  # Remove quotes
+        try:
+          discard parseInt(strVal)  # Valid number string - allow it
+        except ValueError:
+          raise newException(ValueError, tokenText & " must be a number, got string '" & strVal & "'")
+  
+  # Compile collection expression (including limit/offset)
   c.compileExpression(tokens, inPos + 1, tokens.len)
   
   # Setup loop
@@ -526,6 +556,105 @@ proc compileIf(c: var Compiler, tokens: openArray[Token]) =
   else:
     c.patchJump(jumpIfFalse)
 
+proc compileCase(c: var Compiler, tokens: openArray[Token]) =
+  # Compile the expression being switched on
+  if tokens.len > 1:
+    c.compileExpression(tokens, 1, tokens.len)
+  else:
+    # No expression in case statement
+    raise newException(ValueError, "case tag requires an expression")
+  
+  # Move past the case tag
+  c.currentSection += 1
+  
+  var endJumps: seq[int] = @[]
+  var hasDefault = false
+  
+  while c.currentSection < c.sections.len:
+    let section = c.sections[c.currentSection]
+    if section.kind != skTag or section.tokens.len == 0:
+      c.currentSection += 1
+      continue
+      
+    case section.tokens[0].kind
+    of tkWhen:
+      # Check if when has expressions
+      if section.tokens.len <= 1:
+        raise newException(ValueError, "when tag requires at least one expression")
+      
+      # Parse when conditions (handle OR and comma operators)
+      # Duplicate the case value for comparison
+      c.emit(Instruction(op: opDup))
+      
+      # Build condition expression with OR logic
+      var conditionResult: seq[int] = @[]  # Positions to patch for true conditions
+      var i = 1
+      
+      while i < section.tokens.len:
+        # Find end of current condition (until 'or' or ',' or end)
+        var endPos = i
+        while endPos < section.tokens.len and 
+              section.tokens[endPos].kind notin [tkOr, tkComma]:
+          inc endPos
+        
+        # Compile the condition value
+        c.emit(Instruction(op: opDup))  # Duplicate case value for this comparison
+        c.compileExpression(section.tokens, i, endPos)
+        c.emit(Instruction(op: opEqual))
+        
+        # If true, jump to execute the when body
+        conditionResult.add(c.emitJump(opJumpIfTrue))
+        
+        # Move to next condition
+        i = endPos
+        if i < section.tokens.len and section.tokens[i].kind in [tkOr, tkComma]:
+          inc i  # Skip the separator
+      
+      # No condition matched - pop case value and skip when body
+      c.emit(Instruction(op: opPop))  # Pop the case value
+      let skipWhenBody = c.emitJump(opJump)
+      
+      # Patch all condition jumps to here (when body start)
+      for condPos in conditionResult:
+        c.patchJump(condPos)
+      
+      # Pop the case value (one of the conditions matched)
+      c.emit(Instruction(op: opPop))
+      
+      # Move past when tag
+      c.currentSection += 1
+      
+      # Compile when body
+      c.compileUntil(@[tkWhen, tkElse, tkEndcase])
+      
+      # Jump to end
+      endJumps.add(c.emitJump(opJump))
+      
+      # Patch the skip jump to after the when body
+      c.patchJump(skipWhenBody)
+      
+    of tkElse:
+      # Default case
+      hasDefault = true
+      c.emit(Instruction(op: opPop))  # Pop the case value
+      c.currentSection += 1
+      c.compileUntil(@[tkEndcase])
+      
+    of tkEndcase:
+      # Pop the case value if no default case handled it
+      if not hasDefault:
+        c.emit(Instruction(op: opPop))
+      
+      # Patch all end jumps
+      for jump in endJumps:
+        c.patchJump(jump)
+      
+      c.currentSection += 1
+      return
+      
+    else:
+      c.currentSection += 1
+
 proc compileTag(c: var Compiler, section: Section) =
   let tokens = section.tokens
   if tokens.len == 0:
@@ -546,18 +675,22 @@ proc compileTag(c: var Compiler, section: Section) =
   of tkCapture:
     c.compileCapture(tokens)
     # compileCapture handles its own advancement
+  of tkCase:
+    c.compileCase(tokens)
+    # compileCase handles its own advancement
   of tkBreak:
     c.compileBreak()
     c.currentSection += 1  # Move past break tag
   of tkContinue:
     c.compileContinue()
     c.currentSection += 1  # Move past continue tag
-  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture:
+  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase:
     # These are handled by their parent structures
     # Don't compile them directly
     c.currentSection += 1
   else:
-    # Unknown tag
+    # Unknown tag - for now just skip it
+    # TODO: Add proper unknown tag detection in strict mode
     c.currentSection += 1
 
 proc compileSection(c: var Compiler, section: Section) =
@@ -572,11 +705,12 @@ proc compileSection(c: var Compiler, section: Section) =
     c.compileTag(section)
 
 # Main entry point (depends on everything else)
-proc compile*(sections: seq[Section], input: string): CompileResult =
+proc compile*(sections: seq[Section], input: string, strict: bool = false): CompileResult =
   var compiler = Compiler(
     sections: sections,
     input: input,
     currentSection: 0,
+    strict: strict,
     instructions: newSeqOfCap[Instruction](sections.len * 10),
     strings: @[],
     stringMap: initTable[string, uint32](),

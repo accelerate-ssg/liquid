@@ -69,7 +69,7 @@ proc testCase*(
 
     checkpoint "lexer"
 
-    let compiled = compile(sections, source)
+    let compiled = compile(sections, source, strict)
 
     checkpoint "compiler"
 

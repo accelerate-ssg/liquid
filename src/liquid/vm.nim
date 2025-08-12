@@ -359,6 +359,12 @@ proc execute*(vm: var LiquidVM): string =
       let a = vm.pop()
       if a.kind == vmInt and b.kind == vmInt:
         vm.push(VMValue(kind: vmBool, boolVal: a.intVal > b.intVal))
+      elif a.kind == vmString and b.kind == vmString:
+        vm.push(VMValue(kind: vmBool, boolVal: a.stringVal > b.stringVal))
+      elif (a.kind == vmString and b.kind in [vmInt, vmFloat]) or
+           (b.kind == vmString and a.kind in [vmInt, vmFloat]):
+        # String vs number comparison should error
+        raise newException(ValueError, "Cannot compare string and number")
       else:
         vm.push(VMValue(kind: vmBool, boolVal: false))
       
@@ -368,6 +374,30 @@ proc execute*(vm: var LiquidVM): string =
       if a.kind == vmInt and b.kind == vmInt:
         vm.push(VMValue(kind: vmBool, boolVal: a.intVal >= b.intVal))
       else:
+        vm.push(VMValue(kind: vmBool, boolVal: false))
+    
+    of opContains:
+      let needle = vm.pop()  # What we're looking for
+      let haystack = vm.pop()  # Where we're looking
+      
+      case haystack.kind
+      of vmString:
+        # String contains substring
+        if needle.kind == vmString:
+          vm.push(VMValue(kind: vmBool, boolVal: needle.stringVal in haystack.stringVal))
+        else:
+          # Convert needle to string for string search
+          vm.push(VMValue(kind: vmBool, boolVal: needle.toString() in haystack.stringVal))
+      of vmArray:
+        # Array contains element
+        var found = false
+        for item in haystack.arrayVal:
+          if item == needle:
+            found = true
+            break
+        vm.push(VMValue(kind: vmBool, boolVal: found))
+      else:
+        # Other types don't support contains
         vm.push(VMValue(kind: vmBool, boolVal: false))
     
     of opDivide:
