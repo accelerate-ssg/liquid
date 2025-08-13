@@ -3,12 +3,71 @@ import ../shared
 
 # Returns the default value if the input is null, false, or empty
 create_filter:
-  proc default(value: VMValue, defaultValue: VMValue): VMValue =
+  proc default(value: VMValue, args: varargs[VMValue]): VMValue =
+    # Handle missing argument case
+    if args.len == 0:
+      return value
+    
+    # Validate maximum arguments (1 default value + 2 for allow_false keyword = 3 max)
+    if args.len > 3:
+      raise newException(ValueError, "default filter takes at most 1 positional argument and 1 keyword argument")
+    
+    # Default filter supports:
+    # - default: 'value' (simple positional)
+    # - default: 'value', allow_false: true (positional then keyword)  
+    # - default: allow_false: true, 'value' (keyword then positional)
+    #
+    # When compiled, keyword arguments appear as consecutive args:
+    # "allow_false", true (identifier string followed by value)
+    
+    var defaultValue = VMValue(kind: vmNull)
+    var allowFalse = false
+    var hasDefault = false
+    var positionalCount = 0
+    
+    # Process arguments - args are pushed in reverse order by VM
+    # So we need to process them in reverse
+    var processedArgs: seq[VMValue] = @[]
+    for i in countdown(args.len - 1, 0):
+      processedArgs.add(args[i])
+    
+    var i = 0
+    while i < processedArgs.len:
+      # Check if this looks like the allow_false keyword argument
+      # The pattern is: string "allow_false" followed by its value
+      if i + 1 < processedArgs.len and 
+         processedArgs[i].kind == vmString and 
+         processedArgs[i].stringVal == "allow_false":
+        # Skip the "allow_false" string and get its value
+        i += 1
+        allowFalse = case processedArgs[i].kind
+          of vmBool: processedArgs[i].boolVal
+          of vmNull: false
+          else: true  # Treat any non-null value as truthy
+        i += 1
+      else:
+        # Regular positional argument for default value
+        positionalCount += 1
+        if positionalCount > 1:
+          raise newException(ValueError, "default filter takes too many arguments")
+        if not hasDefault:
+          defaultValue = processedArgs[i]
+          hasDefault = true
+        i += 1
+    
+    # If no default value was provided, return original
+    if not hasDefault:
+      return value
+    
+    # Determine if we should use the default value
     let shouldUseDefault = case value.kind
     of vmNull:
       true
     of vmBool:
-      not value.boolVal
+      if allowFalse:
+        false  # When allow_false is true, false is not considered falsy
+      else:
+        not value.boolVal  # Normal behavior: false is falsy
     of vmString:
       value.stringVal == ""
     of vmArray:
