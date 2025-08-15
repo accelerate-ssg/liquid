@@ -190,11 +190,17 @@ create_filter:
 
 # Replaces all occurrences of a substring with another string
 create_filter:
-  proc replace(value: VMValue, search: VMValue, replacement: VMValue): VMValue =
+  proc replace(value: VMValue, args: varargs[VMValue]): VMValue =
     if value.kind != vmString:
       return value
-    let searchStr = getStringVal(search)
-    let replacementStr = getStringVal(replacement)
+    
+    if args.len < 1:
+      raise newException(ValueError, "replace filter requires at least 1 argument (search string)")
+    if args.len > 2:
+      raise newException(ValueError, "replace filter takes at most 2 arguments")
+    
+    let searchStr = getStringVal(args[0])
+    let replacementStr = if args.len >= 2: getStringVal(args[1]) else: ""
     result = VMValue(kind: vmString, stringVal: value.stringVal.replace(searchStr, replacementStr))
 
 # Replaces the first occurrence of a substring with another string
