@@ -335,7 +335,10 @@ create_filter:
     # Handle negative indices
     let actualStart = if startIdx < 0: str.len + startIdx else: startIdx
     
-    if actualStart < 0 or actualStart >= str.len:
+    # Handle negative length - should return empty string
+    if length <= 0:
+      result = VMValue(kind: vmString, stringVal: "")
+    elif actualStart < 0 or actualStart >= str.len:
       result = VMValue(kind: vmString, stringVal: "")
     else:
       let endIdx = min(actualStart + length, str.len)
