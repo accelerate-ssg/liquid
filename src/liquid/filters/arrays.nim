@@ -186,6 +186,9 @@ create_filter:
 # Returns unique elements from an array
 create_filter:
   proc uniq(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len > 1:
+      raise newException(ValueError, "uniq filter takes at most 1 argument")
+    
     if value.kind != vmArray:
       return value
     
