@@ -103,12 +103,19 @@ create_filter:
     if value.kind != vmString:
       return value
     
-    if args.len < 1:
-      raise newException(ValueError, "truncate filter requires at least 1 argument (length)")
     if args.len > 2:
       raise newException(ValueError, "truncate filter takes at most 2 arguments")
     
-    let length = if args[0].kind == vmInt: args[0].intVal.int else: 50
+    # Handle length argument
+    let length = if args.len > 0:
+      if args[0].kind == vmNull:
+        raise newException(ValueError, "truncate filter length argument is undefined")
+      elif args[0].kind == vmInt:
+        args[0].intVal.int
+      else:
+        50  # Default for invalid types
+    else:
+      50  # Default when no arguments
     let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
     
     var str = value.stringVal
@@ -123,12 +130,19 @@ create_filter:
     if value.kind != vmString:
       return value
     
-    if args.len < 1:
-      raise newException(ValueError, "truncatewords filter requires at least 1 argument (word count)")
     if args.len > 2:
       raise newException(ValueError, "truncatewords filter takes at most 2 arguments")
     
-    let wordCount = if args[0].kind == vmInt: args[0].intVal.int else: 15
+    # Handle word count argument
+    let wordCount = if args.len > 0:
+      if args[0].kind == vmNull:
+        raise newException(ValueError, "truncatewords filter word count argument is undefined")
+      elif args[0].kind == vmInt:
+        args[0].intVal.int
+      else:
+        15  # Default for invalid types
+    else:
+      15  # Default when no arguments
     let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
     
     let words = value.stringVal.split()
