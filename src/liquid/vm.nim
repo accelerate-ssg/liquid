@@ -4,7 +4,7 @@
 
 import compiler/[types]
 import vm/[types]
-import std/[tables, strutils, sequtils]
+import std/[tables, strutils, sequtils, algorithm]
 import filters
 
 # Forward declarations
@@ -441,6 +441,9 @@ proc execute*(vm: var LiquidVM): string =
       var args: seq[VMValue] = @[]
       for i in uint8(0)..<inst.argCount:
         args.add(vm.pop())
+      
+      # Arguments are popped in reverse order, so reverse them back
+      args.reverse()
       
       # Pop the value to filter
       let value = vm.pop()

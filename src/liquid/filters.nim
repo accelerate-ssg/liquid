@@ -14,11 +14,7 @@ proc applyFilter*(value: VMValue, filterName: string, args: seq[VMValue]): VMVal
     # Get the filter function
     let filter = filters[filterName]
     
-    # Handle null input - most filters should pass through null
-    if value.kind == vmNull and filterName != "default":
-      return VMValue(kind: vmString, stringVal: "")
-    
-    # Apply the filter
+    # Apply the filter (let each filter handle null values as appropriate)
     result = filter(value, args)
     
     # If the filter returns null, convert it to an empty string

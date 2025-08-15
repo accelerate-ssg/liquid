@@ -128,14 +128,36 @@ create_filter:
     
     result = VMValue(kind: vmArray, arrayVal: mapped)
 
-# Removes nil values from an array
+# Removes nil values from an array, optionally by property
 create_filter:
   proc compact(value: VMValue, args: varargs[VMValue]): VMValue =
+    # Check argument count first, regardless of value type
+    if args.len > 1:
+      raise newException(ValueError, "compact filter takes at most 1 argument")
+    
+    # If value is not an array, return it as-is
     if value.kind != vmArray:
       return value
     
-    let filtered = value.arrayVal.filterIt(it.kind != vmNull)
-    result = VMValue(kind: vmArray, arrayVal: filtered)
+    # If a property name is provided, compact based on that property
+    if args.len == 1:
+      if args[0].kind != vmString:
+        return value
+      let propName = args[0].stringVal
+      var filtered: seq[VMValue]
+      for item in value.arrayVal:
+        if item.kind == vmObject and propName in item.objectVal:
+          let propValue = item.objectVal[propName]
+          if propValue.kind != vmNull:
+            filtered.add(item)
+        elif item.kind != vmObject:
+          # Non-objects are kept if property filtering is used
+          filtered.add(item)
+      result = VMValue(kind: vmArray, arrayVal: filtered)
+    else:
+      # No property name - just remove null values
+      let filtered = value.arrayVal.filterIt(it.kind != vmNull)
+      result = VMValue(kind: vmArray, arrayVal: filtered)
 
 # Concatenates arrays
 create_filter:
