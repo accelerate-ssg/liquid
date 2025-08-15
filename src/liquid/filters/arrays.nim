@@ -65,7 +65,68 @@ create_filter:
       return value
     
     var sorted = value.arrayVal
-    try:
+    
+    # If there's a property argument, use sort_by logic
+    if args.len > 0 and args[0].kind == vmString:
+      let propName = args[0].stringVal
+      sorted.sort(proc(a, b: VMValue): int =
+        var aVal, bVal: VMValue
+        if a.kind == vmObject and propName in a.objectVal:
+          aVal = a.objectVal[propName]
+        else:
+          aVal = VMValue(kind: vmNull)
+        
+        if b.kind == vmObject and propName in b.objectVal:
+          bVal = b.objectVal[propName]
+        else:
+          bVal = VMValue(kind: vmNull)
+        
+        # Compare based on types
+        if aVal.kind == vmString and bVal.kind == vmString:
+          return cmp(aVal.stringVal, bVal.stringVal)
+        elif aVal.kind == vmInt and bVal.kind == vmInt:
+          return cmp(aVal.intVal, bVal.intVal)
+        elif aVal.kind == vmFloat and bVal.kind == vmFloat:
+          return cmp(aVal.floatVal, bVal.floatVal)
+        else:
+          return cmp(toString(aVal), toString(bVal))
+      )
+    else:
+      # No property argument - direct sort
+      # Check for incompatible types before sorting
+      if sorted.len > 1:
+        var hasString = false
+        var hasNumeric = false
+        var hasBool = false
+        var hasComplex = false
+        
+        for item in sorted:
+          case item.kind:
+          of vmString:
+            hasString = true
+          of vmInt, vmFloat:
+            hasNumeric = true
+          of vmBool:
+            hasBool = true
+          of vmArray, vmObject:
+            hasComplex = true
+          else:
+            discard
+        
+        # If we have complex types mixed with primitives, that's incompatible
+        if hasComplex and (hasString or hasNumeric or hasBool):
+          raise newException(ValueError, "Cannot sort array with incompatible types")
+        
+        # Arrays are also incompatible for direct sorting
+        if hasComplex:
+          var hasArray = false
+          for item in sorted:
+            if item.kind == vmArray:
+              hasArray = true
+              break
+          if hasArray:
+            raise newException(ValueError, "Cannot sort array with incompatible types")
+      
       sorted.sort(proc(a, b: VMValue): int =
         # Compare based on types
         if a.kind == vmString and b.kind == vmString:
@@ -85,9 +146,6 @@ create_filter:
           # Different types - sort by string representation
           return cmp(toString(a), toString(b))
       )
-    except:
-      # Return original array if sorting fails (incompatible types)
-      return value
     
     result = VMValue(kind: vmArray, arrayVal: sorted)
 
