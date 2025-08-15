@@ -162,6 +162,17 @@ create_filter:
 # Concatenates arrays
 create_filter:
   proc concat(value: VMValue, args: varargs[VMValue]): VMValue =
+    # Require at least one argument
+    if args.len == 0:
+      raise newException(ValueError, "concat filter requires at least 1 argument")
+    
+    # Check all arguments are arrays or null
+    for i, arg in args:
+      if arg.kind == vmNull:
+        raise newException(ValueError, "concat filter argument is undefined or null")
+      elif arg.kind != vmArray:
+        raise newException(ValueError, "concat filter arguments must be arrays")
+    
     if value.kind != vmArray:
       return value
     
