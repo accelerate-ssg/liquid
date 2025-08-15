@@ -445,6 +445,12 @@ create_filter:
     
     let propName = if args.len > 0 and args[0].kind == vmString: args[0].stringVal else: ""
     
+    # If property name is specified, validate that all items are objects
+    if propName != "":
+      for item in value.arrayVal:
+        if item.kind != vmObject:
+          raise newException(ValueError, "sum filter with property argument requires all items to be objects")
+    
     var sumInt: int64 = 0
     var sumFloat: float64 = 0.0
     var hasFloat = false
