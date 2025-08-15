@@ -85,10 +85,15 @@ create_filter:
 # Splits a string into an array
 create_filter:
   proc split(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len == 0:
+      raise newException(ValueError, "split filter requires exactly 1 argument")
+    if args.len > 1:
+      raise newException(ValueError, "split filter takes at most 1 argument")
+    
     if value.kind != vmString:
       return value
     
-    let delimiter = if args.len > 0 and args[0].kind == vmString:
+    let delimiter = if args[0].kind == vmString:
       args[0].stringVal
     else:
       " "
