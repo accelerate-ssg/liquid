@@ -111,20 +111,58 @@ create_filter:
 # Maps an attribute from each object in an array
 create_filter:
   proc map(value: VMValue, args: varargs[VMValue]): VMValue =
-    if value.kind != vmArray:
-      return value
+    if args.len != 1:
+      raise newException(ValueError, "map filter requires exactly 1 argument (property name)")
     
-    if args.len != 1 or args[0].kind != vmString:
-      raise newException(ValueError, "map filter requires exactly 1 string argument (property name)")
+    # Handle undefined/null property name - treat as empty string
+    let propName = if args[0].kind == vmString:
+      args[0].stringVal
+    elif args[0].kind == vmNull:
+      ""  # Undefined property name - will never match, results in all nulls
+    else:
+      ""  # Invalid type - treat as empty string
     
-    let propName = args[0].stringVal
+    # Handle different input types
+    var inputArray: seq[VMValue]
+    case value.kind:
+    of vmArray:
+      inputArray = value.arrayVal
+    of vmObject:
+      # Single object treated as single-item array
+      inputArray = @[value]
+    else:
+      raise newException(ValueError, "map filter can only be applied to arrays or objects")
+    
+    # Check if we have problematic non-object items that should cause error
+    var hasNonObjects = false
+    for item in inputArray:
+      if item.kind != vmObject and item.kind != vmArray:
+        # Numbers, strings, etc. that can't be mapped
+        hasNonObjects = true
+        break
+    
+    if hasNonObjects:
+      raise newException(ValueError, "map filter requires all items to be objects or arrays")
+    
     var mapped: seq[VMValue] = @[]
     
-    for item in value.arrayVal:
-      if item.kind == vmObject and propName in item.objectVal:
-        mapped.add(item.objectVal[propName])
+    proc mapItem(item: VMValue): seq[VMValue] =
+      if item.kind == vmObject:
+        if propName != "" and propName in item.objectVal:
+          @[item.objectVal[propName]]
+        else:
+          @[VMValue(kind: vmNull)]
+      elif item.kind == vmArray:
+        # Recursively map nested arrays
+        var nestedMapped: seq[VMValue] = @[]
+        for nestedItem in item.arrayVal:
+          nestedMapped.add(mapItem(nestedItem))
+        nestedMapped
       else:
-        mapped.add(VMValue(kind: vmNull))
+        @[VMValue(kind: vmNull)]
+    
+    for item in inputArray:
+      mapped.add(mapItem(item))
     
     result = VMValue(kind: vmArray, arrayVal: mapped)
 
