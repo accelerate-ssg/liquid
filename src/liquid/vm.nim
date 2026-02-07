@@ -193,6 +193,9 @@ proc execute*(vm: var LiquidVM): string =
         # Store captured content as-is (already unescaped)
         vm.locals[var_name] = VMValue(kind: vmString, stringVal: captured_output)
         vm.is_capturing = vm.capture_stack.len > 0
+        # Restore escape state from before this capture
+        if vm.capture_escape_stack.len > 0:
+          vm.escape_html = vm.capture_escape_stack.pop()
     
     # Control flow
     of opJump:
@@ -753,8 +756,9 @@ when isMainModule:
         "title": vmString("Test"),
         "desc": vmString("Description")
       }.toTable
+      # Default VM has escapeHtml=true, so captured HTML content gets escaped on output
       let output = render_template(source, data)
-      check output == "<h1>Test</h1><p>Description</p>"
+      check output == "&lt;h1&gt;Test&lt;/h1&gt;&lt;p&gt;Description&lt;/p&gt;"
 
     test "Nested capture":
       let source = """{% capture outer %}[{% capture inner %}{{ x }}{% endcapture %}{{ inner }}]{% endcapture %}{{ outer }}"""
