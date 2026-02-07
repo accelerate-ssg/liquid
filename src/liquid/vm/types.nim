@@ -55,6 +55,9 @@ type
     # Ifchanged state
     ifchanged_last*: string  # Last output from ifchanged block
 
+    # Blank check state (for whitespace-only block suppression)
+    blank_check_stack*: seq[int]  # Stack of output positions to check
+
     # Performance
     instruction_count*: int
     max_stack_size*: int

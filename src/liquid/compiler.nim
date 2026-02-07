@@ -9,7 +9,7 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token], start: int, s
 proc compile_text(c: var Compiler, section: Section)
 proc compile_output(c: var Compiler, section: Section)
 proc compile_tag(c: var Compiler, section: Section)
-proc compile_if(c: var Compiler, tokens: openArray[Token])
+proc compile_if(c: var Compiler, tokens: openArray[Token], isTopLevel: bool = true)
 proc compile_for(c: var Compiler, tokens: openArray[Token])
 proc compile_assign(c: var Compiler, tokens: openArray[Token])
 proc compile_capture(c: var Compiler, tokens: openArray[Token])
@@ -91,6 +91,67 @@ proc patch_jump(c: var Compiler, pos: int) =
 #         c.currentSection += 1
 #         return
 #     c.currentSection += 1
+
+proc is_blank_block(c: Compiler, startSection: int, endTag: TokenKind): bool =
+  ## Check if a block between startSection and its end tag contains only
+  ## whitespace text and non-output tags (assign, comment, capture, etc.)
+  ## Returns true if the block would produce only whitespace output.
+  ## This is a static/syntactic analysis — it doesn't evaluate conditions.
+  ## Output inside capture blocks does not count as non-blank.
+  result = true
+  var i = startSection
+  var depth = 0  # Track nesting depth for nested if/unless/case/for blocks
+  var captureDepth = 0  # Track capture block nesting
+  while i < c.sections.len:
+    let section = c.sections[i]
+    if section.kind == skTag and section.tokens.len > 0:
+      let tk = section.tokens[0].kind
+      # Check for the end tag at depth 0
+      if depth == 0 and captureDepth == 0 and tk == endTag:
+        return true
+      # Track nesting
+      case tk
+      of tkIf:
+        inc depth
+      of tkEndif:
+        if depth > 0: dec depth
+      of tkUnless:
+        inc depth
+      of tkEndunless:
+        if depth > 0: dec depth
+      of tkCase:
+        inc depth
+      of tkEndcase:
+        if depth > 0: dec depth
+      of tkFor:
+        inc depth
+      of tkEndfor:
+        if depth > 0: dec depth
+      of tkCapture:
+        inc captureDepth
+      of tkEndcapture:
+        if captureDepth > 0: dec captureDepth
+      of tkIdentifier:
+        # Check for echo tag — it's an output operation (unless inside capture)
+        if captureDepth == 0:
+          let tag_name = c.input[section.tokens[0].start..<section.tokens[0].stop]
+          if tag_name == "echo":
+            return false
+      else:
+        discard
+    elif section.kind == skOutput:
+      # Output section — not blank (unless inside capture)
+      if captureDepth == 0:
+        return false
+    elif section.kind == skText:
+      # Text section — check if whitespace only (unless inside capture)
+      if captureDepth == 0:
+        let text = c.input[section.start..<section.stop]
+        for ch in text:
+          if ch notin {' ', '\t', '\n', '\r'}:
+            return false
+    i += 1
+  return true
 
 proc compile_until(c: var Compiler, stop_tags: seq[TokenKind]) =
   ## Compile sections until we hit one of the stop tags
@@ -603,6 +664,9 @@ proc compile_render(c: var Compiler, tokens: openArray[Token]) =
   c.compile_include_render(tokens, withContext = false)
 
 proc compile_for(c: var Compiler, tokens: openArray[Token]) =
+  let doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndfor)
+  if doBlankCheck:
+    c.emit(Instruction(op: opBeginBlankCheck))
   if tokens.len < 4:
     c.currentSection += 1  # Skip malformed for
     return
@@ -771,16 +835,26 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
        section.tokens[0].kind == tkEndfor:
       c.currentSection += 1
 
-proc compile_if(c: var Compiler, tokens: openArray[Token]) =
+  if doBlankCheck:
+    c.emit(Instruction(op: opEndBlankCheck))
+
+proc compile_if(c: var Compiler, tokens: openArray[Token], isTopLevel: bool = true) =
+  # Blank check only for the top-level if (not recursive elsif calls)
+  var doBlankCheck = false
+  if isTopLevel:
+    doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndif)
+    if doBlankCheck:
+      c.emit(Instruction(op: opBeginBlankCheck))
+
   c.compile_expression(tokens, 1, tokens.len)
   let jumpIfFalse = c.emit_jump(opJumpIfFalse)
-  
+
   # Move past the if tag
   c.currentSection += 1
-  
+
   # Compile then-branch
   c.compile_until(@[tkElsif, tkElse, tkEndif])
-  
+
   # Check what we stopped at
   if c.currentSection < c.sections.len:
     let section = c.sections[c.currentSection]
@@ -789,13 +863,19 @@ proc compile_if(c: var Compiler, tokens: openArray[Token]) =
       of tkElsif:
         let jumpEnd = c.emit_jump(opJump)
         c.patch_jump(jumpIfFalse)
-        c.compile_if(section.tokens)  # Recursive for elsif
+        c.compile_if(section.tokens, isTopLevel=false)  # Recursive for elsif
         c.patch_jump(jumpEnd)
       of tkElse:
         let jumpEnd = c.emit_jump(opJump)
         c.patch_jump(jumpIfFalse)
         c.currentSection += 1  # Move past else
-        c.compile_until(@[tkEndif])
+        c.compile_until(@[tkEndif, tkElse, tkElsif])
+        # Skip any extra else/elsif blocks (only first else is executed)
+        while c.currentSection < c.sections.len:
+          let s = c.sections[c.currentSection]
+          if s.kind == skTag and s.tokens.len > 0 and s.tokens[0].kind == tkEndif:
+            break
+          c.currentSection += 1
         c.patch_jump(jumpEnd)
       of tkEndif:
         c.patch_jump(jumpIfFalse)
@@ -806,6 +886,9 @@ proc compile_if(c: var Compiler, tokens: openArray[Token]) =
       c.patch_jump(jumpIfFalse)
   else:
     c.patch_jump(jumpIfFalse)
+
+  if isTopLevel and doBlankCheck:
+    c.emit(Instruction(op: opEndBlankCheck))
 
 proc compile_increment(c: var Compiler, tokens: openArray[Token]) =
   # {% increment var %} - output current counter value (default 0), then increment
@@ -1013,6 +1096,9 @@ proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
 
 proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   # Unless is the inverse of if: execute body when condition is FALSE
+  let doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndunless)
+  if doBlankCheck:
+    c.emit(Instruction(op: opBeginBlankCheck))
   c.compile_expression(tokens, 1, tokens.len)
   let jumpIfTrue = c.emit_jump(opJumpIfTrue)  # Skip body if condition is true
 
@@ -1051,7 +1137,13 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
       lastSkipJump = -1
 
       c.currentSection += 1
-      c.compile_until(@[tkEndunless])
+      c.compile_until(@[tkEndunless, tkElse, tkElsif])
+      # Skip any extra else/elsif blocks (only first else is executed)
+      while c.currentSection < c.sections.len:
+        let s = c.sections[c.currentSection]
+        if s.kind == skTag and s.tokens.len > 0 and s.tokens[0].kind == tkEndunless:
+          break
+        c.currentSection += 1
       break
 
     of tkEndunless:
@@ -1069,7 +1161,13 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   for j in endJumps:
     c.patch_jump(j)
 
+  if doBlankCheck:
+    c.emit(Instruction(op: opEndBlankCheck))
+
 proc compile_case(c: var Compiler, tokens: openArray[Token]) =
+  let doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndcase)
+  if doBlankCheck:
+    c.emit(Instruction(op: opBeginBlankCheck))
   # Compile the expression being switched on
   if tokens.len > 1:
     c.compile_expression(tokens, 1, tokens.len)
@@ -1158,6 +1256,8 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
       for jump in endJumps:
         c.patch_jump(jump)
       c.currentSection += 1
+      if doBlankCheck:
+        c.emit(Instruction(op: opEndBlankCheck))
       return
 
     else:

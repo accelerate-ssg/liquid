@@ -101,6 +101,10 @@ type
     opIncrement          # Output current counter value, then increment: [stringId]
     opDecrement          # Decrement counter, then output: [stringId]
 
+    # Blank detection (whitespace-only block suppression)
+    opBeginBlankCheck    # Mark start of potential blank block (save output position)
+    opEndBlankCheck      # Check if block output is whitespace-only, if so truncate
+
     # Special Operations
     opTypeCheck          # Check value type: [expectedType]
     opCoerce             # Coerce to type: [targetType]

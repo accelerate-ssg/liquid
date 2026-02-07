@@ -359,6 +359,35 @@ proc execute*(vm: var LiquidVM): string =
             vm.output.add(captured)
         # If same, suppress output (do nothing)
 
+    of opBeginBlankCheck:
+      # Record current output position for blank detection
+      if vm.is_capturing:
+        vm.blank_check_stack.add(vm.capture_stack[^1].len)
+      else:
+        vm.blank_check_stack.add(vm.output.len)
+
+    of opEndBlankCheck:
+      # Check if output since begin is whitespace-only
+      if vm.blank_check_stack.len > 0:
+        let startPos = vm.blank_check_stack.pop()
+        if vm.is_capturing:
+          let output = vm.capture_stack[^1]
+          var isBlank = true
+          for i in startPos..<output.len:
+            if output[i] notin {' ', '\t', '\n', '\r'}:
+              isBlank = false
+              break
+          if isBlank:
+            vm.capture_stack[^1].setLen(startPos)
+        else:
+          var isBlank = true
+          for i in startPos..<vm.output.len:
+            if vm.output[i] notin {' ', '\t', '\n', '\r'}:
+              isBlank = false
+              break
+          if isBlank:
+            vm.output.setLen(startPos)
+
     of opTablerowBegin:
       # Pop cols, limit, offset, collection from stack (in reverse push order)
       var cols_val = 0  # 0 = unlimited (all in one row)
