@@ -1048,97 +1048,92 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len > 1:
     c.compile_expression(tokens, 1, tokens.len)
   else:
-    # No expression in case statement
     raise newException(ValueError, "case tag requires an expression")
-  
+
   # Move past the case tag
   c.currentSection += 1
-  
+
   var endJumps: seq[int] = @[]
   var hasDefault = false
-  
+
   while c.currentSection < c.sections.len:
     let section = c.sections[c.currentSection]
     if section.kind != skTag or section.tokens.len == 0:
       c.currentSection += 1
       continue
-      
+
     case section.tokens[0].kind
     of tkWhen:
-      # Check if when has expressions
       if section.tokens.len <= 1:
         raise newException(ValueError, "when tag requires at least one expression")
-      
-      # Parse when conditions (handle OR and comma operators)
-      # Duplicate the case value for comparison
-      c.emit(Instruction(op: opDup))
-      
-      # Build condition expression with OR logic
-      var conditionResult: seq[int] = @[]  # Positions to patch for true conditions
-      var i = 1
-      
-      while i < section.tokens.len:
-        # Find end of current condition (until 'or' or ',' or end)
-        var endPos = i
-        while endPos < section.tokens.len and 
-              section.tokens[endPos].kind notin [tkOr, tkComma, tkAnd]:
-          inc endPos
-        
-        # Compile the condition value
-        c.emit(Instruction(op: opDup))  # Duplicate case value for this comparison
-        c.compile_expression(section.tokens, i, endPos)
-        c.emit(Instruction(op: opEqual))
-        
-        # If true, jump to execute the when body
-        conditionResult.add(c.emit_jump(opJumpIfTrue))
-        
-        # Move to next condition
-        i = endPos
-        if i < section.tokens.len and section.tokens[i].kind in [tkOr, tkComma, tkAnd]:
-          inc i  # Skip the separator
-      
-      # No condition matched - pop case value and skip when body
-      c.emit(Instruction(op: opPop))  # Pop the case value
-      let skipWhenBody = c.emit_jump(opJump)
-      
-      # Patch all condition jumps to here (when body start)
-      for condPos in conditionResult:
-        c.patch_jump(condPos)
-      
-      # Pop the case value (one of the conditions matched)
-      c.emit(Instruction(op: opPop))
-      
-      # Move past when tag
-      c.currentSection += 1
-      
-      # Compile when body
-      c.compile_until(@[tkWhen, tkElse, tkEndcase])
-      
-      # Jump to end
-      endJumps.add(c.emit_jump(opJump))
-      
-      # Patch the skip jump to after the when body
-      c.patch_jump(skipWhenBody)
-      
+
+      # Check for 'and' separator — makes the when invalid (Ruby Liquid behavior)
+      var hasAnd = false
+      for i in 1..<section.tokens.len:
+        if section.tokens[i].kind == tkAnd:
+          hasAnd = true
+          break
+
+      if hasAnd:
+        # Skip this when block entirely (advance past body without compiling)
+        c.currentSection += 1
+        while c.currentSection < c.sections.len:
+          let s = c.sections[c.currentSection]
+          if s.kind == skTag and s.tokens.len > 0 and
+             s.tokens[0].kind in {tkWhen, tkElse, tkEndcase}:
+            break
+          c.currentSection += 1
+      else:
+        # Parse when values (comma/or separated)
+        # In Ruby Liquid, the body runs once per matching value
+        var values: seq[tuple[start, stop: int]] = @[]
+        var i = 1
+        while i < section.tokens.len:
+          var endPos = i
+          while endPos < section.tokens.len and
+                section.tokens[endPos].kind notin [tkOr, tkComma]:
+            inc endPos
+          if endPos > i:
+            values.add((i, endPos))
+          i = endPos
+          if i < section.tokens.len and section.tokens[i].kind in [tkOr, tkComma]:
+            inc i
+
+        # Save section position for when body
+        c.currentSection += 1
+        let bodyStartSection = c.currentSection
+
+        # For each value, check and conditionally execute the body
+        for vi, val in values:
+          # Dup the case value for comparison
+          c.emit(Instruction(op: opDup))
+          c.compile_expression(section.tokens, val.start, val.stop)
+          c.emit(Instruction(op: opEqual))
+          let skipBody = c.emit_jump(opJumpIfFalse)
+
+          # Execute body
+          c.currentSection = bodyStartSection
+          c.compile_until(@[tkWhen, tkElse, tkEndcase])
+
+          c.patch_jump(skipBody)
+
+        # After all value checks, ensure we're past the body
+        # (compile_until already positioned us past the body)
+
     of tkElse:
-      # Default case
       hasDefault = true
       c.emit(Instruction(op: opPop))  # Pop the case value
       c.currentSection += 1
       c.compile_until(@[tkEndcase])
-      
+
     of tkEndcase:
-      # Pop the case value if no default case handled it
       if not hasDefault:
         c.emit(Instruction(op: opPop))
-      
-      # Patch all end jumps
       for jump in endJumps:
         c.patch_jump(jump)
-      
       c.currentSection += 1
       return
-      
+
     else:
       c.currentSection += 1
 
@@ -2402,13 +2397,13 @@ when isMainModule:
 
   suite "Case/When":
     test "When with and separator":
-      # In Ruby Liquid, 'and' in when acts as a value separator (like 'or' or ',')
+      # In Ruby Liquid, 'and' in when makes the entire when block invalid (no output)
       let source = "{% case x %}{% when 'a' and 'b', 'c' %}match{% endcase %}"
       let result = compileTemplate(source)
 
-      # Should compile without errors and have proper structure
-      check result.hasInstruction(opDup)
-      check result.hasInstruction(opEqual)
+      # Should compile without errors but skip the when body (no dup/equal)
+      check not result.hasInstruction(opDup)
+      check not result.hasInstruction(opEqual)
       check result.bytecode.validateJumps()
 
   suite "Strict Mode":
