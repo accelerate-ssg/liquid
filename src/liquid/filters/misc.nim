@@ -4,36 +4,28 @@ import ../shared
 # Returns the default value if the input is null, false, or empty
 create_filter:
   proc default(value: VMValue, args: varargs[VMValue]): VMValue =
-    # Handle missing argument case
-    if args.len == 0:
-      return value
-    
-    # Since keyword arguments aren't implemented in the compiler yet,
-    # we need to work with what we get. Currently:
-    # - "default: 'bar', allow_false: true" compiles to ["bar", null] (allow_false is undefined)
-    # - "default: 'bar', allow_false: false" compiles to ["bar", null] (allow_false is undefined)
-    # 
-    # For now, we'll check the test context to determine allow_false behavior
-    if args.len > 2:
-      raise newException(ValueError, "default filter takes at most 2 arguments")
-    
-    let defaultValue = args[0]
-    
-    # For the allow_false tests, we need to examine the original template context
-    # Since this is complex, let's implement a temporary solution:
-    # If we have 2 args and the second is null, assume allow_false is enabled
-    # This matches the failing test pattern
-    let allowFalse = args.len == 2 and args[1].kind == vmNull
-    
+    # Default value: empty string if no argument, otherwise the first non-keyword arg
+    let defaultValue = if args.len > 0:
+      args[0]
+    else:
+      VMValue(kind: vmString, stringVal: "")
+
+    # Check for allow_false keyword arg (second arg)
+    # The compiler passes keyword args as positional, so allow_false: true → args[1] = true
+    let allowFalse = if args.len >= 2 and args[1].kind == vmBool:
+      args[1].boolVal
+    else:
+      false
+
     # Determine if we should use the default value
     let shouldUseDefault = case value.kind
     of vmNull:
       true
     of vmBool:
       if allowFalse:
-        false  # When allow_false is true, false is not considered falsy
+        false  # When allow_false is true, false is not replaced
       else:
-        not value.boolVal  # Normal behavior: false is falsy
+        not value.boolVal  # Normal: false is replaced
     of vmString:
       value.stringVal == ""
     of vmArray:
@@ -42,7 +34,7 @@ create_filter:
       value.objectVal.len == 0
     else:
       false
-    
+
     if shouldUseDefault:
       result = defaultValue
     else:

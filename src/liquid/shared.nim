@@ -8,13 +8,24 @@ type
 
 var filters* = initTable[string, Filter]()
 
+proc float_to_string*(f: float64): string =
+  ## Format a float like Ruby: strip trailing zeros but keep at least one decimal
+  result = formatFloat(f, ffDecimal, 10)
+  # Strip trailing zeros after decimal point
+  var i = result.len - 1
+  while i > 0 and result[i] == '0':
+    dec i
+  if i > 0 and result[i] == '.':
+    inc i  # Keep at least "X.0"
+  result = result[0..i]
+
 proc to_string*(v: VMValue): string =
   case v.kind
   of vmNull: ""
   of vmBool:
     if v.boolVal: "true" else: "false"
   of vmInt: $v.intVal
-  of vmFloat: $v.floatVal
+  of vmFloat: float_to_string(v.floatVal)
   of vmString: v.stringVal
   of vmArray:
     v.arrayVal.map(to_string).join("")

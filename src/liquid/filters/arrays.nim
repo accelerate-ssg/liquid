@@ -2,21 +2,37 @@ import sequtils, algorithm, strutils, tables
 import ../shared
 
 
-# Returns the first element of an array
+# Returns the first element of an array or first char of string
 create_filter:
   proc first(value: VMValue): VMValue =
-    if value.kind == vmArray and value.arrayVal.len > 0:
-      result = value.arrayVal[0]
-    else:
-      result = VMValue(kind: vmNull)
+    case value.kind
+    of vmArray:
+      if value.arrayVal.len > 0: value.arrayVal[0]
+      else: VMValue(kind: vmNull)
+    of vmString:
+      if value.stringVal.len > 0:
+        VMValue(kind: vmString, stringVal: $value.stringVal[0])
+      else: VMValue(kind: vmNull)
+    of vmObject:
+      # Return first key-value pair as array [key, value]
+      for key, val in value.objectVal:
+        return VMValue(kind: vmArray, arrayVal: @[
+          VMValue(kind: vmString, stringVal: key), val])
+      VMValue(kind: vmNull)
+    else: VMValue(kind: vmNull)
 
-# Returns the last element of an array
+# Returns the last element of an array or last char of string
 create_filter:
   proc last(value: VMValue): VMValue =
-    if value.kind == vmArray and value.arrayVal.len > 0:
-      result = value.arrayVal[^1]
-    else:
-      result = VMValue(kind: vmNull)
+    case value.kind
+    of vmArray:
+      if value.arrayVal.len > 0: value.arrayVal[^1]
+      else: VMValue(kind: vmNull)
+    of vmString:
+      if value.stringVal.len > 0:
+        VMValue(kind: vmString, stringVal: $value.stringVal[^1])
+      else: VMValue(kind: vmNull)
+    else: VMValue(kind: vmNull)
 
 # Joins the elements of an array into a string separated by a delimiter
 create_filter:
@@ -25,12 +41,12 @@ create_filter:
       raise newException(ValueError, "join filter takes at most 1 argument")
     if value.kind != vmArray:
       return value
-    
-    let delimiter = if args.len > 0 and args[0].kind == vmString:
-      args[0].stringVal
+
+    let delimiter = if args.len > 0:
+      to_string(args[0])  # Convert any type to string; null → ""
     else:
       " "
-    
+
     let joined = value.arrayVal.mapIt(to_string(it)).join(delimiter)
     result = VMValue(kind: vmString, stringVal: joined)
 
@@ -66,12 +82,17 @@ create_filter:
           aVal = a.objectVal[propName]
         else:
           aVal = VMValue(kind: vmNull)
-        
+
         if b.kind == vmObject and propName in b.objectVal:
           bVal = b.objectVal[propName]
         else:
           bVal = VMValue(kind: vmNull)
-        
+
+        # Null-safe comparison: nulls sort last
+        if aVal.kind == vmNull and bVal.kind == vmNull: return 0
+        if aVal.kind == vmNull: return 1
+        if bVal.kind == vmNull: return -1
+
         # Compare based on types
         if aVal.kind == vmString and bVal.kind == vmString:
           return cmp(aVal.stringVal, bVal.stringVal)
@@ -249,71 +270,59 @@ create_filter:
 # Concatenates arrays
 create_filter:
   proc concat(value: VMValue, args: varargs[VMValue]): VMValue =
-    # Require at least one argument
     if args.len == 0:
       raise newException(ValueError, "concat filter requires at least 1 argument")
-    
-    # Check all arguments are arrays or null
-    for i, arg in args:
-      if arg.kind == vmNull:
-        raise newException(ValueError, "concat filter argument is undefined or null")
-      elif arg.kind != vmArray:
-        raise newException(ValueError, "concat filter arguments must be arrays")
-    
-    if value.kind != vmArray:
-      return value
-    
-    var concatenated = value.arrayVal
+
+    # Convert left value to array if needed
+    var left: seq[VMValue]
+    case value.kind
+    of vmArray: left = value.arrayVal
+    of vmNull: left = @[]
+    else: left = @[value]
+
     for arg in args:
-      if arg.kind == vmArray:
-        concatenated.add(arg.arrayVal)
-    
-    result = VMValue(kind: vmArray, arrayVal: concatenated)
+      case arg.kind
+      of vmArray: left.add(arg.arrayVal)
+      of vmNull: discard  # null is treated as empty array
+      else: left.add(arg)
+
+    result = VMValue(kind: vmArray, arrayVal: left)
 
 # Returns unique elements from an array
 create_filter:
   proc uniq(value: VMValue, args: varargs[VMValue]): VMValue =
     if args.len > 1:
       raise newException(ValueError, "uniq filter takes at most 1 argument")
-    
+
     if value.kind != vmArray:
       return value
-    
-    var unique: seq[VMValue] = @[]
-    
-    for item in value.arrayVal:
-      var found = false
-      for existing in unique:
-        # Manual comparison to avoid case object equality issues
-        if item.kind == existing.kind:
-          case item.kind
-          of vmNull:
-            found = true
-            break
-          of vmBool:
-            if item.boolVal == existing.boolVal:
-              found = true
-              break
-          of vmInt:
-            if item.intVal == existing.intVal:
-              found = true
-              break
-          of vmFloat:
-            if item.floatVal == existing.floatVal:
-              found = true
-              break
-          of vmString:
-            if item.stringVal == existing.stringVal:
-              found = true
-              break
-          else:
-            # For arrays and objects, just consider them not equal for now
-            discard
-      
-      if not found:
-        unique.add(item)
-    
-    result = VMValue(kind: vmArray, arrayVal: unique)
+
+    # Property-based deduplication
+    if args.len == 1 and args[0].kind == vmString:
+      let propName = args[0].stringVal
+      var unique: seq[VMValue] = @[]
+      var seenKeys: seq[string] = @[]
+      for item in value.arrayVal:
+        if item.kind == vmObject and propName in item.objectVal:
+          let keyVal = to_string(item.objectVal[propName])
+          if keyVal notin seenKeys:
+            seenKeys.add(keyVal)
+            unique.add(item)
+        else:
+          # Items without the property are always included
+          unique.add(item)
+      result = VMValue(kind: vmArray, arrayVal: unique)
+    else:
+      # Value-based deduplication using string representation
+      var unique: seq[VMValue] = @[]
+      var seenKeys: seq[string] = @[]
+      for item in value.arrayVal:
+        # Build a unique key: kind + string representation
+        let key = $item.kind & ":" & to_string(item)
+        if key notin seenKeys:
+          seenKeys.add(key)
+          unique.add(item)
+      result = VMValue(kind: vmArray, arrayVal: unique)
 
 # Filters array based on a property value
 create_filter:
@@ -341,35 +350,36 @@ create_filter:
     let propName = args[0].stringVal
     
     if args.len == 1:
-      # Filter for objects that have the property (non-null)
-      let filtered = value.arrayVal.filterIt(
-        it.kind == vmObject and 
-        propName in it.objectVal and 
-        it.objectVal[propName].kind != vmNull
-      )
-      result = VMValue(kind: vmArray, arrayVal: filtered)
-    else:
-      # Filter for objects where property equals value  
-      let propValue = args[1]
+      # Filter for objects that have the property with truthy value
       var filtered: seq[VMValue] = @[]
       for item in value.arrayVal:
         if item.kind == vmObject and propName in item.objectVal:
-          let itemPropValue = item.objectVal[propName]
+          let propVal = item.objectVal[propName]
+          # In Liquid, where with one arg filters for truthy values
+          if propVal.kind != vmNull and not (propVal.kind == vmBool and not propVal.boolVal):
+            filtered.add(item)
+      result = VMValue(kind: vmArray, arrayVal: filtered)
+    else:
+      # Filter for objects where property equals value
+      let targetValue = args[1]
+      var filtered: seq[VMValue] = @[]
+      for item in value.arrayVal:
+        if item.kind == vmObject:
+          let hasProp = propName in item.objectVal
+          let itemPropValue = if hasProp: item.objectVal[propName]
+                             else: VMValue(kind: vmNull)
+          # Compare using liquid_eq semantics
           var matches = false
-          if itemPropValue.kind == propValue.kind:
+          if itemPropValue.kind == targetValue.kind:
             case itemPropValue.kind
-            of vmNull:
-              matches = true
-            of vmBool:
-              matches = itemPropValue.boolVal == propValue.boolVal
-            of vmInt:
-              matches = itemPropValue.intVal == propValue.intVal
-            of vmFloat:
-              matches = itemPropValue.floatVal == propValue.floatVal
-            of vmString:
-              matches = itemPropValue.stringVal == propValue.stringVal
-            else:
-              matches = false
+            of vmNull: matches = true
+            of vmBool: matches = itemPropValue.boolVal == targetValue.boolVal
+            of vmInt: matches = itemPropValue.intVal == targetValue.intVal
+            of vmFloat: matches = itemPropValue.floatVal == targetValue.floatVal
+            of vmString: matches = itemPropValue.stringVal == targetValue.stringVal
+            else: discard
+          elif itemPropValue.kind == vmNull and targetValue.kind == vmNull:
+            matches = true
           if matches:
             filtered.add(item)
       result = VMValue(kind: vmArray, arrayVal: filtered)
@@ -445,17 +455,8 @@ create_filter:
     var sumInt: int64 = 0
     var sumFloat: float64 = 0.0
     var hasFloat = false
-    
-    for item in value.arrayVal:
-      var val = item
-      
-      # If property name specified, extract that property
-      if propName != "":
-        if val.kind == vmObject and propName in val.objectVal:
-          val = val.objectVal[propName]
-        else:
-          continue  # Skip if property doesn't exist
-      
+
+    proc addValue(val: VMValue) =
       case val.kind
       of vmInt:
         sumInt += val.intVal
@@ -473,10 +474,21 @@ create_filter:
             sumInt += intVal
             sumFloat += intVal.float
         except:
-          continue  # Skip non-numeric strings
+          discard
+      of vmArray:
+        # Recursively sum nested arrays
+        for nestedItem in val.arrayVal:
+          addValue(nestedItem)
       else:
-        continue  # Skip non-numeric values
-    
+        discard
+
+    for item in value.arrayVal:
+      if propName != "":
+        if item.kind == vmObject and propName in item.objectVal:
+          addValue(item.objectVal[propName])
+      else:
+        addValue(item)
+
     if hasFloat:
       result = VMValue(kind: vmFloat, floatVal: sumFloat)
     else:

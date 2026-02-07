@@ -67,9 +67,20 @@ create_filter:
 # escape - Escapes special characters in HTML
 create_filter:
   proc escape(value: VMValue): VMValue =
-    if value.kind != vmString:
-      return value
-    result = VMValue(kind: vmString, stringVal: xmltree.escape(value.stringVal))
+    let input = to_string(value)
+    if input.len == 0:
+      return VMValue(kind: vmString, stringVal: "")
+    # Custom HTML escape that handles single quotes (xmltree.escape doesn't)
+    var escaped = newStringOfCap(input.len + 10)
+    for c in input:
+      case c
+      of '&': escaped.add("&amp;")
+      of '<': escaped.add("&lt;")
+      of '>': escaped.add("&gt;")
+      of '"': escaped.add("&quot;")
+      of '\'': escaped.add("&#39;")
+      else: escaped.add(c)
+    result = VMValue(kind: vmString, stringVal: escaped)
 
 # Converts a string into a URL-friendly format
 create_filter:
@@ -91,59 +102,74 @@ create_filter:
 # Returns the first N characters of a string
 create_filter:
   proc truncate(value: VMValue, args: varargs[VMValue]): VMValue =
-    if value.kind != vmString:
-      return value
-    
+    let input = to_string(value)
+
     if args.len > 2:
       raise newException(ValueError, "truncate filter takes at most 2 arguments")
-    
+
     # Handle length argument
     let length = if args.len > 0:
-      if args[0].kind == vmNull:
-        raise newException(ValueError, "truncate filter length argument is undefined")
-      elif args[0].kind == vmInt:
-        args[0].intVal.int
-      else:
-        50  # Default for invalid types
+      case args[0].kind
+      of vmInt: args[0].intVal.int
+      of vmFloat: args[0].floatVal.int
+      of vmString:
+        try: args[0].stringVal.parseInt()
+        except: 50
+      else: 50
     else:
-      50  # Default when no arguments
-    let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
-    
-    var str = value.stringVal
-    if str.len > length:
-      str = str[0..<length] & ellipsis
-    
-    result = VMValue(kind: vmString, stringVal: str)
+      50
+
+    # Handle ellipsis: undefined (vmNull) → empty string, missing → "..."
+    let ellipsis = if args.len > 1:
+      if args[1].kind == vmNull: ""
+      else: to_string(args[1])
+    else:
+      "..."
+
+    if input.len <= length:
+      result = VMValue(kind: vmString, stringVal: input)
+    else:
+      let cutLen = max(0, length - ellipsis.len)
+      result = VMValue(kind: vmString, stringVal: input[0..<cutLen] & ellipsis)
 
 # Returns the first N words of a string, preserving whole words
 create_filter:
   proc truncatewords(value: VMValue, args: varargs[VMValue]): VMValue =
-    if value.kind != vmString:
-      return value
-    
+    let input = to_string(value)
+
     if args.len > 2:
       raise newException(ValueError, "truncatewords filter takes at most 2 arguments")
-    
+
     # Handle word count argument
-    let wordCount = if args.len > 0:
-      if args[0].kind == vmNull:
-        raise newException(ValueError, "truncatewords filter word count argument is undefined")
-      elif args[0].kind == vmInt:
-        args[0].intVal.int
-      else:
-        15  # Default for invalid types
+    var wordCount = if args.len > 0:
+      case args[0].kind
+      of vmInt: args[0].intVal.int
+      of vmFloat: args[0].floatVal.int
+      of vmString:
+        try: args[0].stringVal.parseInt()
+        except: 15
+      else: 15
     else:
-      15  # Default when no arguments
-    let ellipsis = if args.len > 1 and args[1].kind == vmString: args[1].stringVal else: "..."
-    
-    let words = value.stringVal.split()
-    var resultStr: string
+      15
+
+    # Minimum word count is 1 in Liquid
+    if wordCount < 1:
+      wordCount = 1
+
+    # Handle ellipsis: undefined (vmNull) → empty string, missing → "..."
+    # Non-string arg → convert to string
+    let ellipsis = if args.len > 1:
+      if args[1].kind == vmNull: ""
+      else: to_string(args[1])
+    else:
+      "..."
+
+    # Split on whitespace (handles multiple spaces, tabs, newlines)
+    let words = input.splitWhitespace()
     if words.len <= wordCount:
-      resultStr = value.stringVal
+      result = VMValue(kind: vmString, stringVal: words.join(" "))
     else:
-      resultStr = words[0..<wordCount].join(" ") & ellipsis
-    
-    result = VMValue(kind: vmString, stringVal: resultStr)
+      result = VMValue(kind: vmString, stringVal: words[0..<wordCount].join(" ") & ellipsis)
 
 # upcase - Converts a string to all uppercase characters
 create_filter:
@@ -182,17 +208,16 @@ create_filter:
 # Replaces all occurrences of a substring with another string
 create_filter:
   proc replace(value: VMValue, args: varargs[VMValue]): VMValue =
-    if value.kind != vmString:
-      return value
-    
+    let input = to_string(value)
+
     if args.len < 1:
       raise newException(ValueError, "replace filter requires at least 1 argument (search string)")
     if args.len > 2:
       raise newException(ValueError, "replace filter takes at most 2 arguments")
-    
+
     let searchStr = to_string(args[0])
     let replacementStr = if args.len >= 2: to_string(args[1]) else: ""
-    result = VMValue(kind: vmString, stringVal: value.stringVal.replace(searchStr, replacementStr))
+    result = VMValue(kind: vmString, stringVal: input.replace(searchStr, replacementStr))
 
 # Replaces the first occurrence of a substring with another string
 create_filter:
@@ -281,63 +306,54 @@ create_filter:
       return value
     result = VMValue(kind: vmString, stringVal: value.stringVal[0..i])
 
-# Extracts a substring from a string
+# Extracts a substring from a string, or a slice from an array
 create_filter:
   proc slice(value: VMValue, args: varargs[VMValue]): VMValue =
-    if value.kind != vmString:
-      return value
+    if value.kind notin {vmString, vmArray}:
+      return VMValue(kind: vmNull)
     if args.len < 1:
       raise newException(ValueError, "slice filter requires at least 1 argument (start index)")
     if args.len > 2:
       raise newException(ValueError, "slice filter takes at most 2 arguments")
-    
-    let str = value.stringVal
-    
-    # Handle undefined first argument
-    if args[0].kind == vmNull:
-      raise newException(ValueError, "slice filter: first argument cannot be undefined")
-    
-    # Convert arguments to integers with proper validation
-    var startIdx: int
-    if args[0].kind == vmInt:
-      startIdx = args[0].intVal.int
-    elif args[0].kind == vmFloat:
-      raise newException(ValueError, "slice filter: first argument must be an integer, not a float")
-    elif args[0].kind == vmString:
-      try:
-        startIdx = args[0].stringVal.parseInt()
-      except:
-        raise newException(ValueError, "slice filter: first argument must be an integer")
-    else:
-      raise newException(ValueError, "slice filter: first argument must be an integer")
-    
+
+    # Parse start index
+    var startIdx: int = 0
+    case args[0].kind
+    of vmInt: startIdx = args[0].intVal.int
+    of vmFloat: startIdx = args[0].floatVal.int
+    of vmString:
+      try: startIdx = args[0].stringVal.parseInt()
+      except: startIdx = 0
+    of vmNull: startIdx = 0
+    else: startIdx = 0
+
     var length = 1
     if args.len > 1:
-      if args[1].kind == vmNull:
-        length = 1  # undefined second argument defaults to 1
-      elif args[1].kind == vmInt:
-        length = args[1].intVal.int
-      elif args[1].kind == vmFloat:
-        raise newException(ValueError, "slice filter: second argument must be an integer, not a float")
-      elif args[1].kind == vmString:
-        try:
-          length = args[1].stringVal.parseInt()
-        except:
-          raise newException(ValueError, "slice filter: second argument must be an integer")
+      case args[1].kind
+      of vmInt: length = args[1].intVal.int
+      of vmFloat: length = args[1].floatVal.int
+      of vmString:
+        try: length = args[1].stringVal.parseInt()
+        except: length = 1
+      of vmNull: length = 1
+      else: length = 1
+
+    if value.kind == vmString:
+      let str = value.stringVal
+      let actualStart = if startIdx < 0: max(0, str.len + startIdx) else: startIdx
+      if length <= 0 or actualStart >= str.len:
+        result = VMValue(kind: vmString, stringVal: "")
       else:
-        raise newException(ValueError, "slice filter: second argument must be an integer")
-    
-    # Handle negative indices
-    let actualStart = if startIdx < 0: str.len + startIdx else: startIdx
-    
-    # Handle negative length - should return empty string
-    if length <= 0:
-      result = VMValue(kind: vmString, stringVal: "")
-    elif actualStart < 0 or actualStart >= str.len:
-      result = VMValue(kind: vmString, stringVal: "")
-    else:
-      let endIdx = min(actualStart + length, str.len)
-      result = VMValue(kind: vmString, stringVal: str[actualStart..<endIdx])
+        let endIdx = min(actualStart + length, str.len)
+        result = VMValue(kind: vmString, stringVal: str[actualStart..<endIdx])
+    else:  # vmArray
+      let arr = value.arrayVal
+      let actualStart = if startIdx < 0: max(0, arr.len + startIdx) else: startIdx
+      if length <= 0 or actualStart >= arr.len:
+        result = VMValue(kind: vmArray, arrayVal: @[])
+      else:
+        let endIdx = min(actualStart + length, arr.len)
+        result = VMValue(kind: vmArray, arrayVal: arr[actualStart..<endIdx])
 
 # HTML escapes a string, but only if it hasn't been escaped already  
 create_filter:
@@ -360,9 +376,17 @@ create_filter:
 
     let input = to_string(value)
     if input.len == 0:
-      return VMValue(kind: vmArray, arrayVal: @[])
+      return VMValue(kind: vmArray, arrayVal: @[VMValue(kind: vmString, stringVal: "")])
 
     let delim = to_string(args[0])
-    let parts = input.split(delim)
-    let vmParts = parts.mapIt(VMValue(kind: vmString, stringVal: it))
-    result = VMValue(kind: vmArray, arrayVal: vmParts)
+
+    if delim.len == 0:
+      # Empty delimiter: split into individual characters
+      var chars: seq[VMValue] = @[]
+      for c in input:
+        chars.add(VMValue(kind: vmString, stringVal: $c))
+      result = VMValue(kind: vmArray, arrayVal: chars)
+    else:
+      let parts = input.split(delim)
+      let vmParts = parts.mapIt(VMValue(kind: vmString, stringVal: it))
+      result = VMValue(kind: vmArray, arrayVal: vmParts)

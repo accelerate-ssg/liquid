@@ -13,6 +13,22 @@ proc to_numeric(v: VMValue): float =
       0.0
   else: 0.0
 
+# Check if a value is integer-like (int, or string that parses as int without decimals)
+proc is_int_like(v: VMValue): bool =
+  case v.kind
+  of vmInt: true
+  of vmFloat: false
+  of vmString:
+    if '.' in v.stringVal: false
+    else:
+      try:
+        discard v.stringVal.parseInt()
+        true
+      except:
+        true  # Non-numeric strings convert to 0 (integer)
+  of vmNull: true  # null → 0 (integer)
+  else: true  # objects/arrays → 0 (integer)
+
 # Returns the absolute value of a number
 create_filter:
   proc abs(value: VMValue): VMValue =
@@ -52,12 +68,19 @@ create_filter:
   proc round(value: VMValue, args: varargs[VMValue]): VMValue =
     if args.len > 1:
       raise newException(ValueError, "round filter takes at most 1 argument")
-    
-    let decimals = if args.len > 0 and args[0].kind == vmInt: 
-      args[0].intVal.int 
-    else: 
+
+    let decimals = if args.len > 0:
+      let arg = args[0]
+      case arg.kind
+      of vmInt: arg.intVal.int
+      of vmFloat: arg.floatVal.int  # Truncate float to int
+      of vmString:
+        try: arg.stringVal.parseInt()
+        except: 0
+      else: 0
+    else:
       0
-    
+
     let num = to_numeric(value)
     if decimals == 0:
       result = VMValue(kind: vmInt, intVal: round(num).int64)
@@ -71,9 +94,9 @@ create_filter:
   proc plus(value: VMValue, addend: VMValue): VMValue =
     let a = to_numeric(value)
     let b = to_numeric(addend)
-    
-    if value.kind == vmInt and addend.kind == vmInt:
-      result = VMValue(kind: vmInt, intVal: value.intVal + addend.intVal)
+
+    if is_int_like(value) and is_int_like(addend):
+      result = VMValue(kind: vmInt, intVal: a.int64 + b.int64)
     else:
       result = VMValue(kind: vmFloat, floatVal: a + b)
 
@@ -82,9 +105,9 @@ create_filter:
   proc minus(value: VMValue, subtrahend: VMValue): VMValue =
     let a = to_numeric(value)
     let b = to_numeric(subtrahend)
-    
-    if value.kind == vmInt and subtrahend.kind == vmInt:
-      result = VMValue(kind: vmInt, intVal: value.intVal - subtrahend.intVal)
+
+    if is_int_like(value) and is_int_like(subtrahend):
+      result = VMValue(kind: vmInt, intVal: a.int64 - b.int64)
     else:
       result = VMValue(kind: vmFloat, floatVal: a - b)
 
@@ -93,9 +116,9 @@ create_filter:
   proc times(value: VMValue, multiplier: VMValue): VMValue =
     let a = to_numeric(value)
     let b = to_numeric(multiplier)
-    
-    if value.kind == vmInt and multiplier.kind == vmInt:
-      result = VMValue(kind: vmInt, intVal: value.intVal * multiplier.intVal)
+
+    if is_int_like(value) and is_int_like(multiplier):
+      result = VMValue(kind: vmInt, intVal: a.int64 * b.int64)
     else:
       result = VMValue(kind: vmFloat, floatVal: a * b)
 
@@ -104,13 +127,13 @@ create_filter:
   proc divided_by(value: VMValue, divisor: VMValue): VMValue =
     let a = to_numeric(value)
     let b = to_numeric(divisor)
-    
+
     if b == 0:
       raise newException(ValueError, "Division by zero")
-    
+
     # Integer division if both are integers
-    if value.kind == vmInt and divisor.kind == vmInt:
-      result = VMValue(kind: vmInt, intVal: value.intVal div divisor.intVal)
+    if is_int_like(value) and is_int_like(divisor):
+      result = VMValue(kind: vmInt, intVal: a.int64 div b.int64)
     else:
       result = VMValue(kind: vmFloat, floatVal: a / b)
 
@@ -119,16 +142,16 @@ create_filter:
   proc modulo(value: VMValue, divisor: VMValue): VMValue =
     let a = to_numeric(value)
     let b = to_numeric(divisor)
-    
+
     # Check if divisor is undefined (converted to 0 by to_numeric)
     if divisor.kind == vmNull:
       raise newException(ValueError, "Modulo by zero")
-    
+
     if b == 0:
       raise newException(ValueError, "Modulo by zero")
-    
-    if value.kind == vmInt and divisor.kind == vmInt:
-      result = VMValue(kind: vmInt, intVal: value.intVal mod divisor.intVal)
+
+    if is_int_like(value) and is_int_like(divisor):
+      result = VMValue(kind: vmInt, intVal: a.int64 mod b.int64)
     else:
       result = VMValue(kind: vmFloat, floatVal: a.mod(b))
 
@@ -137,7 +160,7 @@ create_filter:
   proc at_least(value: VMValue, minVal: VMValue): VMValue =
     let val = to_numeric(value)
     let minValue = to_numeric(minVal)
-    
+
     if val < minValue:
       result = minVal
     else:
@@ -148,7 +171,7 @@ create_filter:
   proc at_most(value: VMValue, maxVal: VMValue): VMValue =
     let val = to_numeric(value)
     let maxValue = to_numeric(maxVal)
-    
+
     if val > maxValue:
       result = maxVal
     else:
