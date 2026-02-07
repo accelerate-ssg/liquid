@@ -123,6 +123,9 @@ type
       withContext*: bool
     of opBeginLoop:
       loopVarIndex*: uint16
+      hasLimit*: bool
+      hasOffset*: bool
+      hasOffsetContinue*: bool  # offset: continue (resume from last position)
     of opIterNext:
       endOffset*: int32
     of opBreak, opContinue:

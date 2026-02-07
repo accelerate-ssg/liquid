@@ -25,6 +25,7 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     capture_stack: @[],
     is_capturing: false,
     # filters field removed - now using filters module directly
+    loop_offsets: initTable[string, int](),
     instruction_count: 0,
     max_stack_size: 0
   )
@@ -213,34 +214,94 @@ proc execute*(vm: var LiquidVM): string =
     
     # Loops
     of opBeginLoop:
+      # Pop limit and offset values if present (limit is on top, then offset, then collection)
+      var limit_val = -1'i64  # -1 means no limit
+      var offset_val = 0'i64  # 0 means no offset
+
+      if inst.hasLimit:
+        let lv = vm.pop()
+        case lv.kind
+        of vmInt:
+          limit_val = lv.intVal
+        of vmFloat:
+          limit_val = lv.floatVal.int64
+        of vmString:
+          try:
+            limit_val = parseInt(lv.stringVal).int64
+          except ValueError:
+            raise newException(ValueError, "limit must be a number, got string '" & lv.stringVal & "'")
+        of vmNull:
+          limit_val = 0
+        else:
+          raise newException(ValueError, "limit must be a number, got " & $lv.kind)
+
+      if inst.hasOffset:
+        let ov = vm.pop()
+        case ov.kind
+        of vmInt:
+          offset_val = ov.intVal
+        of vmFloat:
+          offset_val = ov.floatVal.int64
+        of vmString:
+          try:
+            offset_val = parseInt(ov.stringVal).int64
+          except ValueError:
+            raise newException(ValueError, "offset must be a number, got string '" & ov.stringVal & "'")
+        of vmNull:
+          offset_val = 0
+        else:
+          raise newException(ValueError, "offset must be a number, got " & $ov.kind)
+
+      # Get loop variable name for offset: continue tracking
+      let loop_var_name = vm.strings[inst.loopVarIndex]
+
+      # Clean up any stale iterator for this variable (from a broken loop)
+      for i in countdown(vm.iterators.len - 1, 0):
+        if vm.iterators[i].var_name == loop_var_name:
+          let stale = vm.iterators[i]
+          vm.loop_offsets[stale.var_name] = stale.original_offset + stale.index
+          vm.iterators.delete(i)
+          break
+
+      # Handle offset: continue (resume from where last loop left off)
+      if inst.hasOffsetContinue:
+        if loop_var_name in vm.loop_offsets:
+          offset_val = vm.loop_offsets[loop_var_name].int64
+
       let collection = vm.pop()
+      var items: seq[VMValue] = @[]
+
       case collection.kind
       of vmArray:
-        vm.iterators.add(Iterator(
-          items: collection.arrayVal,
-          index: 0,
-          var_name: "" # We'll use the string from the instruction
-        ))
+        items = collection.arrayVal
       of vmObject:
         # Convert object to array of key-value pairs
-        var items: seq[VMValue] = @[]
         for key, val in collection.objectVal:
           items.add(VMValue(kind: vmArray, arrayVal: @[
             VMValue(kind: vmString, stringVal: key),
             val
           ]))
-        vm.iterators.add(Iterator(
-          items: items,
-          index: 0,
-          var_name: ""
-        ))
       else:
-        # Empty iterator for non-iterable
-        vm.iterators.add(Iterator(
-          items: @[],
-          index: 0,
-          var_name: ""
-        ))
+        discard  # Empty items for non-iterable
+
+      let total_items = items.len
+
+      # Apply offset
+      if offset_val > 0 and offset_val < items.len.int64:
+        items = items[offset_val..^1]
+      elif offset_val >= items.len.int64:
+        items = @[]
+
+      # Apply limit
+      if limit_val >= 0 and limit_val < items.len.int64:
+        items = items[0..<limit_val]
+
+      vm.iterators.add(Iterator(
+        items: items,
+        index: 0,
+        var_name: loop_var_name,
+        original_offset: offset_val.int
+      ))
       
     of opIterNext:
       if vm.iterators.len > 0:
@@ -251,7 +312,10 @@ proc execute*(vm: var LiquidVM): string =
           vm.push(iter.items[iter.index])
           iter.index += 1
         else:
-          # End of iteration - NOW we pop the iterator
+          # End of iteration - save loop offset for offset: continue
+          let finished_iter = vm.iterators[^1]
+          vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.index
+          # NOW we pop the iterator
           vm.iterators.setLen(vm.iterators.len - 1)
           vm.pc += inst.endOffset
     
@@ -367,19 +431,75 @@ proc execute*(vm: var LiquidVM): string =
     of opAdd:
       let b = vm.pop()
       let a = vm.pop()
-      
-      # Handle different type combinations
+
+      # Handle different type combinations (null treated as 0 for arithmetic)
       if a.kind == vmInt and b.kind == vmInt:
         vm.push(VMValue(kind: vmInt, intVal: a.intVal + b.intVal))
+      elif a.kind == vmNull and b.kind == vmInt:
+        vm.push(VMValue(kind: vmInt, intVal: b.intVal))
+      elif a.kind == vmInt and b.kind == vmNull:
+        vm.push(VMValue(kind: vmInt, intVal: a.intVal))
       elif a.kind == vmString or b.kind == vmString:
         # String concatenation
         let aStr = a.to_string()
         let bStr = b.to_string()
         vm.push(VMValue(kind: vmString, stringVal: aStr & bStr))
+      elif a.kind in [vmInt, vmFloat, vmNull] and b.kind in [vmInt, vmFloat, vmNull]:
+        let af = case a.kind
+          of vmInt: a.intVal.float
+          of vmFloat: a.floatVal
+          else: 0.0
+        let bf = case b.kind
+          of vmInt: b.intVal.float
+          of vmFloat: b.floatVal
+          else: 0.0
+        vm.push(VMValue(kind: vmFloat, floatVal: af + bf))
+      else:
+        vm.push(VMValue(kind: vmNull))
+
+    of opSubtract:
+      let b = vm.pop()
+      let a = vm.pop()
+
+      # Handle different type combinations (null treated as 0 for arithmetic)
+      if a.kind == vmInt and b.kind == vmInt:
+        vm.push(VMValue(kind: vmInt, intVal: a.intVal - b.intVal))
+      elif a.kind == vmNull and b.kind == vmInt:
+        vm.push(VMValue(kind: vmInt, intVal: -b.intVal))
+      elif a.kind == vmInt and b.kind == vmNull:
+        vm.push(VMValue(kind: vmInt, intVal: a.intVal))
+      elif a.kind in [vmInt, vmFloat, vmNull] and b.kind in [vmInt, vmFloat, vmNull]:
+        let af = case a.kind
+          of vmInt: a.intVal.float
+          of vmFloat: a.floatVal
+          else: 0.0
+        let bf = case b.kind
+          of vmInt: b.intVal.float
+          of vmFloat: b.floatVal
+          else: 0.0
+        vm.push(VMValue(kind: vmFloat, floatVal: af - bf))
+      else:
+        vm.push(VMValue(kind: vmNull))
+
+    of opMultiply:
+      let b = vm.pop()
+      let a = vm.pop()
+
+      if a.kind == vmInt and b.kind == vmInt:
+        vm.push(VMValue(kind: vmInt, intVal: a.intVal * b.intVal))
       elif a.kind in [vmInt, vmFloat] and b.kind in [vmInt, vmFloat]:
         let af = if a.kind == vmInt: a.intVal.float else: a.floatVal
         let bf = if b.kind == vmInt: b.intVal.float else: b.floatVal
-        vm.push(VMValue(kind: vmFloat, floatVal: af + bf))
+        vm.push(VMValue(kind: vmFloat, floatVal: af * bf))
+      else:
+        vm.push(VMValue(kind: vmNull))
+
+    of opNegate:
+      let v = vm.pop()
+      if v.kind == vmInt:
+        vm.push(VMValue(kind: vmInt, intVal: -v.intVal))
+      elif v.kind == vmFloat:
+        vm.push(VMValue(kind: vmFloat, floatVal: -v.floatVal))
       else:
         vm.push(VMValue(kind: vmNull))
 
@@ -471,10 +591,25 @@ proc execute*(vm: var LiquidVM): string =
           range_array.add(VMValue(kind: vmInt, intVal: i))
       
       vm.push(VMValue(kind: vmArray, arrayVal: range_array))
-    
+
+    # Logical operators
+    of opAnd:
+      let b = vm.pop()
+      let a = vm.pop()
+      vm.push(VMValue(kind: vmBool, boolVal: a.is_truthy() and b.is_truthy()))
+
+    of opOr:
+      let b = vm.pop()
+      let a = vm.pop()
+      vm.push(VMValue(kind: vmBool, boolVal: a.is_truthy() or b.is_truthy()))
+
+    of opNot:
+      let v = vm.pop()
+      vm.push(VMValue(kind: vmBool, boolVal: not v.is_truthy()))
+
     else:
       # Unimplemented opcode
-      raise newException(CatchableError, 
+      raise newException(CatchableError,
         "Unimplemented opcode: " & $inst.op)
   
   result = vm.output
@@ -1057,3 +1192,105 @@ when isMainModule:
       # Should complete without hanging
       check output.len > 0
       check "500" in output  # Middle element should be there
+
+  suite "Logical Operators":
+    test "Simple and - both true":
+      let source = "{% if true and true %}yes{% endif %}"
+      let output = render_template(source, initTable[string, VMValue]())
+      check output == "yes"
+
+    test "Simple and - one false":
+      let source = "{% if true and false %}yes{% endif %}"
+      let output = render_template(source, initTable[string, VMValue]())
+      check output == ""
+
+    test "Simple or - one true":
+      let source = "{% if false or true %}yes{% endif %}"
+      let output = render_template(source, initTable[string, VMValue]())
+      check output == "yes"
+
+    test "Simple or - both false":
+      let source = "{% if false or false %}yes{% endif %}"
+      let output = render_template(source, initTable[string, VMValue]())
+      check output == ""
+
+    test "Not operator":
+      let source = "{% if not false %}yes{% endif %}"
+      let output = render_template(source, initTable[string, VMValue]())
+      check output == "yes"
+
+    test "Right-associative and/or":
+      # true and false and false or true
+      # Right-associative: true and (false and (false or true))
+      # = true and (false and true) = true and false = false
+      let source = "{% if true and false and false or true %}yes{% endif %}"
+      let output = render_template(source, initTable[string, VMValue]())
+      check output == ""
+
+    test "And with variables":
+      let source = "{% if a and b %}yes{% else %}no{% endif %}"
+      let data = {"a": VMValue(kind: vmBool, boolVal: true), "b": VMValue(kind: vmBool, boolVal: false)}.toTable
+      let output = render_template(source, data)
+      check output == "no"
+
+  suite "For Loop Limit/Offset":
+    test "For with limit":
+      let source = "{% for i in items limit: 2 %}{{ i }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3), vmInt(4)])}.toTable
+      let output = render_template(source, data)
+      check output == "1 2 "
+
+    test "For with offset":
+      let source = "{% for i in items offset: 2 %}{{ i }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3), vmInt(4)])}.toTable
+      let output = render_template(source, data)
+      check output == "3 4 "
+
+    test "For with limit and offset":
+      let source = "{% for i in items limit: 2 offset: 1 %}{{ i }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3), vmInt(4)])}.toTable
+      let output = render_template(source, data)
+      check output == "2 3 "
+
+    test "Limit with non-numeric type raises":
+      let source = "{% for i in (1..4) limit: foo %}{{ i }} {% endfor %}"
+      let data = {"foo": vmArray(@[vmInt(1), vmInt(2)])}.toTable
+      expect CatchableError:
+        discard render_template(source, data)
+
+    test "Offset with non-numeric type raises":
+      let source = "{% for i in (1..4) offset: foo %}{{ i }} {% endfor %}"
+      let data = {"foo": vmArray(@[vmInt(1), vmInt(2)])}.toTable
+      expect CatchableError:
+        discard render_template(source, data)
+
+  suite "Arithmetic Operators":
+    test "Subtract integers":
+      let source = "{% assign a = 5 %}{% assign b = 3 %}{% assign c = a | minus: b %}{{ c }}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == "2"
+
+    test "Subtract null treated as zero":
+      let source = "{% decrement x %}{% decrement x %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == "-1-2"
+
+    test "Increment from null":
+      let source = "{% increment x %}{% increment x %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == "01"
+
+    test "Unless tag - condition false":
+      let source = "{% unless false %}yes{% endunless %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == "yes"
+
+    test "Unless tag - condition true":
+      let source = "{% unless true %}yes{% endunless %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == ""
+
+    test "Unless tag with else":
+      let source = "{% unless true %}yes{% else %}no{% endunless %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == "no"

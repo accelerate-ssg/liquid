@@ -973,6 +973,29 @@ when isMainModule:
       check tokens.len == 8
       check tokens[5].kind == tkDoubleDot
 
+  suite "Identifier scanning":
+    test "@ prefix identifier":
+      let input = "{{ @foo }}"
+      let sections = lex(input)
+      check sections[0].tokens.len == 1
+      check sections[0].tokens[0].kind == tkIdentifier
+      check input[sections[0].tokens[0].start..<sections[0].tokens[0].stop] == "@foo"
+
+    test "Trailing ? identifier":
+      let input = "{{ empty? }}"
+      let sections = lex(input)
+      check sections[0].tokens.len == 1
+      check sections[0].tokens[0].kind == tkIdentifier
+      check input[sections[0].tokens[0].start..<sections[0].tokens[0].stop] == "empty?"
+
+    test "@ prefix not followed by letter":
+      let input = "{{ @123 }}"
+      let sections = lex(input)
+      # @ alone is not a valid identifier start, should not produce @123
+      # The @ gets skipped and 123 is a number
+      check sections[0].tokens.len == 1
+      check sections[0].tokens[0].kind == tkNumber
+
   suite "Consecutive sections":
     test "Multiple outputs in a row":
       let input = "{{ a }}{{ b }}{{ c }}"

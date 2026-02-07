@@ -6,7 +6,7 @@ template scan_identifier*(input: string, pos: var int) =
   ## validity in constant time.
   ##
   ## **Identifier Rules:**
-  ## - First character: `a-z`, `A-Z`, or `_`
+  ## - First character: `a-z`, `A-Z`, `_`, or `@` (followed by a letter)
   ## - Continuation characters: `a-z`, `A-Z`, `0-9`, `_`, or `-`
   ## - Optional trailing `?` (for Ruby-style predicate methods)
   ##
@@ -56,6 +56,12 @@ template scan_identifier*(input: string, pos: var int) =
   ## assert pos == 4  # Stopped at '.'
   ## assert input[0..<pos] == "name"
   ##
+  ## # @ prefix
+  ## input = "@foo }}"
+  ## pos = 0
+  ## scan_identifier(input, pos)
+  ## assert pos == 4  # Scanned "@foo"
+  ##
   ## # No identifier found
   ## input = "123abc"
   ## pos = 0
@@ -90,9 +96,21 @@ template scan_identifier*(input: string, pos: var int) =
   ## - The template ensures complete inlining with no call overhead
   ## - Early termination on non-ASCII characters (>= 128) for safety
   if pos < input.len:
+    var matched_first = false
     let c = input[pos].uint8
-    if c < 128 and c >= 64 and ((IdentFirstTable2 shr (c - 64)) and 1) != 0:
+
+    # Check for @ prefix (Ruby-style instance variables like @foo)
+    if c == 64:  # '@' character
+      if pos + 1 < input.len:
+        let nc = input[pos + 1].uint8
+        if nc < 128 and nc >= 64 and ((IdentFirstTable2 shr (nc - 64)) and 1) != 0:
+          pos += 2  # Skip past @ and the first letter
+          matched_first = true
+    elif c < 128 and c >= 64 and ((IdentFirstTable2 shr (c - 64)) and 1) != 0:
       inc pos
+      matched_first = true
+
+    if matched_first:
       while pos < input.len:
         let cc = input[pos].uint8
         if cc >= 128:

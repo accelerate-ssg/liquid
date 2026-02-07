@@ -31,7 +31,10 @@ type
     is_capturing*: bool
     
     # Filters are now handled by the filters module
-    
+
+    # Loop continuation tracking (for offset: continue)
+    loop_offsets*: Table[string, int]  # var_name -> last consumed index
+
     # Performance
     instruction_count*: int
     max_stack_size*: int
@@ -40,6 +43,7 @@ type
     items*: seq[VMValue]
     index*: int
     var_name*: string
+    original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
     
 
 

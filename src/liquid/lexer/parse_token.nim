@@ -73,13 +73,15 @@ template parse_token*(input: string, pos: var int, endPos: int,
   let tokStart = pos
   
   case input[pos]
-  of 'a'..'z', 'A'..'Z', '_':
-    # Identifier/keyword - fast scan
+  of 'a'..'z', 'A'..'Z', '_', '@':
+    # Identifier/keyword - fast scan (@ prefix handled by scan_identifier)
     let start = pos
     input.scanIdentifier(pos)
     if pos > start:
       let tokenKind = classifyIdentifier(input, start, pos)
       section.addToken(tokenKind, start, pos)
+    else:
+      inc pos  # Skip unrecognized character (e.g., lone @)
     
   of '0'..'9', '-':
     # Number (including negative)

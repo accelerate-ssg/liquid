@@ -117,9 +117,9 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
   case token.kind
   of tkIdentifier:
     let name = c.input[token.start..<token.stop]
-    # Validate identifier - @ signs are not allowed in strict mode
+    # Validate identifier in strict mode - @ signs are not allowed
     if c.strict and '@' in name:
-      raise newException(ValueError, "Invalid identifier: '@' character not allowed in identifiers in strict mode")
+      raise newException(ValueError, "Invalid identifier: '" & name & "' not allowed in strict mode")
     # Check if it's a local variable first
     if name notin c.localVars:
       c.requiredVars.incl(name)
@@ -358,6 +358,9 @@ proc compile_output(c: var Compiler, section: Section) =
   
   if tokens.len == 1 and tokens[0].kind == tkIdentifier:
     let var_name = c.input[tokens[0].start..<tokens[0].stop]
+    # Validate identifier in strict mode - @ signs are not allowed
+    if c.strict and '@' in var_name:
+      raise newException(ValueError, "Invalid identifier: '" & var_name & "' not allowed in strict mode")
     # Check if it's a local variable first
     if var_name notin c.localVars:
       c.requiredVars.incl(var_name)
@@ -365,13 +368,18 @@ proc compile_output(c: var Compiler, section: Section) =
     c.emit(Instruction(op: opLoadVar, stringId: stringId))
     c.emit(Instruction(op: opOutput))
     return
-  
-  if tokens.len == 3 and 
+
+  if tokens.len == 3 and
      tokens[0].kind == tkIdentifier and
      tokens[1].kind == tkDot and
      tokens[2].kind == tkIdentifier:
     let objName = c.input[tokens[0].start..<tokens[0].stop]
     let prop_name = c.input[tokens[2].start..<tokens[2].stop]
+    # Validate identifiers in strict mode - @ signs are not allowed
+    if c.strict and '@' in objName:
+      raise newException(ValueError, "Invalid identifier: '" & objName & "' not allowed in strict mode")
+    if c.strict and '@' in prop_name:
+      raise newException(ValueError, "Invalid identifier: '" & prop_name & "' not allowed in strict mode")
     # Check if it's a local variable first
     if objName notin c.localVars:
       c.requiredVars.incl(objName)
@@ -401,7 +409,10 @@ proc compile_continue(c: var Compiler) =
 proc compile_capture(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 2:
     return
-  
+
+  # Validate that token[1] is a valid capture target (identifier or number)
+  if c.strict and tokens[1].kind notin {tkIdentifier, tkNumber}:
+    raise newException(ValueError, "Invalid capture target")
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
   c.localVars.incl(var_name)
   let varId = c.intern_string(var_name)
@@ -430,8 +441,14 @@ proc compile_capture(c: var Compiler, tokens: openArray[Token]) =
 proc compile_assign(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 4:
     return
-  
+
+  # Validate that token[1] is a valid assign target (identifier or number)
+  if c.strict and tokens[1].kind notin {tkIdentifier, tkNumber}:
+    raise newException(ValueError, "Invalid assign target")
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
+  # Validate variable name in strict mode
+  if c.strict and ('@' in var_name or '?' in var_name):
+    raise newException(ValueError, "Invalid variable name: '" & var_name & "' not allowed in strict mode")
   c.localVars.incl(var_name)
   let varId = c.intern_string(var_name)
   
@@ -442,37 +459,76 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 4:
     c.currentSection += 1  # Skip malformed for
     return
-  
+
   let iter_var = c.input[tokens[1].start..<tokens[1].stop]
   c.localVars.incl(iter_var)
   let iter_varId = c.intern_string(iter_var)
-  
+
   # Find "in" position
   var inPos = 2
   while inPos < tokens.len and tokens[inPos].kind != tkIn:
     inc inPos
-  
+
   if inPos >= tokens.len:
     c.currentSection += 1  # Skip malformed for
     return
-  
-  # Simple validation for limit/offset - check for obvious string literals
+
+  # Find limit and offset positions in the token stream
+  var collectionEnd = tokens.len  # End of collection expression
+  var limitPos = -1  # Position of "limit" keyword
+  var offsetPos = -1  # Position of "offset" keyword
+
   for i in (inPos + 1)..<tokens.len:
     if tokens[i].kind == tkIdentifier:
       let token_text = c.input[tokens[i].start..<tokens[i].stop]
-      if token_text in ["limit", "offset"] and i + 2 < tokens.len and 
-         tokens[i + 1].kind == tkColon and tokens[i + 2].kind == tkString:
-        let strVal = c.input[tokens[i + 2].start + 1..<tokens[i + 2].stop - 1]  # Remove quotes
-        try:
-          discard parseInt(strVal)  # Valid number string - allow it
-        except ValueError:
-          raise newException(ValueError, token_text & " must be a number, got string '" & strVal & "'")
-  
-  # Compile collection expression (including limit/offset)
-  c.compile_expression(tokens, inPos + 1, tokens.len)
-  
+      if token_text == "limit" and i + 1 < tokens.len and tokens[i + 1].kind == tkColon:
+        limitPos = i
+        if collectionEnd > i:
+          collectionEnd = i
+      elif token_text == "offset" and i + 1 < tokens.len and tokens[i + 1].kind == tkColon:
+        offsetPos = i
+        if collectionEnd > i:
+          collectionEnd = i
+
+  # Validate collection expression starts with a valid token in strict mode
+  if c.strict and inPos + 1 < collectionEnd:
+    let collToken = tokens[inPos + 1]
+    if collToken.kind notin {tkIdentifier, tkLeftParen, tkString, tkNumber, tkTrue, tkFalse, tkNil}:
+      raise newException(ValueError, "Invalid for-loop collection expression")
+
+  # Compile collection expression (without limit/offset)
+  c.compile_expression(tokens, inPos + 1, collectionEnd)
+
+  # Check for offset: continue special case
+  var hasOffsetContinue = false
+  if offsetPos >= 0 and offsetPos + 2 < tokens.len and
+     tokens[offsetPos + 2].kind == tkContinue:
+    hasOffsetContinue = true
+
+  # Compile offset value (if present and not "continue") - pushed on stack first (popped last)
+  var hasOffset = false
+  if offsetPos >= 0 and not hasOffsetContinue:
+    hasOffset = true
+    # Find end of offset value (until limit keyword or end of tokens)
+    var offsetValueEnd = tokens.len
+    if limitPos > offsetPos:
+      offsetValueEnd = limitPos
+    c.compile_expression(tokens, offsetPos + 2, offsetValueEnd)
+
+  # Compile limit value (if present) - pushed on stack second (popped first)
+  var hasLimit = false
+  if limitPos >= 0:
+    hasLimit = true
+    # Find end of limit value (until offset keyword or end of tokens)
+    var limitValueEnd = tokens.len
+    if offsetPos > limitPos:
+      limitValueEnd = offsetPos
+    c.compile_expression(tokens, limitPos + 2, limitValueEnd)
+
   # Setup loop
-  c.emit(Instruction(op: opBeginLoop, loopVarIndex: iter_varId.uint16))
+  c.emit(Instruction(op: opBeginLoop, loopVarIndex: iter_varId.uint16,
+                     hasLimit: hasLimit, hasOffset: hasOffset,
+                     hasOffsetContinue: hasOffsetContinue))
   c.loopDepth += 1
   c.breakJumps.add(@[])
   c.continueJumps.add(@[])
@@ -556,6 +612,68 @@ proc compile_if(c: var Compiler, tokens: openArray[Token]) =
   else:
     c.patch_jump(jumpIfFalse)
 
+proc compile_increment(c: var Compiler, tokens: openArray[Token]) =
+  # {% increment var %} - output current value (default 0), then increment
+  if tokens.len < 2:
+    return
+  let var_name = c.input[tokens[1].start..<tokens[1].stop]
+  # Load variable (defaults to null), coerce null to 0, output, add 1, store
+  let varId = c.intern_string(var_name)
+  c.emit(Instruction(op: opLoadVar, stringId: varId))
+  c.emit(Instruction(op: opPushInt, intVal: 0))
+  c.emit(Instruction(op: opAdd))  # null + 0 = 0, n + 0 = n
+  c.emit(Instruction(op: opDup))
+  c.emit(Instruction(op: opOutput))
+  c.emit(Instruction(op: opPushInt, intVal: 1))
+  c.emit(Instruction(op: opAdd))
+  c.emit(Instruction(op: opStoreVar, stringId: varId))
+
+proc compile_decrement(c: var Compiler, tokens: openArray[Token]) =
+  # {% decrement var %} - decrement, then output (starts at -1)
+  if tokens.len < 2:
+    return
+  let var_name = c.input[tokens[1].start..<tokens[1].stop]
+  # Load variable (defaults to null/0), subtract 1, store, output
+  let varId = c.intern_string(var_name)
+  c.emit(Instruction(op: opLoadVar, stringId: varId))
+  c.emit(Instruction(op: opPushInt, intVal: 1))
+  c.emit(Instruction(op: opSubtract))
+  c.emit(Instruction(op: opDup))
+  c.emit(Instruction(op: opStoreVar, stringId: varId))
+  c.emit(Instruction(op: opOutput))
+
+proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
+  # Unless is the inverse of if: execute body when condition is FALSE
+  c.compile_expression(tokens, 1, tokens.len)
+  let jumpIfTrue = c.emit_jump(opJumpIfTrue)  # Skip body if condition is true
+
+  # Move past the unless tag
+  c.currentSection += 1
+
+  # Compile body (until else or endunless)
+  c.compile_until(@[tkElse, tkEndunless])
+
+  # Check what we stopped at
+  if c.currentSection < c.sections.len:
+    let section = c.sections[c.currentSection]
+    if section.kind == skTag and section.tokens.len > 0:
+      case section.tokens[0].kind
+      of tkElse:
+        let jumpEnd = c.emit_jump(opJump)
+        c.patch_jump(jumpIfTrue)
+        c.currentSection += 1  # Move past else
+        c.compile_until(@[tkEndunless])
+        c.patch_jump(jumpEnd)
+      of tkEndunless:
+        c.patch_jump(jumpIfTrue)
+        c.currentSection += 1  # Move past endunless
+      else:
+        c.patch_jump(jumpIfTrue)
+    else:
+      c.patch_jump(jumpIfTrue)
+  else:
+    c.patch_jump(jumpIfTrue)
+
 proc compile_case(c: var Compiler, tokens: openArray[Token]) =
   # Compile the expression being switched on
   if tokens.len > 1:
@@ -594,7 +712,7 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
         # Find end of current condition (until 'or' or ',' or end)
         var endPos = i
         while endPos < section.tokens.len and 
-              section.tokens[endPos].kind notin [tkOr, tkComma]:
+              section.tokens[endPos].kind notin [tkOr, tkComma, tkAnd]:
           inc endPos
         
         # Compile the condition value
@@ -607,7 +725,7 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
         
         # Move to next condition
         i = endPos
-        if i < section.tokens.len and section.tokens[i].kind in [tkOr, tkComma]:
+        if i < section.tokens.len and section.tokens[i].kind in [tkOr, tkComma, tkAnd]:
           inc i  # Skip the separator
       
       # No condition matched - pop case value and skip when body
@@ -666,6 +784,9 @@ proc compile_tag(c: var Compiler, section: Section) =
   of tkIf:
     c.compile_if(tokens)
     # compile_if handles its own advancement
+  of tkUnless:
+    c.compile_unless(tokens)
+    # compile_unless handles its own advancement
   of tkFor:
     c.compile_for(tokens)
     # compile_for handles its own advancement
@@ -684,13 +805,28 @@ proc compile_tag(c: var Compiler, section: Section) =
   of tkContinue:
     c.compile_continue()
     c.currentSection += 1  # Move past continue tag
-  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase:
+  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase, tkEndunless:
     # These are handled by their parent structures
     # Don't compile them directly
     c.currentSection += 1
+  of tkIdentifier:
+    # Handle custom tags by name (increment, decrement, etc.)
+    let tag_name = c.input[firstToken.start..<firstToken.stop]
+    case tag_name
+    of "increment":
+      c.compile_increment(tokens)
+      c.currentSection += 1
+    of "decrement":
+      c.compile_decrement(tokens)
+      c.currentSection += 1
+    else:
+      if c.strict:
+        raise newException(ValueError, "Unknown tag: '" & tag_name & "'")
+      c.currentSection += 1
   else:
-    # Unknown tag - for now just skip it
-    # TODO: Add proper unknown tag detection in strict mode
+    if c.strict:
+      let tag_name = c.input[firstToken.start..<firstToken.stop]
+      raise newException(ValueError, "Unknown tag: '" & tag_name & "'")
     c.currentSection += 1
 
 proc compile_section(c: var Compiler, section: Section) =
@@ -1881,3 +2017,69 @@ when isMainModule:
       
       # Break should compile but be associated with loop, not capture
       check result.bytecode.validateJumps()
+
+  suite "Case/When":
+    test "When with and separator":
+      # In Ruby Liquid, 'and' in when acts as a value separator (like 'or' or ',')
+      let source = "{% case x %}{% when 'a' and 'b', 'c' %}match{% endcase %}"
+      let result = compileTemplate(source)
+
+      # Should compile without errors and have proper structure
+      check result.hasInstruction(opDup)
+      check result.hasInstruction(opEqual)
+      check result.bytecode.validateJumps()
+
+  suite "Strict Mode":
+    test "Unknown tag raises in strict mode":
+      let source = "{% nosuchthing %}"
+      let sections = lex(source)
+      expect ValueError:
+        discard compile(sections, source, strict = true)
+
+    test "Unknown tag is ignored in non-strict mode":
+      let source = "{% nosuchthing %}"
+      let sections = lex(source)
+      let result = compile(sections, source, strict = false)
+      check result.bytecode.len == 0
+
+    test "@ identifier raises in strict mode":
+      let source = "{{ @foo }}"
+      let sections = lex(source)
+      expect ValueError:
+        discard compile(sections, source, strict = true)
+
+    test "? in assign raises in strict mode":
+      let source = "{% assign foo? = 'hello' %}"
+      let sections = lex(source)
+      expect ValueError:
+        discard compile(sections, source, strict = true)
+
+    test "? in output is allowed in strict mode":
+      let source = "{{ foo? }}"
+      let sections = lex(source)
+      let result = compile(sections, source, strict = true)
+      check result.bytecode.len > 0
+
+    test "@ identifier works in non-strict mode":
+      let source = "{{ @foo }}"
+      let sections = lex(source)
+      let result = compile(sections, source, strict = false)
+      check result.bytecode.len > 0
+
+    test "Leading hyphen in assign raises in strict mode":
+      let source = "{% assign -foo = 'hello' %}"
+      let sections = lex(source)
+      expect ValueError:
+        discard compile(sections, source, strict = true)
+
+    test "Leading hyphen in capture raises in strict mode":
+      let source = "{% capture -foo %}hello{% endcapture %}"
+      let sections = lex(source)
+      expect ValueError:
+        discard compile(sections, source, strict = true)
+
+    test "Leading hyphen in for-loop target raises in strict mode":
+      let source = "{% for x in -foo %}{{ x }}{% endfor %}"
+      let sections = lex(source)
+      expect ValueError:
+        discard compile(sections, source, strict = true)
