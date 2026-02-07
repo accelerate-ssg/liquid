@@ -17,6 +17,8 @@ proc compile_case(c: var Compiler, tokens: openArray[Token])
 proc compile_break(c: var Compiler)
 proc compile_continue(c: var Compiler)
 proc compile_until(c: var Compiler, stop_tags: seq[TokenKind])
+proc compile_include(c: var Compiler, tokens: openArray[Token])
+proc compile_render(c: var Compiler, tokens: openArray[Token])
 #proc peekNextTag(c: Compiler): TokenKind
 #proc skipToTag(c: var Compiler, tag: TokenKind)
 
@@ -455,6 +457,127 @@ proc compile_assign(c: var Compiler, tokens: openArray[Token]) =
   c.compile_expression(tokens, 3, tokens.len)
   c.emit(Instruction(op: opStoreVar, stringId: varId))
 
+proc compile_include_render(c: var Compiler, tokens: openArray[Token], withContext: bool) =
+  # {% include 'name' %}
+  # {% include 'name', key: value, ... %}
+  # {% include 'name' with var %}
+  # {% include 'name' with var as alias %}
+  # {% include 'name' for collection %}
+  # {% include var_name %}  (include only, variable template name)
+  # {% render 'name' %}
+  # {% render 'name', key: value, ... %}
+  # {% render 'name' with var %}
+  # {% render 'name' for collection %}
+  if tokens.len < 2:
+    return
+
+  var templateNameId: uint32
+  var isVarExpr = false
+  var pos = 1  # Skip "include"/"render" keyword
+
+  # Get template name
+  if tokens[pos].kind == tkString:
+    let name = c.input[tokens[pos].start + 1 ..< tokens[pos].stop - 1]  # Strip quotes
+    templateNameId = c.intern_string(name)
+  else:
+    # Variable template name (include only)
+    isVarExpr = true
+    c.compile_expression(tokens, pos, pos + 1)
+    templateNameId = 0  # Not used when isVarExpr=true
+  pos += 1
+
+  # Skip optional comma after name
+  if pos < tokens.len and tokens[pos].kind == tkComma:
+    pos += 1
+
+  # Parse optional modifiers: with, for, keyword args
+  var argNames: seq[uint32] = @[]
+  var includeWithVar: int32 = -1
+  var includeAlias: int32 = -1
+  var includeForVar: int32 = -1
+
+  while pos < tokens.len:
+    # Handle 'for' keyword (lexed as tkFor, not tkIdentifier)
+    if tokens[pos].kind == tkFor:
+      # {% include 'name' for collection %}  OR  {% render 'name' for collection %}
+      pos += 1
+      if pos < tokens.len:
+        # Find end of collection expression (until comma or end)
+        var exprEnd = pos + 1
+        while exprEnd < tokens.len and tokens[exprEnd].kind != tkComma:
+          exprEnd += 1
+        c.compile_expression(tokens, pos, exprEnd)
+        includeForVar = 0  # Marker that 'for' is active (collection value on stack)
+        pos = exprEnd
+    elif tokens[pos].kind == tkIdentifier:
+      let word = c.input[tokens[pos].start ..< tokens[pos].stop]
+      case word
+      of "with":
+        # {% include 'name' with expr %}
+        # {% include 'name' with expr as alias %}
+        pos += 1
+        if pos < tokens.len:
+          # Find end of 'with' expression (until 'as', comma, or end)
+          var exprEnd = pos
+          while exprEnd < tokens.len:
+            if tokens[exprEnd].kind == tkComma:
+              break
+            if tokens[exprEnd].kind == tkIdentifier:
+              let w = c.input[tokens[exprEnd].start ..< tokens[exprEnd].stop]
+              if w == "as":
+                break
+            exprEnd += 1
+          c.compile_expression(tokens, pos, exprEnd)
+          includeWithVar = 0  # Marker that 'with' is active (value is on stack)
+          pos = exprEnd
+          # Check for 'as' alias
+          if pos < tokens.len and tokens[pos].kind == tkIdentifier:
+            let maybeAs = c.input[tokens[pos].start ..< tokens[pos].stop]
+            if maybeAs == "as":
+              pos += 1
+              if pos < tokens.len:
+                let alias = c.input[tokens[pos].start ..< tokens[pos].stop]
+                includeAlias = c.intern_string(alias).int32
+                pos += 1
+      else:
+        # Keyword argument: key: value
+        let argName = c.intern_string(word)
+        pos += 1
+        # Skip colon
+        if pos < tokens.len and tokens[pos].kind == tkColon:
+          pos += 1
+        # Compile value expression (until comma or end)
+        var exprEnd = pos
+        while exprEnd < tokens.len and tokens[exprEnd].kind != tkComma:
+          exprEnd += 1
+        if pos < exprEnd:
+          c.compile_expression(tokens, pos, exprEnd)
+          argNames.add(argName)
+        pos = exprEnd
+    else:
+      # Unrecognized token, skip to avoid infinite loop
+      pos += 1
+    # Skip commas
+    if pos < tokens.len and tokens[pos].kind == tkComma:
+      pos += 1
+
+  c.emit(Instruction(op: opInclude,
+    templateId: templateNameId,
+    withContext: withContext,
+    includeArgCount: argNames.len.uint8,
+    includeArgNames: argNames,
+    includeVarExpr: isVarExpr,
+    includeWithVar: includeWithVar,
+    includeAlias: includeAlias,
+    includeForVar: includeForVar
+  ))
+
+proc compile_include(c: var Compiler, tokens: openArray[Token]) =
+  c.compile_include_render(tokens, withContext = true)
+
+proc compile_render(c: var Compiler, tokens: openArray[Token]) =
+  c.compile_include_render(tokens, withContext = false)
+
 proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 4:
     c.currentSection += 1  # Skip malformed for
@@ -818,6 +941,12 @@ proc compile_tag(c: var Compiler, section: Section) =
       c.currentSection += 1
     of "decrement":
       c.compile_decrement(tokens)
+      c.currentSection += 1
+    of "include":
+      c.compile_include(tokens)
+      c.currentSection += 1
+    of "render":
+      c.compile_render(tokens)
       c.currentSection += 1
     else:
       if c.strict:

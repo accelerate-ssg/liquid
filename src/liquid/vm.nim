@@ -7,6 +7,9 @@ import vm/[types]
 import std/[tables, strutils, sequtils, algorithm]
 import shared
 import filters
+import types as lexer_types
+import lexer
+import compiler
 
 # Create VM with data
 proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
@@ -268,6 +271,8 @@ proc execute*(vm: var LiquidVM): string =
           # Restore the forloop saved by the stale iterator
           if stale.saved_forloop.kind != vm_null:
             vm.locals["forloop"] = stale.saved_forloop
+          else:
+            vm.locals.del("forloop")
           vm.iterators.delete(i)
           break
 
@@ -354,7 +359,9 @@ proc execute*(vm: var LiquidVM): string =
           # Restore saved forloop from the finished iterator
           if finished_iter.saved_forloop.kind != vm_null:
             vm.locals["forloop"] = finished_iter.saved_forloop
-          # If saved is null, leave current forloop in place (it persists after loop ends)
+          else:
+            # No outer loop — forloop goes out of scope
+            vm.locals.del("forloop")
           vm.pc += inst.endOffset
     
     # Comparison
@@ -644,6 +651,121 @@ proc execute*(vm: var LiquidVM): string =
     of opNot:
       let v = vm.pop()
       vm.push(VMValue(kind: vmBool, boolVal: not v.is_truthy()))
+
+    of opInclude:
+      # Get partial name
+      var partialName: string
+      if inst.includeVarExpr:
+        let nameVal = vm.pop()
+        partialName = nameVal.to_string()
+      else:
+        partialName = vm.strings[inst.templateId]
+
+      # Pop keyword argument values from stack (in reverse order)
+      var kwArgs: seq[(string, VMValue)] = @[]
+      for i in countdown(inst.includeArgNames.len - 1, 0):
+        let val = vm.pop()
+        kwArgs.add((vm.strings[inst.includeArgNames[i]], val))
+
+      # Pop 'with' value if present
+      var withVal = VMValue(kind: vmNull)
+      if inst.includeWithVar >= 0:
+        withVal = vm.pop()
+
+      # Pop 'for' collection if present
+      var forCollection: seq[VMValue] = @[]
+      var hasForLoop = inst.includeForVar >= 0
+      if hasForLoop:
+        let collVal = vm.pop()
+        case collVal.kind
+        of vmArray: forCollection = collVal.arrayVal
+        else: discard
+
+      # Look up and compile the partial
+      if partialName notin vm.partials:
+        discard  # Missing partial outputs nothing
+      else:
+        # Compile partial (with caching)
+        if partialName notin vm.partial_cache:
+          let source = vm.partials[partialName]
+          let sections = lex(source)
+          let compiled = compile(sections, source, false)
+          vm.partial_cache[partialName] = (compiled.bytecode, compiled.strings, compiled.constants)
+
+        let cached = vm.partial_cache[partialName]
+
+        if hasForLoop:
+          # Iterate over collection, executing partial for each item
+          let totalItems = forCollection.len
+          for idx, item in forCollection:
+            var subVm = new_liquid_vm(cached.bytecode, cached.strings, cached.constants,
+                                      if inst.withContext: vm.variables else: initTable[string, VMValue](),
+                                      vm.partials)
+            if inst.withContext:
+              # Include: share locals
+              subVm.locals = vm.locals
+              subVm.loop_offsets = vm.loop_offsets
+            # Bind the loop item as the partial name variable
+            subVm.locals[partialName] = item
+            # Set keyword args
+            for (k, v) in kwArgs:
+              subVm.locals[k] = v
+            # Build forloop helper
+            var forloopObj = {
+              "index": vm_int((idx + 1).int64),
+              "index0": vm_int(idx.int64),
+              "first": vm_bool(idx == 0),
+              "last": vm_bool(idx == totalItems - 1),
+              "length": vm_int(totalItems.int64),
+              "rindex": vm_int((totalItems - idx).int64),
+              "rindex0": vm_int((totalItems - idx - 1).int64),
+              "parentloop": vm_null(),
+            }.toTable
+            subVm.locals["forloop"] = vm_object(forloopObj)
+
+            subVm.partial_cache = vm.partial_cache
+            let sub_output = subVm.execute()
+            if vm.is_capturing:
+              vm.capture_stack[^1].add(sub_output)
+            else:
+              vm.output.add(sub_output)
+            vm.partial_cache = subVm.partial_cache
+            if inst.withContext:
+              vm.locals = subVm.locals
+              vm.loop_offsets = subVm.loop_offsets
+        else:
+          # Single execution
+          var subVm = new_liquid_vm(cached.bytecode, cached.strings, cached.constants,
+                                    if inst.withContext: vm.variables else: initTable[string, VMValue](),
+                                    vm.partials)
+          if inst.withContext:
+            # Include: share locals (assigns persist back)
+            subVm.locals = vm.locals
+            subVm.loop_offsets = vm.loop_offsets
+
+          # Handle 'with' binding
+          if inst.includeWithVar >= 0:
+            if inst.includeAlias >= 0:
+              let alias = vm.strings[inst.includeAlias.uint32]
+              subVm.locals[alias] = withVal
+            else:
+              subVm.locals[partialName] = withVal
+
+          # Set keyword args
+          for (k, v) in kwArgs:
+            subVm.locals[k] = v
+
+          subVm.partial_cache = vm.partial_cache
+          let sub_output = subVm.execute()
+          if vm.is_capturing:
+            vm.capture_stack[^1].add(sub_output)
+          else:
+            vm.output.add(sub_output)
+          vm.partial_cache = subVm.partial_cache
+          if inst.withContext:
+            # Include: propagate locals back to parent
+            vm.locals = subVm.locals
+            vm.loop_offsets = subVm.loop_offsets
 
     else:
       # Unimplemented opcode
@@ -1355,10 +1477,10 @@ when isMainModule:
       let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3)])}.toTable
       check render_template(source, data) == "3-2 2-1 1-0 "
 
-    test "Forloop persists after loop":
+    test "Forloop goes out of scope after loop":
       let source = "{% for i in items %}{{ forloop.length }} {% endfor %}{{ forloop.length }}"
       let data = {"items": vmArray(@[vmInt(1), vmInt(2)])}.toTable
-      check render_template(source, data) == "2 2 2"
+      check render_template(source, data) == "2 2 "
 
     test "Nested forloop parentloop":
       let source = "{% for i in (1..2) %}{% for j in (1..2) %}{{ forloop.parentloop.index }}-{{ forloop.index }} {% endfor %}{% endfor %}"

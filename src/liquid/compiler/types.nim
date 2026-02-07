@@ -119,8 +119,14 @@ type
       tagId*: uint32
       tagArgCount*: uint8
     of opInclude:
-      templateId*: uint32
-      withContext*: bool
+      templateId*: uint32        # String ID of the partial name
+      withContext*: bool          # true = include (shared scope), false = render (isolated scope)
+      includeArgCount*: uint8    # Number of keyword arguments
+      includeArgNames*: seq[uint32]  # String IDs for keyword argument names
+      includeVarExpr*: bool      # true = template name is a variable (on stack), false = string literal
+      includeWithVar*: int32     # String ID for 'with' variable (-1 = none)
+      includeAlias*: int32       # String ID for 'as' alias (-1 = none)
+      includeForVar*: int32      # String ID for 'for' loop variable (-1 = none)
     of opBeginLoop:
       loopVarIndex*: uint16
       hasLimit*: bool
