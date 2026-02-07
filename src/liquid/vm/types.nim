@@ -1,4 +1,4 @@
-import std/[tables, hashes, algorithm, math]
+import std/[tables, hashes, algorithm, math, sets]
 
 from ../compiler/types import Instruction, VMValue, VMValueKind
 
@@ -66,6 +66,11 @@ type
 
     # Tag runtime handlers (for externalized tag implementations)
     tag_handlers*: Table[string, TagRuntimeHandler]
+
+    # Dependency tracking
+    track_access*: bool                    # Enable/disable tracking (default false = zero overhead)
+    path_stack*: seq[string]               # Shadow stack for property paths
+    accessed_paths*: HashSet[string]       # Recorded dependency paths
 
     # Performance
     instruction_count*: int
