@@ -11,6 +11,9 @@ import types as lexer_types
 import lexer
 import compiler
 
+# Forward declaration
+proc register_liquid_tag_handlers*(vm: var LiquidVM)
+
 # Create VM with data
 proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
                   constants: seq[VMValue], data: Table[string, VMValue],
@@ -28,15 +31,16 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     escape_html: false,
     capture_stack: @[],
     is_capturing: false,
-    # filters field removed - now using filters module directly
     loop_offsets: initTable[string, int](),
     partials: partials,
     partial_cache: initTable[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]](),
     pending_break: false,
     pending_continue: false,
+    tag_handlers: initTable[string, TagRuntimeHandler](),
     instruction_count: 0,
     max_stack_size: 0
   )
+  result.register_liquid_tag_handlers()
 
 # Stack operations
 template push(vm: var LiquidVM, val: VMValue) =
@@ -185,6 +189,239 @@ proc finish_iterator*(vm: var LiquidVM, iter_index: int = -1) =
     vm.locals["forloop"] = finished.saved_forloop
   else:
     vm.locals.del("forloop")
+
+# ─── Liquid Tag Runtime Handlers ──────────────────────────────────────
+
+proc tag_increment(vm: var LiquidVM, inst: Instruction) =
+  ## {% increment var %} - output current counter value, then increment
+  let var_name = vm.strings[inst.tagData[0]]
+  let current = vm.counters.getOrDefault(var_name, 0'i64)
+  vm.emit_output($current)
+  vm.counters[var_name] = current + 1
+
+proc tag_decrement(vm: var LiquidVM, inst: Instruction) =
+  ## {% decrement var %} - decrement counter, then output
+  let var_name = vm.strings[inst.tagData[0]]
+  let current = vm.counters.getOrDefault(var_name, 0'i64)
+  let new_val = current - 1
+  vm.counters[var_name] = new_val
+  vm.emit_output($new_val)
+
+proc tag_cycle(vm: var LiquidVM, inst: Instruction) =
+  ## {% cycle [group:] val1, val2, ... %} - output next value in cycle
+  # tagData layout: [groupId, groupIsVar, cycleKey, argCount]
+  let group_id = inst.tagData[0]
+  let group_is_var = inst.tagData[1] != 0
+  let cycle_key = inst.tagData[2]
+  let arg_count = inst.tagData[3].int
+
+  # Pop cycle values from stack (in reverse order since stack is LIFO)
+  var values: seq[VMValue] = newSeq[VMValue](arg_count)
+  for i in countdown(arg_count - 1, 0):
+    values[i] = vm.pop()
+
+  # Determine the group key
+  var group_key: string
+  if group_id >= 0:
+    if group_is_var:
+      group_key = vm.resolve_var(vm.strings[group_id.uint32]).to_string()
+    else:
+      group_key = vm.strings[group_id.uint32]
+  else:
+    group_key = vm.strings[cycle_key.uint32]
+
+  # Get current iteration index for this group
+  let iteration = vm.cycle_counters.getOrDefault(group_key, 0)
+  if arg_count > 0:
+    if iteration < arg_count:
+      vm.emit_output(values[iteration].to_string())
+    var next = iteration + 1
+    if next >= arg_count:
+      next = 0
+    vm.cycle_counters[group_key] = next
+
+proc tag_ifchanged_begin(vm: var LiquidVM, inst: Instruction) =
+  ## {% ifchanged %} - start capturing output for comparison
+  vm.capture_stack.add("")
+  vm.is_capturing = true
+  vm.capture_escape_stack.add(vm.escape_html)
+  vm.escape_html = false
+
+proc tag_ifchanged_end(vm: var LiquidVM, inst: Instruction) =
+  ## End ifchanged block - compare captured output with previous
+  if vm.capture_stack.len > 0:
+    let captured = vm.capture_stack.pop()
+    vm.is_capturing = vm.capture_stack.len > 0
+    if vm.capture_escape_stack.len > 0:
+      vm.escape_html = vm.capture_escape_stack.pop()
+    if captured != vm.ifchanged_last:
+      vm.ifchanged_last = captured
+      vm.emit_output(captured)
+
+proc tag_tablerow_begin(vm: var LiquidVM, inst: Instruction) =
+  ## {% tablerow var in collection %} - begin tablerow loop
+  # tagData layout: [varIndex, hasCols, hasLimit, hasOffset]
+  let var_index = inst.tagData[0]
+  let has_cols = inst.tagData[1] != 0
+  let has_limit = inst.tagData[2] != 0
+  let has_offset = inst.tagData[3] != 0
+
+  var cols_val = 0
+  var limit_val = -1'i64
+  var offset_val = 0'i64
+
+  if has_cols:
+    let cv = vm.pop()
+    case cv.kind
+    of vmInt: cols_val = cv.intVal.int
+    of vmFloat: cols_val = cv.floatVal.int
+    of vmString:
+      try: cols_val = parseInt(cv.stringVal)
+      except ValueError: discard
+    else: discard
+
+  if has_limit:
+    let lv = vm.pop()
+    case lv.kind
+    of vmInt: limit_val = lv.intVal
+    of vmFloat: limit_val = lv.floatVal.int64
+    of vmString:
+      try: limit_val = parseInt(lv.stringVal).int64
+      except ValueError: discard
+    of vmNull: limit_val = 0
+    else: discard
+
+  if has_offset:
+    let ov = vm.pop()
+    case ov.kind
+    of vmInt: offset_val = ov.intVal
+    of vmFloat: offset_val = ov.floatVal.int64
+    of vmString:
+      try: offset_val = parseInt(ov.stringVal).int64
+      except ValueError: discard
+    of vmNull: offset_val = 0
+    else: discard
+
+  let collection = vm.pop()
+  var items: seq[VMValue] = @[]
+
+  case collection.kind
+  of vmArray: items = collection.arrayVal
+  of vmObject:
+    for key, val in collection.objectVal:
+      items.add(VMValue(kind: vmArray, arrayVal: @[
+        VMValue(kind: vmString, stringVal: key), val]))
+  else: discard
+
+  # Apply offset
+  if offset_val > 0 and offset_val < items.len.int64:
+    items = items[offset_val..^1]
+  elif offset_val >= items.len.int64:
+    items = @[]
+
+  # Apply limit
+  if limit_val >= 0 and limit_val < items.len.int64:
+    items = items[0..<limit_val]
+
+  if items.len == 0:
+    let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
+    vm.tablerow_iters.add(TablerowState(
+      items: @[], index: 0, cols: cols_val,
+      var_name: vm.strings[var_index],
+      saved_tablerowloop: saved_trl))
+  else:
+    let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
+    let var_name = vm.strings[var_index]
+    vm.tablerow_iters.add(TablerowState(
+      items: items, index: 0, cols: cols_val,
+      var_name: var_name, saved_tablerowloop: saved_trl))
+    vm.locals[var_name] = items[0]
+
+    let total = items.len
+    let effective_cols = if cols_val > 0: cols_val else: total
+    var trl = initOrderedTable[string, VMValue]()
+    trl["col"] = vm_int(1)
+    trl["col0"] = vm_int(0)
+    trl["col_first"] = vm_bool(true)
+    trl["col_last"] = vm_bool(0 == effective_cols - 1 or 0 == total - 1)
+    trl["first"] = vm_bool(true)
+    trl["index"] = vm_int(1)
+    trl["index0"] = vm_int(0)
+    trl["last"] = vm_bool(total == 1)
+    trl["length"] = vm_int(total.int64)
+    trl["rindex"] = vm_int(total.int64)
+    trl["rindex0"] = vm_int((total - 1).int64)
+    trl["row"] = vm_int(1)
+    vm.locals["tablerowloop"] = vm_object(trl)
+    vm.emit_output("<tr class=\"row1\">\n<td class=\"col1\">")
+
+proc tag_tablerow_iter(vm: var LiquidVM, inst: Instruction) =
+  ## Tablerow iteration - handle cell closing, row wrapping, iteration
+  # tagData layout: [endOffset, bodyOffset]
+  let end_offset = inst.tagData[0]
+  let body_offset = inst.tagData[1]
+
+  if vm.tablerow_iters.len == 0:
+    vm.pc += end_offset
+  else:
+    let state = addr vm.tablerow_iters[^1]
+    if state.items.len == 0:
+      if state.saved_tablerowloop.kind != vm_null:
+        vm.locals["tablerowloop"] = state.saved_tablerowloop
+      else:
+        vm.locals.del("tablerowloop")
+      vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
+      vm.pc += end_offset
+    else:
+      vm.emit_output("</td>")
+      state.index += 1
+      if state.index >= state.items.len:
+        vm.emit_output("</tr>\n")
+        vm.locals.del(state.var_name)
+        if state.saved_tablerowloop.kind != vm_null:
+          vm.locals["tablerowloop"] = state.saved_tablerowloop
+        else:
+          vm.locals.del("tablerowloop")
+        vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
+        vm.pc += end_offset
+      else:
+        let total = state.items.len
+        let idx = state.index
+        let effective_cols = if state.cols > 0: state.cols else: total
+        let col0 = idx mod effective_cols
+        let col = col0 + 1
+        let row = (idx div effective_cols) + 1
+        var html = ""
+        if col0 == 0:
+          html.add("</tr>\n<tr class=\"row" & $row & "\">")
+        html.add("<td class=\"col" & $col & "\">")
+        vm.emit_output(html)
+        vm.locals[state.var_name] = state.items[idx]
+        var trl = initOrderedTable[string, VMValue]()
+        trl["col"] = vm_int(col.int64)
+        trl["col0"] = vm_int(col0.int64)
+        trl["col_first"] = vm_bool(col0 == 0)
+        trl["col_last"] = vm_bool(col0 == effective_cols - 1 or idx == total - 1)
+        trl["first"] = vm_bool(idx == 0)
+        trl["index"] = vm_int((idx + 1).int64)
+        trl["index0"] = vm_int(idx.int64)
+        trl["last"] = vm_bool(idx == total - 1)
+        trl["length"] = vm_int(total.int64)
+        trl["rindex"] = vm_int((total - idx).int64)
+        trl["rindex0"] = vm_int((total - idx - 1).int64)
+        trl["row"] = vm_int(row.int64)
+        vm.locals["tablerowloop"] = vm_object(trl)
+        vm.pc += body_offset
+
+proc register_liquid_tag_handlers*(vm: var LiquidVM) =
+  ## Register all Liquid tag runtime handlers
+  vm.tag_handlers["increment"] = tag_increment
+  vm.tag_handlers["decrement"] = tag_decrement
+  vm.tag_handlers["cycle"] = tag_cycle
+  vm.tag_handlers["ifchanged_begin"] = tag_ifchanged_begin
+  vm.tag_handlers["ifchanged_end"] = tag_ifchanged_end
+  vm.tag_handlers["tablerow_begin"] = tag_tablerow_begin
+  vm.tag_handlers["tablerow_iter"] = tag_tablerow_iter
 
 # Main execution function
 proc execute*(vm: var LiquidVM): string =
@@ -343,70 +580,13 @@ proc execute*(vm: var LiquidVM): string =
         if vm.capture_escape_stack.len > 0:
           vm.escape_html = vm.capture_escape_stack.pop()
     
-    of opCycle:
-      # Pop cycle values from stack (in reverse order since stack is LIFO)
-      var values: seq[VMValue] = newSeq[VMValue](inst.cycleArgCount.int)
-      for i in countdown(inst.cycleArgCount.int - 1, 0):
-        values[i] = vm.pop()
-
-      # Determine the group key
-      var group_key: string
-      if inst.cycleGroupId >= 0:
-        if inst.cycleGroupIsVar:
-          # Resolve variable name to get group key
-          group_key = vm.resolve_var(vm.strings[inst.cycleGroupId.uint32]).to_string()
-        else:
-          # Literal group name
-          group_key = vm.strings[inst.cycleGroupId.uint32]
+    of opCallTag:
+      # Runtime dispatch to registered tag handler
+      let tag_name = vm.strings[inst.tagId]
+      if tag_name in vm.tag_handlers:
+        vm.tag_handlers[tag_name](vm, inst)
       else:
-        # Unnamed cycle - use the compile-time key
-        group_key = vm.strings[inst.cycleKey]
-
-      # Get current iteration index for this group
-      let iteration = vm.cycle_counters.getOrDefault(group_key, 0)
-      let arg_count = inst.cycleArgCount.int
-      if arg_count > 0:
-        # Output value at current index (out of bounds → nothing)
-        if iteration < arg_count:
-          vm.emit_output(values[iteration].to_string())
-        # Increment counter, reset to 0 if >= current arg count
-        var next = iteration + 1
-        if next >= arg_count:
-          next = 0
-        vm.cycle_counters[group_key] = next
-
-    of opIncrement:
-      let var_name = vm.strings[inst.stringId]
-      let current = vm.counters.getOrDefault(var_name, 0'i64)
-      vm.emit_output($current)
-      vm.counters[var_name] = current + 1
-
-    of opDecrement:
-      let var_name = vm.strings[inst.stringId]
-      let current = vm.counters.getOrDefault(var_name, 0'i64)
-      let new_val = current - 1
-      vm.counters[var_name] = new_val
-      vm.emit_output($new_val)
-
-    of opBeginIfchanged:
-      # Start capturing output for ifchanged comparison
-      vm.capture_stack.add("")
-      vm.is_capturing = true
-      vm.capture_escape_stack.add(vm.escape_html)
-      vm.escape_html = false
-
-    of opEndIfchanged:
-      if vm.capture_stack.len > 0:
-        let captured = vm.capture_stack.pop()
-        vm.is_capturing = vm.capture_stack.len > 0
-        if vm.capture_escape_stack.len > 0:
-          vm.escape_html = vm.capture_escape_stack.pop()
-
-        # Compare with last ifchanged output
-        if captured != vm.ifchanged_last:
-          vm.ifchanged_last = captured
-          vm.emit_output(captured)
-        # If same, suppress output (do nothing)
+        raise newException(CatchableError, "Unknown tag handler: " & tag_name)
 
     of opBeginBlankCheck:
       # Record current output position for blank detection
@@ -437,181 +617,8 @@ proc execute*(vm: var LiquidVM): string =
           if isBlank:
             vm.output.setLen(startPos)
 
-    of opTablerowBegin:
-      # Pop cols, limit, offset, collection from stack (in reverse push order)
-      var cols_val = 0  # 0 = unlimited (all in one row)
-      var limit_val = -1'i64
-      var offset_val = 0'i64
-
-      if inst.tablerowHasCols:
-        let cv = vm.pop()
-        case cv.kind
-        of vmInt: cols_val = cv.intVal.int
-        of vmFloat: cols_val = cv.floatVal.int
-        of vmString:
-          try: cols_val = parseInt(cv.stringVal)
-          except ValueError: discard
-        else: discard
-
-      if inst.tablerowHasLimit:
-        let lv = vm.pop()
-        case lv.kind
-        of vmInt: limit_val = lv.intVal
-        of vmFloat: limit_val = lv.floatVal.int64
-        of vmString:
-          try: limit_val = parseInt(lv.stringVal).int64
-          except ValueError: discard
-        of vmNull: limit_val = 0
-        else: discard
-
-      if inst.tablerowHasOffset:
-        let ov = vm.pop()
-        case ov.kind
-        of vmInt: offset_val = ov.intVal
-        of vmFloat: offset_val = ov.floatVal.int64
-        of vmString:
-          try: offset_val = parseInt(ov.stringVal).int64
-          except ValueError: discard
-        of vmNull: offset_val = 0
-        else: discard
-
-      let collection = vm.pop()
-      var items: seq[VMValue] = @[]
-
-      case collection.kind
-      of vmArray: items = collection.arrayVal
-      of vmObject:
-        for key, val in collection.objectVal:
-          items.add(VMValue(kind: vmArray, arrayVal: @[
-            VMValue(kind: vmString, stringVal: key), val]))
-      else: discard
-
-      # Apply offset
-      if offset_val > 0 and offset_val < items.len.int64:
-        items = items[offset_val..^1]
-      elif offset_val >= items.len.int64:
-        items = @[]
-
-      # Apply limit
-      if limit_val >= 0 and limit_val < items.len.int64:
-        items = items[0..<limit_val]
-
-      if items.len == 0:
-        # Empty collection - skip to end (will be handled by opTablerowIter's endOffset)
-        # Push a dummy state so opTablerowIter can clean up
-        let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
-        vm.tablerow_iters.add(TablerowState(
-          items: @[], index: 0, cols: cols_val,
-          var_name: vm.strings[inst.tablerowVarIndex],
-          saved_tablerowloop: saved_trl))
-      else:
-        # Save current tablerowloop
-        let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
-
-        let var_name = vm.strings[inst.tablerowVarIndex]
-        vm.tablerow_iters.add(TablerowState(
-          items: items, index: 0, cols: cols_val,
-          var_name: var_name, saved_tablerowloop: saved_trl))
-
-        # Set loop variable to first item
-        vm.locals[var_name] = items[0]
-
-        # Set up tablerowloop variable
-        let total = items.len
-        let col0 = 0
-        let col = col0 + 1
-        let row = 1
-        let effective_cols = if cols_val > 0: cols_val else: total
-        var trl = initOrderedTable[string, VMValue]()
-        trl["col"] = vm_int(col.int64)
-        trl["col0"] = vm_int(col0.int64)
-        trl["col_first"] = vm_bool(true)
-        trl["col_last"] = vm_bool(col0 == effective_cols - 1 or 0 == total - 1)
-        trl["first"] = vm_bool(true)
-        trl["index"] = vm_int(1)
-        trl["index0"] = vm_int(0)
-        trl["last"] = vm_bool(total == 1)
-        trl["length"] = vm_int(total.int64)
-        trl["rindex"] = vm_int(total.int64)
-        trl["rindex0"] = vm_int((total - 1).int64)
-        trl["row"] = vm_int(row.int64)
-        vm.locals["tablerowloop"] = vm_object(trl)
-
-        # Output first row opening: <tr class="row1">\n<td class="col1">
-        vm.emit_output("<tr class=\"row1\">\n<td class=\"col1\">")
-
-    of opTablerowIter:
-      if vm.tablerow_iters.len == 0:
-        vm.pc += inst.tablerowEndOffset
-      else:
-        let state = addr vm.tablerow_iters[^1]
-
-        if state.items.len == 0:
-          # Empty collection - skip to end
-          # Restore saved tablerowloop
-          if state.saved_tablerowloop.kind != vm_null:
-            vm.locals["tablerowloop"] = state.saved_tablerowloop
-          else:
-            vm.locals.del("tablerowloop")
-          vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
-          vm.pc += inst.tablerowEndOffset
-        else:
-          # Close current cell
-          vm.emit_output("</td>")
-
-          # Advance to next item
-          state.index += 1
-
-          if state.index >= state.items.len:
-            # Done iterating - close final row
-            vm.emit_output("</tr>\n")
-
-            # Clean up
-            vm.locals.del(state.var_name)
-            if state.saved_tablerowloop.kind != vm_null:
-              vm.locals["tablerowloop"] = state.saved_tablerowloop
-            else:
-              vm.locals.del("tablerowloop")
-            vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
-            vm.pc += inst.tablerowEndOffset
-          else:
-            # More items - handle row wrapping
-            let total = state.items.len
-            let idx = state.index
-            let effective_cols = if state.cols > 0: state.cols else: total
-            let col0 = idx mod effective_cols
-            let col = col0 + 1
-            let row = (idx div effective_cols) + 1
-
-            var html = ""
-            if col0 == 0:
-              # Start of new row
-              html.add("</tr>\n<tr class=\"row" & $row & "\">")
-            html.add("<td class=\"col" & $col & "\">")
-
-            vm.emit_output(html)
-
-            # Set loop variable
-            vm.locals[state.var_name] = state.items[idx]
-
-            # Update tablerowloop
-            var trl = initOrderedTable[string, VMValue]()
-            trl["col"] = vm_int(col.int64)
-            trl["col0"] = vm_int(col0.int64)
-            trl["col_first"] = vm_bool(col0 == 0)
-            trl["col_last"] = vm_bool(col0 == effective_cols - 1 or idx == total - 1)
-            trl["first"] = vm_bool(idx == 0)
-            trl["index"] = vm_int((idx + 1).int64)
-            trl["index0"] = vm_int(idx.int64)
-            trl["last"] = vm_bool(idx == total - 1)
-            trl["length"] = vm_int(total.int64)
-            trl["rindex"] = vm_int((total - idx).int64)
-            trl["rindex0"] = vm_int((total - idx - 1).int64)
-            trl["row"] = vm_int(row.int64)
-            vm.locals["tablerowloop"] = vm_object(trl)
-
-            # Jump back to body
-            vm.pc += inst.tablerowBodyOffset
+    # Note: opTablerowBegin, opTablerowIter, opCycle, opIncrement, opDecrement,
+    # opBeginIfchanged, opEndIfchanged are handled via opCallTag dispatch above
 
     # Control flow
     of opJump:

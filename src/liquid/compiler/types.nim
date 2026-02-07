@@ -137,8 +137,9 @@ type
       filterId*: uint32
       argCount*: uint8
     of opCallTag:
-      tagId*: uint32
-      tagArgCount*: uint8
+      tagId*: uint32          # String ID of tag name (for runtime dispatch)
+      tagArgCount*: uint8     # Number of arguments on stack
+      tagData*: seq[int32]    # Tag-specific data (jump offsets, flags, etc.)
     of opInclude:
       templateId*: uint32        # String ID of the partial name
       withContext*: bool          # true = include (shared scope), false = render (isolated scope)

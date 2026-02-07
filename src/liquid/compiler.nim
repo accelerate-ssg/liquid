@@ -933,7 +933,8 @@ proc compile_increment(c: var Compiler, tokens: openArray[Token]) =
     return
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
   let varId = c.intern_string(var_name)
-  c.emit(Instruction(op: opIncrement, stringId: varId))
+  let tagId = c.intern_string("increment")
+  c.emit(Instruction(op: opCallTag, tagId: tagId, tagArgCount: 0, tagData: @[varId.int32]))
 
 proc compile_decrement(c: var Compiler, tokens: openArray[Token]) =
   # {% decrement var %} - decrement counter, then output (starts at -1)
@@ -942,7 +943,8 @@ proc compile_decrement(c: var Compiler, tokens: openArray[Token]) =
     return
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
   let varId = c.intern_string(var_name)
-  c.emit(Instruction(op: opDecrement, stringId: varId))
+  let tagId = c.intern_string("decrement")
+  c.emit(Instruction(op: opCallTag, tagId: tagId, tagArgCount: 0, tagData: @[varId.int32]))
 
 proc compile_cycle(c: var Compiler, tokens: openArray[Token]) =
   # {% cycle [name:] val1, val2, ... %}
@@ -999,11 +1001,9 @@ proc compile_cycle(c: var Compiler, tokens: openArray[Token]) =
   if group_id == -1:
     cycle_key = c.intern_string(key_parts.join(","))
 
-  c.emit(Instruction(op: opCycle,
-    cycleGroupId: group_id,
-    cycleGroupIsVar: group_is_var,
-    cycleArgCount: arg_count,
-    cycleKey: cycle_key))
+  let tagId = c.intern_string("cycle")
+  c.emit(Instruction(op: opCallTag, tagId: tagId, tagArgCount: arg_count,
+    tagData: @[group_id, (if group_is_var: 1'i32 else: 0'i32), cycle_key.int32, arg_count.int32]))
 
 proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
   # {% tablerow var in collection [cols:N] [limit:N] [offset:N] %}...{% endtablerow %}
@@ -1074,12 +1074,14 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
     let valEnd = findValueEnd(tokens, colsPos, colsPos, limitPos, offsetPos)
     c.compile_expression(tokens, colsPos + 2, valEnd)
 
-  # Emit tablerow begin
-  c.emit(Instruction(op: opTablerowBegin,
-    tablerowVarIndex: iter_varId.uint16,
-    tablerowHasLimit: hasLimit,
-    tablerowHasOffset: hasOffset,
-    tablerowHasCols: hasCols))
+  # Emit tablerow_begin via opCallTag
+  # tagData: [varIndex, hasCols, hasLimit, hasOffset]
+  let beginTagId = c.intern_string("tablerow_begin")
+  c.emit(Instruction(op: opCallTag, tagId: beginTagId, tagArgCount: 0,
+    tagData: @[iter_varId.int32,
+               (if hasCols: 1'i32 else: 0'i32),
+               (if hasLimit: 1'i32 else: 0'i32),
+               (if hasOffset: 1'i32 else: 0'i32)]))
 
   # Mark body start position
   let bodyStart = c.instructions.len
@@ -1090,19 +1092,18 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
   # Compile loop body (until endtablerow)
   c.compile_until(@[tkEndtablerow])
 
-  # Emit tablerow iteration (handles </td>, row wrapping, loops back or ends)
+  # Emit tablerow_iter via opCallTag
+  # tagData: [endOffset, bodyOffset] — endOffset will be patched
+  let iterTagId = c.intern_string("tablerow_iter")
   let iterPos = c.instructions.len
-  c.emit(Instruction(op: opTablerowIter,
-    tablerowEndOffset: 0,  # Will be patched
-    tablerowBodyOffset: (bodyStart - c.instructions.len - 1).int32))
+  c.emit(Instruction(op: opCallTag, tagId: iterTagId, tagArgCount: 0,
+    tagData: @[0'i32, (bodyStart - c.instructions.len - 1).int32]))
 
   # After loop
   let afterLoop = c.instructions.len
 
-  # Patch the iter instruction's end offset
-  c.instructions[iterPos] = Instruction(op: opTablerowIter,
-    tablerowEndOffset: (afterLoop - iterPos - 1).int32,
-    tablerowBodyOffset: (bodyStart - iterPos - 1).int32)
+  # Patch the iter instruction's end offset (tagData[0])
+  c.instructions[iterPos].tagData[0] = (afterLoop - iterPos - 1).int32
 
   # Move past endtablerow
   if c.currentSection < c.sections.len:
@@ -1113,7 +1114,8 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
 
 proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
   # {% ifchanged %}...{% endifchanged %}
-  c.emit(Instruction(op: opBeginIfchanged))
+  let beginTagId = c.intern_string("ifchanged_begin")
+  c.emit(Instruction(op: opCallTag, tagId: beginTagId, tagArgCount: 0, tagData: @[]))
 
   # Move past the ifchanged tag
   c.currentSection += 1
@@ -1121,7 +1123,8 @@ proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
   # Compile body until endifchanged
   c.compile_until(@[tkEndifchanged])
 
-  c.emit(Instruction(op: opEndIfchanged))
+  let endTagId = c.intern_string("ifchanged_end")
+  c.emit(Instruction(op: opCallTag, tagId: endTagId, tagArgCount: 0, tagData: @[]))
 
   # Move past endifchanged
   if c.currentSection < c.sections.len:

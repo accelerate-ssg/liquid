@@ -1,8 +1,11 @@
 import std/[tables, hashes, algorithm, math]
 
-from ../compiler/types import Instruction, VMValue
+from ../compiler/types import Instruction, VMValue, VMValueKind
 
 type
+  # Tag runtime handler (forward declaration for LiquidVM)
+  TagRuntimeHandler* = proc(vm: var LiquidVM, inst: Instruction) {.nimcall.}
+
   # Runtime VM for executing templates
   LiquidVM* = object
     # Execution state
@@ -60,6 +63,9 @@ type
 
     # Blank check state (for whitespace-only block suppression)
     blank_check_stack*: seq[int]  # Stack of output positions to check
+
+    # Tag runtime handlers (for externalized tag implementations)
+    tag_handlers*: Table[string, TagRuntimeHandler]
 
     # Performance
     instruction_count*: int
