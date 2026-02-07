@@ -262,20 +262,24 @@ create_filter:
   proc lstrip(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    var s = value.stringVal
-    while s.len > 0 and s[0] in {' ', '\t', '\n', '\r'}:
-      s = s[1..^1]
-    result = VMValue(kind: vmString, stringVal: s)
+    var i = 0
+    while i < value.stringVal.len and value.stringVal[i] in {' ', '\t', '\n', '\r'}:
+      inc i
+    if i == 0:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal[i..^1])
 
-# Removes trailing whitespace from a string  
+# Removes trailing whitespace from a string
 create_filter:
   proc rstrip(value: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    var s = value.stringVal
-    while s.len > 0 and s[^1] in {' ', '\t', '\n', '\r'}:
-      s = s[0..^2]
-    result = VMValue(kind: vmString, stringVal: s)
+    var i = value.stringVal.len - 1
+    while i >= 0 and value.stringVal[i] in {' ', '\t', '\n', '\r'}:
+      dec i
+    if i == value.stringVal.len - 1:
+      return value
+    result = VMValue(kind: vmString, stringVal: value.stringVal[0..i])
 
 # Extracts a substring from a string
 create_filter:

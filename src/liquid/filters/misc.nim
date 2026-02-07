@@ -88,15 +88,15 @@ create_filter:
   proc url_encode(value: VMValue, args: varargs[VMValue]): VMValue =
     if value.kind != vmString:
       return value
-    
-    # Simple URL encoding - replace spaces and special chars
-    var encoded = value.stringVal
-    encoded = encoded.replace(" ", "%20")
-    encoded = encoded.replace("&", "%26")
-    encoded = encoded.replace("=", "%3D")
-    encoded = encoded.replace("?", "%3F")
-    encoded = encoded.replace("#", "%23")
-    
+    var encoded = newStringOfCap(value.stringVal.len)
+    for c in value.stringVal:
+      case c
+      of ' ': encoded.add("%20")
+      of '&': encoded.add("%26")
+      of '=': encoded.add("%3D")
+      of '?': encoded.add("%3F")
+      of '#': encoded.add("%23")
+      else: encoded.add(c)
     result = VMValue(kind: vmString, stringVal: encoded)
 
 # URL decodes a string
@@ -104,15 +104,8 @@ create_filter:
   proc url_decode(value: VMValue, args: varargs[VMValue]): VMValue =
     if value.kind != vmString:
       return value
-    
-    # Simple URL decoding
-    var decoded = value.stringVal
-    decoded = decoded.replace("%20", " ")
-    decoded = decoded.replace("%26", "&")
-    decoded = decoded.replace("%3D", "=")
-    decoded = decoded.replace("%3F", "?")
-    decoded = decoded.replace("%23", "#")
-    
+    let decoded = value.stringVal.multiReplace(
+      ("%20", " "), ("%26", "&"), ("%3D", "="), ("%3F", "?"), ("%23", "#"))
     result = VMValue(kind: vmString, stringVal: decoded)
 
 # Returns the type of the value as a string
