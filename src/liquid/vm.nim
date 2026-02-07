@@ -190,6 +190,66 @@ proc finish_iterator*(vm: var LiquidVM, iter_index: int = -1) =
   else:
     vm.locals.del("forloop")
 
+# ─── Partial Execution Helpers ───────────────────────────────────────
+
+proc compile_partial*(vm: var LiquidVM, name: string):
+    tuple[bytecode: seq[Instruction], strings: seq[string],
+          constants: seq[VMValue], found: bool] =
+  ## Look up partial source, compile on first use, cache result.
+  ## Returns found=false if partial doesn't exist.
+  if name notin vm.partials:
+    result.found = false
+    return
+  if name notin vm.partial_cache:
+    let source = vm.partials[name]
+    let sections = lex(source)
+    let compiled = compile(sections, source, false)
+    vm.partial_cache[name] = (compiled.bytecode, compiled.strings, compiled.constants)
+  let cached = vm.partial_cache[name]
+  result = (cached.bytecode, cached.strings, cached.constants, true)
+
+proc create_sub_vm*(vm: var LiquidVM, bytecode: seq[Instruction],
+                    strings: seq[string], constants: seq[VMValue],
+                    shared_scope: bool): LiquidVM =
+  ## Create a sub-VM for partial execution.
+  ## shared_scope=true (include): shares variables, locals, loop_offsets, counters
+  ## shared_scope=false (render): isolated empty scope
+  result = new_liquid_vm(bytecode, strings, constants,
+    if shared_scope: vm.variables else: initTable[string, VMValue](),
+    vm.partials)
+  if shared_scope:
+    result.locals = vm.locals
+    result.loop_offsets = vm.loop_offsets
+    result.counters = vm.counters
+  result.partial_cache = vm.partial_cache
+
+proc propagate_scope*(vm: var LiquidVM, sub: LiquidVM,
+                      shared_scope: bool, propagate_control: bool = true) =
+  ## Propagate state from sub-VM back to parent.
+  ## Only propagates for include (shared_scope=true).
+  ## propagate_control=true also copies counters and break/continue flags.
+  vm.partial_cache = sub.partial_cache
+  if shared_scope:
+    vm.locals = sub.locals
+    vm.loop_offsets = sub.loop_offsets
+    if propagate_control:
+      vm.counters = sub.counters
+      if sub.pending_break: vm.pending_break = true
+      if sub.pending_continue: vm.pending_continue = true
+
+proc bind_keyword_args*(sub: var LiquidVM,
+                        kwArgs: seq[(string, VMValue)],
+                        shared_scope: bool) =
+  ## Bind keyword arguments to sub-VM.
+  ## shared_scope=true: keyword_args overlay (read-only)
+  ## shared_scope=false: locals (isolated)
+  if shared_scope:
+    for (k, v) in kwArgs:
+      sub.keyword_args[k] = v
+  else:
+    for (k, v) in kwArgs:
+      sub.locals[k] = v
+
 # ─── Liquid Tag Runtime Handlers ──────────────────────────────────────
 
 proc tag_increment(vm: var LiquidVM, inst: Instruction) =
@@ -987,124 +1047,56 @@ proc execute*(vm: var LiquidVM): string =
       vm.push(VMValue(kind: vmBool, boolVal: not v.is_truthy()))
 
     of opInclude:
-      # Get partial name
+      # Pop stack arguments
       var partialName: string
       if inst.includeVarExpr:
-        let nameVal = vm.pop()
-        partialName = nameVal.to_string()
+        partialName = vm.pop().to_string()
       else:
         partialName = vm.strings[inst.templateId]
 
-      # Pop keyword argument values from stack (in reverse order)
       var kwArgs: seq[(string, VMValue)] = @[]
       for i in countdown(inst.includeArgNames.len - 1, 0):
-        let val = vm.pop()
-        kwArgs.add((vm.strings[inst.includeArgNames[i]], val))
+        kwArgs.add((vm.strings[inst.includeArgNames[i]], vm.pop()))
 
-      # Pop 'with' value if present
       var withVal = VMValue(kind: vmNull)
       if inst.includeWithVar >= 0:
         withVal = vm.pop()
 
-      # Pop 'for' collection if present
       var forCollection: seq[VMValue] = @[]
-      var hasForLoop = inst.includeForVar >= 0
+      let hasForLoop = inst.includeForVar >= 0
       if hasForLoop:
         let collVal = vm.pop()
-        case collVal.kind
-        of vmArray: forCollection = collVal.arrayVal
-        else: discard
+        if collVal.kind == vmArray:
+          forCollection = collVal.arrayVal
 
-      # Look up and compile the partial
-      if partialName notin vm.partials:
+      # Compile partial (with caching)
+      let partial = vm.compile_partial(partialName)
+      if not partial.found:
         discard  # Missing partial outputs nothing
+      elif hasForLoop:
+        # Iterate over collection, executing partial for each item
+        for idx, item in forCollection:
+          var sub = vm.create_sub_vm(partial.bytecode, partial.strings,
+                                     partial.constants, inst.withContext)
+          sub.locals[partialName] = item
+          sub.bind_keyword_args(kwArgs, inst.withContext)
+          let forloop = build_forloop(idx, forCollection.len, "", vm_null())
+          # Use variables (not locals) so inner for-loops don't pick it up as parentloop
+          if inst.withContext: sub.locals["forloop"] = forloop
+          else: sub.variables["forloop"] = forloop
+          vm.emit_output(sub.execute())
+          vm.propagate_scope(sub, inst.withContext, propagate_control = false)
       else:
-        # Compile partial (with caching)
-        if partialName notin vm.partial_cache:
-          let source = vm.partials[partialName]
-          let sections = lex(source)
-          let compiled = compile(sections, source, false)
-          vm.partial_cache[partialName] = (compiled.bytecode, compiled.strings, compiled.constants)
-
-        let cached = vm.partial_cache[partialName]
-
-        if hasForLoop:
-          # Iterate over collection, executing partial for each item
-          let totalItems = forCollection.len
-          for idx, item in forCollection:
-            var subVm = new_liquid_vm(cached.bytecode, cached.strings, cached.constants,
-                                      if inst.withContext: vm.variables else: initTable[string, VMValue](),
-                                      vm.partials)
-            if inst.withContext:
-              # Include: share locals
-              subVm.locals = vm.locals
-              subVm.loop_offsets = vm.loop_offsets
-            # Bind the loop item as the partial name variable
-            subVm.locals[partialName] = item
-            # Set keyword args
-            if inst.withContext:
-              for (k, v) in kwArgs:
-                subVm.keyword_args[k] = v
-            else:
-              for (k, v) in kwArgs:
-                subVm.locals[k] = v
-            # Build forloop helper for render for-loop
-            let forloop = build_forloop(idx, totalItems, "", vm_null())
-            # Use variables (not locals) so inner for-loops don't pick it up as parentloop
-            if inst.withContext:
-              subVm.locals["forloop"] = forloop
-            else:
-              subVm.variables["forloop"] = forloop
-
-            subVm.partial_cache = vm.partial_cache
-            let sub_output = subVm.execute()
-            vm.emit_output(sub_output)
-            vm.partial_cache = subVm.partial_cache
-            if inst.withContext:
-              vm.locals = subVm.locals
-              vm.loop_offsets = subVm.loop_offsets
-        else:
-          # Single execution
-          var subVm = new_liquid_vm(cached.bytecode, cached.strings, cached.constants,
-                                    if inst.withContext: vm.variables else: initTable[string, VMValue](),
-                                    vm.partials)
-          if inst.withContext:
-            # Include: share locals (assigns persist back)
-            subVm.locals = vm.locals
-            subVm.loop_offsets = vm.loop_offsets
-            subVm.counters = vm.counters
-
-          # Handle 'with' binding
-          if inst.includeWithVar >= 0:
-            if inst.includeAlias >= 0:
-              let alias = vm.strings[inst.includeAlias.uint32]
-              subVm.locals[alias] = withVal
-            else:
-              subVm.locals[partialName] = withVal
-
-          # Set keyword args as read-only overlay (not in locals)
-          if inst.withContext:
-            for (k, v) in kwArgs:
-              subVm.keyword_args[k] = v
-          else:
-            # Render: keyword args go into locals (isolated scope)
-            for (k, v) in kwArgs:
-              subVm.locals[k] = v
-
-          subVm.partial_cache = vm.partial_cache
-          let sub_output = subVm.execute()
-          vm.emit_output(sub_output)
-          vm.partial_cache = subVm.partial_cache
-          if inst.withContext:
-            # Include: propagate locals back to parent
-            vm.locals = subVm.locals
-            vm.loop_offsets = subVm.loop_offsets
-            vm.counters = subVm.counters
-            # Propagate break/continue from include
-            if subVm.pending_break:
-              vm.pending_break = true
-            if subVm.pending_continue:
-              vm.pending_continue = true
+        # Single execution
+        var sub = vm.create_sub_vm(partial.bytecode, partial.strings,
+                                   partial.constants, inst.withContext)
+        if inst.includeWithVar >= 0:
+          let alias = if inst.includeAlias >= 0: vm.strings[inst.includeAlias.uint32]
+                      else: partialName
+          sub.locals[alias] = withVal
+        sub.bind_keyword_args(kwArgs, inst.withContext)
+        vm.emit_output(sub.execute())
+        vm.propagate_scope(sub, inst.withContext)
 
     of opBreak:
       # Break outside a loop (e.g. from an included partial)
