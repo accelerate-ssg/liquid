@@ -54,6 +54,16 @@ proc getFailures*(): seq[TestFailure] =
 proc getSuccesses*(): int =
   formatter.successes
 
+proc renderCase*(
+  source: string,
+  context: Table[string, VMValue],
+  partials: Table[string, string] = initTable[string, string](),
+  strict: bool = false
+): string =
+  let sections = lex(source)
+  let compiled = compile(sections, source, strict)
+  result = render(compiled.bytecode, compiled.strings, compiled.constants, context, partials)
+
 proc testCase*(
   name: string,
   source: string,
@@ -63,29 +73,14 @@ proc testCase*(
   error: bool = false,
   strict: bool = false
 ) =
-
-  proc testCode() =
-    let sections = lex(source)
-
-    checkpoint "lexer"
-
-    let compiled = compile(sections, source, strict)
-
-    checkpoint "compiler"
-
-    let rendered = render(compiled.bytecode, compiled.strings, compiled.constants, context, partials)
-
-    checkpoint "renderer"
-
-    check rendered == output
-
   if error:
     test name:
       expect CatchableError:
-        testCode()
+        discard renderCase(source, context, partials, strict)
   else:
     test name:
-      testCode()
+      let rendered = renderCase(source, context, partials, strict)
+      check rendered == output
 
 proc testCase*(
   name: string,
