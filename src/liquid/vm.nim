@@ -265,6 +265,9 @@ proc execute*(vm: var LiquidVM): string =
         if vm.iterators[i].var_name == loop_var_name:
           let stale = vm.iterators[i]
           vm.loop_offsets[stale.var_name] = stale.original_offset + stale.index
+          # Restore the forloop saved by the stale iterator
+          if stale.saved_forloop.kind != vm_null:
+            vm.locals["forloop"] = stale.saved_forloop
           vm.iterators.delete(i)
           break
 
@@ -301,13 +304,17 @@ proc execute*(vm: var LiquidVM): string =
       if limit_val >= 0 and limit_val < items.len.int64:
         items = items[0..<limit_val]
 
+      # Save current forloop value in the iterator for nesting restore
+      let saved_fl = if "forloop" in vm.locals: vm.locals["forloop"] else: vm_null()
+
       vm.iterators.add(Iterator(
         items: items,
         index: 0,
         var_name: loop_var_name,
-        original_offset: offset_val.int
+        original_offset: offset_val.int,
+        saved_forloop: saved_fl
       ))
-      
+
     of opIterNext:
       if vm.iterators.len > 0:
         # Get the current iterator (don't pop it yet)
@@ -316,12 +323,38 @@ proc execute*(vm: var LiquidVM): string =
           # Push next item and continue
           vm.push(iter.items[iter.index])
           iter.index += 1
+
+          # Build forloop helper object
+          let idx0 = iter.index - 1  # 0-based (already incremented above)
+          let length = iter.items.len
+          var forloopObj = {
+            "index": vm_int((idx0 + 1).int64),
+            "index0": vm_int(idx0.int64),
+            "first": vm_bool(idx0 == 0),
+            "last": vm_bool(idx0 == length - 1),
+            "length": vm_int(length.int64),
+            "rindex": vm_int((length - idx0).int64),
+            "rindex0": vm_int((length - idx0 - 1).int64),
+          }.toTable
+
+          # Set parentloop from the saved forloop in this iterator
+          let saved = iter.saved_forloop
+          if saved.kind != vm_null:
+            forloopObj["parentloop"] = saved
+          else:
+            forloopObj["parentloop"] = vm_null()
+
+          vm.locals["forloop"] = vm_object(forloopObj)
         else:
           # End of iteration - save loop offset for offset: continue
           let finished_iter = vm.iterators[^1]
           vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.index
           # NOW we pop the iterator
           vm.iterators.setLen(vm.iterators.len - 1)
+          # Restore saved forloop from the finished iterator
+          if finished_iter.saved_forloop.kind != vm_null:
+            vm.locals["forloop"] = finished_iter.saved_forloop
+          # If saved is null, leave current forloop in place (it persists after loop ends)
           vm.pc += inst.endOffset
     
     # Comparison
@@ -1300,3 +1333,39 @@ when isMainModule:
       let source = "{% unless true %}yes{% else %}no{% endunless %}"
       let data = initTable[string, VMValue]()
       check render_template(source, data) == "no"
+
+  suite "Forloop Helper":
+    test "Forloop index and index0":
+      let source = "{% for i in items %}{{ forloop.index }}-{{ forloop.index0 }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3)])}.toTable
+      check render_template(source, data) == "1-0 2-1 3-2 "
+
+    test "Forloop first and last":
+      let source = "{% for i in items %}{{ forloop.first }}-{{ forloop.last }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3)])}.toTable
+      check render_template(source, data) == "true-false false-false false-true "
+
+    test "Forloop length":
+      let source = "{% for i in items %}{{ forloop.length }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3)])}.toTable
+      check render_template(source, data) == "3 3 3 "
+
+    test "Forloop rindex and rindex0":
+      let source = "{% for i in items %}{{ forloop.rindex }}-{{ forloop.rindex0 }} {% endfor %}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2), vmInt(3)])}.toTable
+      check render_template(source, data) == "3-2 2-1 1-0 "
+
+    test "Forloop persists after loop":
+      let source = "{% for i in items %}{{ forloop.length }} {% endfor %}{{ forloop.length }}"
+      let data = {"items": vmArray(@[vmInt(1), vmInt(2)])}.toTable
+      check render_template(source, data) == "2 2 2"
+
+    test "Nested forloop parentloop":
+      let source = "{% for i in (1..2) %}{% for j in (1..2) %}{{ forloop.parentloop.index }}-{{ forloop.index }} {% endfor %}{% endfor %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == "1-1 1-2 2-1 2-2 "
+
+    test "Parentloop undefined for top-level loop":
+      let source = "{% for i in (1..2) %}{{ forloop.parentloop.index }}{% endfor %}"
+      let data = initTable[string, VMValue]()
+      check render_template(source, data) == ""
