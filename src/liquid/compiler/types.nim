@@ -19,6 +19,7 @@ type
     
     # Variable Operations
     opLoadVar            # Load variable: [stringId]
+    opDynamicLoadVar     # Pop string from stack, use as variable name to load
     opStoreVar           # Store to variable: [stringId]
     opLoadLocal          # Load local variable: [localIndex]
     opStoreLocal         # Store local: [localIndex]

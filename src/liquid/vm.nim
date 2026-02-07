@@ -164,6 +164,19 @@ proc execute*(vm: var LiquidVM): string =
       else:
         vm.push(VMValue(kind: vmNull))
       
+    of opDynamicLoadVar:
+      # Pop key from stack, use it as a variable name
+      let key_val = vm.pop()
+      let var_name = key_val.to_string()
+      if var_name in vm.locals:
+        vm.push(vm.locals[var_name])
+      elif var_name in vm.variables:
+        vm.push(vm.variables[var_name])
+      elif var_name in vm.counters:
+        vm.push(VMValue(kind: vmInt, intVal: vm.counters[var_name]))
+      else:
+        vm.push(VMValue(kind: vmNull))
+
     of opStoreVar:
       let var_name = vm.strings[inst.stringId]
       let value = vm.pop()

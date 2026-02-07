@@ -251,6 +251,24 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
       c.emit(Instruction(op: opNegate))
       return
     
+  of tkLeftBracket:
+    # Bracket access at expression start: [something], ['key'], [expr]
+    inc pos
+    # Find matching right bracket
+    var bracketDepth = 1
+    var endPos = pos
+    while endPos < stop and bracketDepth > 0:
+      if tokens[endPos].kind == tkLeftBracket:
+        inc bracketDepth
+      elif tokens[endPos].kind == tkRightBracket:
+        dec bracketDepth
+      inc endPos
+    # Compile the expression inside brackets
+    c.compile_expression(tokens, pos, endPos - 1)
+    # Dynamic variable lookup: use the result as a variable name
+    c.emit(Instruction(op: opDynamicLoadVar))
+    pos = endPos  # Skip past the right bracket
+
   of tkLeftParen:
     # Parenthesized expression
     inc pos
@@ -263,7 +281,7 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
       elif tokens[endPos].kind == tkRightParen:
         dec parenDepth
       inc endPos
-    
+
     # Compile the expression inside parens
     c.compile_expression(tokens, pos, endPos - 1)
     pos = endPos  # Skip past the right paren
@@ -288,6 +306,17 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
         # Numeric index after dot is not allowed in standard Liquid - should error
         raise newException(ValueError, "Numeric index after dot notation is not allowed. Use bracket notation instead: [" & $tokens[pos].start & "]")
         
+    of tkIdentifier:
+      # Identifier directly after bracket (e.g., products[0]title)
+      # Treat as property access without dot
+      let prop_name = c.input[tokens[pos].start..<tokens[pos].stop]
+      # But only if this isn't a filter/operator keyword
+      if prop_name in ["and", "or", "contains"]:
+        break
+      let propId = c.intern_string(prop_name)
+      c.emit(Instruction(op: opGetProp, stringId: propId))
+      inc pos
+
     of tkLeftBracket:
       # Array index
       inc pos
