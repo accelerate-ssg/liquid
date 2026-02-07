@@ -5,7 +5,7 @@
 import compiler/[types]
 import vm/[types]
 import std/[tables, strutils, sequtils, algorithm]
-import shared
+import value_ops
 import filters
 import types as lexer_types
 import lexer

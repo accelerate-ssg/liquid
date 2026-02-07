@@ -1,6 +1,6 @@
 import strutils, base64, xmltree, sequtils, re
 
-import ../shared
+import ../value_ops
 
 
 # Appends a string to another string

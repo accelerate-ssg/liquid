@@ -1,12 +1,15 @@
-import json, tables, std/macros, sequtils, strutils
+import tables, std/macros, sequtils, strutils
 import compiler/types
 export types
 
 type
-  Context* = JsonNode
   Filter* = proc(value: VMValue, args: varargs[VMValue]): VMValue
 
 var filters* = initTable[string, Filter]()
+
+proc register_filter*(name: string, handler: Filter) =
+  ## Register a custom filter function
+  filters[name] = handler
 
 proc float_to_string*(f: float64): string =
   ## Format a float like Ruby: strip trailing zeros but keep at least one decimal
@@ -46,12 +49,12 @@ macro create_filter*(body: untyped): untyped =
 
   let proc_name = proc_def.name
   let proc_name_str = $proc_name
-  
+
   # Analyze the function signature to determine expected argument count
   let formal_params = proc_def[3] # nnkFormalParams
   var expected_arg_count = 0
   var has_varargs = false
-  
+
   # Skip return type (index 0) and first parameter (value: VMValue, index 1)
   # Count remaining parameters
   for i in 2..<formal_params.len:
@@ -65,14 +68,14 @@ macro create_filter*(body: untyped): untyped =
       else:
         # Count the number of identifiers in this parameter group
         expected_arg_count += param.len - 2 # exclude type and default value
-  
+
   # Create a wrapper function that validates arguments
   let wrapper_name = newIdentNode(proc_name_str & "_impl")
   let original_name = proc_name
-  
+
   # Rename the original proc
   proc_def[0] = wrapper_name
-  
+
   # Create the wrapper proc
   let wrapper_proc = if has_varargs:
     # For varargs functions, don't add validation (they handle it themselves)
@@ -110,7 +113,7 @@ macro create_filter*(body: untyped): untyped =
             raise newException(ValueError, `proc_name_str` & " filter requires exactly " & $`expected_arg_count` & " arguments")
           # This will need manual handling for 3+ args - for now just pass through
           `wrapper_name`(value, args)
-  
+
   result = newStmtList(
     proc_def,      # Original proc with new name
     wrapper_proc,  # Wrapper proc with validation
