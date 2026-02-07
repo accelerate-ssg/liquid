@@ -19,6 +19,7 @@ proc compile_continue(c: var Compiler)
 proc compile_until(c: var Compiler, stop_tags: seq[TokenKind])
 proc compile_include(c: var Compiler, tokens: openArray[Token])
 proc compile_render(c: var Compiler, tokens: openArray[Token])
+proc compile_cycle(c: var Compiler, tokens: openArray[Token])
 #proc peekNextTag(c: Compiler): TokenKind
 #proc skipToTag(c: var Compiler, tag: TokenKind)
 
@@ -823,6 +824,67 @@ proc compile_decrement(c: var Compiler, tokens: openArray[Token]) =
   c.emit(Instruction(op: opStoreVar, stringId: varId))
   c.emit(Instruction(op: opOutput))
 
+proc compile_cycle(c: var Compiler, tokens: openArray[Token]) =
+  # {% cycle [name:] val1, val2, ... %}
+  # Cycle through values, outputting the next one each time
+  if tokens.len < 2:
+    return
+
+  var pos = 1  # Skip "cycle" keyword
+  var group_id: int32 = -1
+  var group_is_var = false
+
+  # Check for named cycle: name: val1, val2, ...
+  # Named cycle has pattern: (identifier|string) colon ...
+  # Need to look ahead to see if there's a colon after first token
+  if tokens.len >= 3 and tokens[pos + 1].kind == tkColon:
+    # Named cycle
+    let name_token = tokens[pos]
+    if name_token.kind == tkString:
+      let name = c.input[(name_token.start + 1)..<(name_token.stop - 1)]  # Strip quotes
+      group_id = c.intern_string(name).int32
+      group_is_var = false
+    elif name_token.kind == tkIdentifier:
+      # Variable name — resolved at runtime
+      let name = c.input[name_token.start..<name_token.stop]
+      group_id = c.intern_string(name).int32
+      group_is_var = true
+    pos += 2  # Skip name and colon
+
+  # Parse cycle values (comma-separated expressions)
+  var arg_count: uint8 = 0
+  var key_parts: seq[string] = @[]  # For building unnamed cycle key
+
+  while pos < tokens.len:
+    # Parse one value
+    let expr_start = pos
+    # Find end of this expression (next comma or end)
+    var expr_end = pos
+    while expr_end < tokens.len and tokens[expr_end].kind != tkComma:
+      expr_end += 1
+
+    if expr_end > expr_start:
+      c.compile_expression(tokens, expr_start, expr_end)
+      arg_count += 1
+      # Build key part from source text for unnamed cycles
+      if group_id == -1:
+        key_parts.add(c.input[tokens[expr_start].start..<tokens[expr_end - 1].stop])
+
+    pos = expr_end
+    if pos < tokens.len and tokens[pos].kind == tkComma:
+      pos += 1  # Skip comma
+
+  # For unnamed cycles, build a key from the argument source text
+  var cycle_key: uint32 = 0
+  if group_id == -1:
+    cycle_key = c.intern_string(key_parts.join(","))
+
+  c.emit(Instruction(op: opCycle,
+    cycleGroupId: group_id,
+    cycleGroupIsVar: group_is_var,
+    cycleArgCount: arg_count,
+    cycleKey: cycle_key))
+
 proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   # Unless is the inverse of if: execute body when condition is FALSE
   c.compile_expression(tokens, 1, tokens.len)
@@ -1005,6 +1067,9 @@ proc compile_tag(c: var Compiler, section: Section) =
       c.currentSection += 1
     of "render":
       c.compile_render(tokens)
+      c.currentSection += 1
+    of "cycle":
+      c.compile_cycle(tokens)
       c.currentSection += 1
     else:
       if c.strict:

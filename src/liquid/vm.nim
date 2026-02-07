@@ -265,6 +265,51 @@ proc execute*(vm: var LiquidVM): string =
         if vm.capture_escape_stack.len > 0:
           vm.escape_html = vm.capture_escape_stack.pop()
     
+    of opCycle:
+      # Pop cycle values from stack (in reverse order since stack is LIFO)
+      var values: seq[VMValue] = newSeq[VMValue](inst.cycleArgCount.int)
+      for i in countdown(inst.cycleArgCount.int - 1, 0):
+        values[i] = vm.pop()
+
+      # Determine the group key
+      var group_key: string
+      if inst.cycleGroupId >= 0:
+        if inst.cycleGroupIsVar:
+          # Resolve variable name to get group key
+          let var_name = vm.strings[inst.cycleGroupId.uint32]
+          var resolved: VMValue
+          if var_name in vm.locals:
+            resolved = vm.locals[var_name]
+          elif var_name in vm.variables:
+            resolved = vm.variables[var_name]
+          else:
+            resolved = VMValue(kind: vmNull)
+          group_key = resolved.to_string()
+        else:
+          # Literal group name
+          group_key = vm.strings[inst.cycleGroupId.uint32]
+      else:
+        # Unnamed cycle - use the compile-time key
+        group_key = vm.strings[inst.cycleKey]
+
+      # Get current iteration index for this group
+      let iteration = vm.cycle_counters.getOrDefault(group_key, 0)
+      let arg_count = inst.cycleArgCount.int
+      if arg_count > 0:
+        # Output value at current index (out of bounds → nothing)
+        if iteration < arg_count:
+          let value = values[iteration]
+          let str = value.to_string()
+          if vm.is_capturing:
+            vm.capture_stack[^1].add(str)
+          else:
+            vm.output.add(str)
+        # Increment counter, reset to 0 if >= current arg count
+        var next = iteration + 1
+        if next >= arg_count:
+          next = 0
+        vm.cycle_counters[group_key] = next
+
     # Control flow
     of opJump:
       vm.pc += inst.offset

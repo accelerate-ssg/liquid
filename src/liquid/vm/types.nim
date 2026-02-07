@@ -43,6 +43,9 @@ type
     pending_break*: bool
     pending_continue*: bool
 
+    # Cycle tag counters
+    cycle_counters*: Table[string, int]  # group_key -> current index
+
     # Performance
     instruction_count*: int
     max_stack_size*: int

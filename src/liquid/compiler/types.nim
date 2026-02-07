@@ -86,6 +86,9 @@ type
     opMacro              # Define macro: [macroId, paramCount]
     opCallMacro          # Call macro: [macroId, argCount]
     
+    # Cycle tag
+    opCycle              # Cycle through values: [groupId, argCount, values on stack]
+
     # Special Operations
     opTypeCheck          # Check value type: [expectedType]
     opCoerce             # Coerce to type: [targetType]
@@ -147,6 +150,11 @@ type
       captureId*: uint32
     of opEndCapture:
       varId*: uint32
+    of opCycle:
+      cycleGroupId*: int32       # String ID for group name (-1 = unnamed, use cycleKey)
+      cycleGroupIsVar*: bool     # true = group name is a variable (resolve at runtime)
+      cycleArgCount*: uint8      # Number of cycle values (on stack)
+      cycleKey*: uint32          # String ID for unnamed cycle key (built from source args)
     else:
       discard
 
