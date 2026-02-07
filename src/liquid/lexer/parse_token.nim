@@ -1,6 +1,6 @@
 import ../types 
 
-template parseToken*(input: string, pos: var int, endPos: int, 
+template parse_token*(input: string, pos: var int, endPos: int, 
                    section: var Section) =
   ## Parses a single token from the input and adds it to the section.
   ##
@@ -38,7 +38,7 @@ template parseToken*(input: string, pos: var int, endPos: int,
   ## 
   ## # Parse an identifier
   ## var input = "product.name"
-  ## parseToken(input, pos, input.len, section, classifyIdentifier)
+  ## parse_token(input, pos, input.len, section, classifyIdentifier)
   ## assert section.tokens[0].kind == tkIdentifier
   ## assert input[section.tokens[0].start..<section.tokens[0].stop] == "product"
   ## assert pos == 7  # Advanced past "product"
@@ -46,21 +46,21 @@ template parseToken*(input: string, pos: var int, endPos: int,
   ## # Parse a number
   ## input = "42.5 + x"
   ## pos = 0
-  ## parseToken(input, pos, input.len, section, classifyIdentifier)
+  ## parse_token(input, pos, input.len, section, classifyIdentifier)
   ## assert section.tokens[0].kind == tkNumber
   ## assert pos == 4  # Advanced past "42.5"
   ## 
   ## # Parse a string
   ## input = "'hello world' | filter"
   ## pos = 0
-  ## parseToken(input, pos, input.len, section, classifyIdentifier)
+  ## parse_token(input, pos, input.len, section, classifyIdentifier)
   ## assert section.tokens[0].kind == tkString
   ## assert pos == 13  # Advanced past "'hello world'"
   ## 
   ## # Parse operators
   ## input = "== != <="
   ## pos = 0
-  ## parseToken(input, pos, 2, section, classifyIdentifier)
+  ## parse_token(input, pos, 2, section, classifyIdentifier)
   ## assert section.tokens[0].kind == tkEq
   ## assert pos == 2
   ## ```

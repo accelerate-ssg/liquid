@@ -1,4 +1,4 @@
-proc matchesAt*(input: string, pos: int, pattern: static string): bool {.inline.} =
+proc matches_at*(input: string, pos: int, pattern: static string): bool {.inline.} =
   ## Checks if a string pattern occurs at a specific position without allocations.
   ##
   ## This zero-cost pattern matching is optimized for the lexer's hot path,
@@ -25,17 +25,17 @@ proc matchesAt*(input: string, pos: int, pattern: static string): bool {.inline.
   ## let template = "{% if condition %}"
   ## 
   ## # Check for tag markers
-  ## assert template.matchesAt(0, "{%") == true
-  ## assert template.matchesAt(16, "%}") == true
-  ## assert template.matchesAt(0, "{{") == false
+  ## assert template.matches_at(0, "{%") == true
+  ## assert template.matches_at(16, "%}") == true
+  ## assert template.matches_at(0, "{{") == false
   ## 
   ## # Check for keywords
-  ## assert template.matchesAt(3, "if") == true
-  ## assert template.matchesAt(3, "for") == false
+  ## assert template.matches_at(3, "if") == true
+  ## assert template.matches_at(3, "for") == false
   ## 
   ## # Boundary checking
-  ## assert template.matchesAt(17, "%}") == false  # Out of bounds
-  ## assert template.matchesAt(-1, "{%") == false  # Negative position
+  ## assert template.matches_at(17, "%}") == false  # Out of bounds
+  ## assert template.matches_at(-1, "{%") == false  # Negative position
   ## ```
   if pos + pattern.len > input.len:
     return false
@@ -45,7 +45,7 @@ proc matchesAt*(input: string, pos: int, pattern: static string): bool {.inline.
         return false
     return true
 
-template matchesAt*(input: string, pos: int, character: static char): bool =
+template matches_at*(input: string, pos: int, character: static char): bool =
   ## Checks if a single character occurs at a specific position.
   ##
   ## Optimized single-character variant of pattern matching for the lexer's
@@ -71,15 +71,15 @@ template matchesAt*(input: string, pos: int, character: static char): bool =
   ## let code = "x = 42"
   ## 
   ## # Check for operators
-  ## assert code.matchesAt(2, '=') == true
-  ## assert code.matchesAt(0, '=') == false
+  ## assert code.matches_at(2, '=') == true
+  ## assert code.matches_at(0, '=') == false
   ## 
   ## # Check for whitespace
-  ## assert code.matchesAt(1, ' ') == true
-  ## assert code.matchesAt(3, ' ') == true
+  ## assert code.matches_at(1, ' ') == true
+  ## assert code.matches_at(3, ' ') == true
   ## 
   ## # Boundary checking
-  ## assert code.matchesAt(10, 'x') == false  # Out of bounds
-  ## assert code.matchesAt(-1, 'x') == false  # Would fail bounds check
+  ## assert code.matches_at(10, 'x') == false  # Out of bounds
+  ## assert code.matches_at(-1, 'x') == false  # Would fail bounds check
   ## ```
   pos < input.len and input[pos] == character

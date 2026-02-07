@@ -168,8 +168,8 @@ type
   # Compiled Template - Cacheable unit
   CompiledTemplate* = object
     # Metadata for caching
-    sourceHash*: string          # Hash of source template
-    compiledAt*: Time            # Compilation timestamp
+    source_hash*: string          # Hash of source template
+    compiled_at*: Time            # Compilation timestamp
     dependencies*: seq[string]   # Other templates this includes/extends
     
     # Bytecode
@@ -184,7 +184,7 @@ type
     macros*: Table[string, int]  # Macro name -> instruction offset
     
     # Debug info (optional)
-    sourceMap*: seq[tuple[instruction: int, line: int, col: int]]
+    source_map*: seq[tuple[instruction: int, line: int, col: int]]
 
   VariableRequirements* = object
     required*: seq[string]      # Variables that MUST be provided
@@ -203,7 +203,7 @@ type
     # Input
     sections*: seq[Section]
     input*: string
-    currentSection*: int
+    current_section*: int
     
     # Compilation options
     strict*: bool  # Strict mode for Ruby Liquid compatibility
@@ -211,18 +211,18 @@ type
     # Output being built
     instructions*: seq[Instruction]
     strings*: seq[string]
-    stringMap*: Table[string, uint32]
+    string_map*: Table[string, uint32]
     constants*: seq[VMValue]
     
     # Variable tracking
-    requiredVars*: HashSet[string]
-    optionalVars*: HashSet[string]
-    localVars*: HashSet[string]
-    scopeDepth*: int
+    required_vars*: HashSet[string]
+    optional_vars*: HashSet[string]
+    local_vars*: HashSet[string]
+    scope_depth*: int
     
     # Control flow tracking
-    loopDepth*: int
-    breakJumps*: seq[seq[int]]    # Stack of break positions per loop
-    continueJumps*: seq[seq[int]] # Stack of continue positions per loop
+    loop_depth*: int
+    break_jumps*: seq[seq[int]]    # Stack of break positions per loop
+    continue_jumps*: seq[seq[int]] # Stack of continue positions per loop
 
   

@@ -23,23 +23,23 @@ type
     
     # Output
     output*: string
-    escapeHtml*: bool
+    escape_html*: bool
     
     # Capture state for {% capture %} tags
-    captureStack*: seq[string]  # Stack of captured outputs
-    captureEscapeStack*: seq[bool]  # Track escape state for nested captures
-    isCapturing*: bool
+    capture_stack*: seq[string]  # Stack of captured outputs
+    capture_escape_stack*: seq[bool]  # Track escape state for nested captures
+    is_capturing*: bool
     
     # Filters are now handled by the filters module
     
     # Performance
-    instructionCount*: int
-    maxStackSize*: int
+    instruction_count*: int
+    max_stack_size*: int
     
   Iterator* = object
     items*: seq[VMValue]
     index*: int
-    varName*: string
+    var_name*: string
     
 
 
@@ -51,24 +51,24 @@ proc `==`*(a, b: VMValue): bool =
   
   # Then compare based on kind
   case a.kind
-  of vmNull:
+  of vm_null:
     return true  # All nulls are equal
-  of vmBool:
+  of vm_bool:
     return a.boolVal == b.boolVal
-  of vmInt:
+  of vm_int:
     return a.intVal == b.intVal
-  of vmFloat:
+  of vm_float:
     return a.floatVal == b.floatVal
-  of vmString:
+  of vm_string:
     return a.stringVal == b.stringVal
-  of vmArray:
+  of vm_array:
     if a.arrayVal.len != b.arrayVal.len:
       return false
     for i in 0..<a.arrayVal.len:
       if a.arrayVal[i] != b.arrayVal[i]:
         return false
     return true
-  of vmObject:
+  of vm_object:
     if a.objectVal.len != b.objectVal.len:
       return false
     for key, aVal in a.objectVal:
@@ -91,20 +91,20 @@ proc hash*(v: VMValue): Hash =
   h = h !& hash(v.kind.int)
   
   case v.kind
-  of vmNull:
+  of vm_null:
     discard  # All nulls hash the same
-  of vmBool:
+  of vm_bool:
     h = h !& hash(v.boolVal)
-  of vmInt:
+  of vm_int:
     h = h !& hash(v.intVal)
-  of vmFloat:
+  of vm_float:
     h = h !& hash(v.floatVal)
-  of vmString:
+  of vm_string:
     h = h !& hash(v.stringVal)
-  of vmArray:
+  of vm_array:
     for item in v.arrayVal:
       h = h !& hash(item)
-  of vmObject:
+  of vm_object:
     # Hash based on sorted keys for consistency
     var keys: seq[string] = @[]
     for k in v.objectVal.keys:
@@ -120,44 +120,44 @@ proc hash*(v: VMValue): Hash =
   result = !$h
 
 # Also useful: conversion to bool for truthiness checks
-proc toBool*(v: VMValue): bool =
+proc to_bool*(v: VMValue): bool =
   ## Convert VMValue to boolean (for truthiness)
   case v.kind
-  of vmNull:
+  of vm_null:
     return false
-  of vmBool:
+  of vm_bool:
     return v.boolVal
-  of vmInt:
+  of vm_int:
     return v.intVal != 0
-  of vmFloat:
+  of vm_float:
     return v.floatVal != 0.0 and not v.floatVal.isNaN
-  of vmString:
+  of vm_string:
     return v.stringVal.len > 0
-  of vmArray:
+  of vm_array:
     return v.arrayVal.len > 0
-  of vmObject:
+  of vm_object:
     return v.objectVal.len > 0
   of vmLazy, vmIterator:
     return true  # Functions/iterators are truthy
 
 # Helper constructor functions for cleaner code
-proc vmNull*(): VMValue =
-  VMValue(kind: vmNull)
+proc vm_null*(): VMValue =
+  VMValue(kind: vm_null)
 
-proc vmBool*(b: bool): VMValue =
-  VMValue(kind: vmBool, boolVal: b)
+proc vm_bool*(b: bool): VMValue =
+  VMValue(kind: vm_bool, boolVal: b)
 
-proc vmInt*(i: int64): VMValue =
-  VMValue(kind: vmInt, intVal: i)
+proc vm_int*(i: int64): VMValue =
+  VMValue(kind: vm_int, intVal: i)
 
-proc vmFloat*(f: float64): VMValue =
-  VMValue(kind: vmFloat, floatVal: f)
+proc vm_float*(f: float64): VMValue =
+  VMValue(kind: vm_float, floatVal: f)
 
-proc vmString*(s: string): VMValue =
-  VMValue(kind: vmString, stringVal: s)
+proc vm_string*(s: string): VMValue =
+  VMValue(kind: vm_string, stringVal: s)
 
-proc vmArray*(a: seq[VMValue]): VMValue =
-  VMValue(kind: vmArray, arrayVal: a)
+proc vm_array*(a: seq[VMValue]): VMValue =
+  VMValue(kind: vm_array, arrayVal: a)
 
-proc vmObject*(o: Table[string, VMValue]): VMValue =
-  VMValue(kind: vmObject, objectVal: o)
+proc vm_object*(o: Table[string, VMValue]): VMValue =
+  VMValue(kind: vm_object, objectVal: o)

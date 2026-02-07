@@ -6,7 +6,7 @@ when defined(posix) or defined(windows):
     # POSIX systems
     proc memchr(s: pointer, c: cint, n: csize_t): pointer {.importc, header: "<string.h>".}
 
-template scanText*(input: string, pos: var int) =
+template scan_text*(input: string, pos: var int) =
   ## Ultra-fast text scanning using system memchr
   ## Falls back to optimized pure Nim on non-POSIX systems
   when defined(posix) or defined(windows):

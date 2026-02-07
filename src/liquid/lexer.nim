@@ -13,7 +13,7 @@ const
 
 
 
-template addToken(section: var Section, tokenKind: TokenKind, tokStart, tokStop: int) =
+template add_token(section: var Section, tokenKind: TokenKind, tokStart, tokStop: int) =
   ## Adds a token to a section's token list with zero-allocation token creation.
   ##
   ## This template efficiently constructs tokens using only indices into the
@@ -37,13 +37,13 @@ template addToken(section: var Section, tokenKind: TokenKind, tokStart, tokStop:
   ## section.tokens = newSeqOfCap[Token](10)
   ## 
   ## # Add an identifier token for "product" at position 5-12
-  ## section.addToken(tkIdentifier, 5, 12)
+  ## section.add_token(tkIdentifier, 5, 12)
   ## 
   ## # Add an operator token for "==" at position 13-15
-  ## section.addToken(tkEq, 13, 15)
+  ## section.add_token(tkEq, 13, 15)
   ## 
   ## # Add a number token for "42" at position 16-18
-  ## section.addToken(tkNumber, 16, 18)
+  ## section.add_token(tkNumber, 16, 18)
   ## 
   ## assert section.tokens.len == 3
   ## assert section.tokens[0].kind == tkIdentifier
@@ -56,9 +56,9 @@ template addToken(section: var Section, tokenKind: TokenKind, tokStart, tokStop:
   ## ```nim
   ## # In the lexer's token parsing
   ## let tokStart = pos
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## if pos > tokStart:
-  ##   section.addToken(classifyIdentifier(input, tokStart, pos), tokStart, pos)
+  ##   section.add_token(classify_identifier(input, tokStart, pos), tokStart, pos)
   ## ```
   section.tokens.add(Token(kind: tokenKind, start: tokStart, stop: tokStop))
 
@@ -120,13 +120,13 @@ template skip_whitespace(input: string, pos: var int) =
   ## input.skip_whitespace(pos)  # Skip any spaces after {%
   ## 
   ## # Between tokens
-  ## parseToken(input, pos, section)
+  ## parse_token(input, pos, section)
   ## input.skip_whitespace(pos)  # Skip spaces before next token
   ## ```
   while pos < input.len and input[pos] in {' ', '\t', '\r', '\n'}:
     inc pos
 
-proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section], endPos: int] =
+proc lex_liquid_block(input: string, startPos: int): tuple[sections: seq[Section], endPos: int] =
   ## Parses a `{% liquid %}` block where each line is an implicit Liquid tag.
   ##
   ## The liquid tag allows writing multiple Liquid statements without tag delimiters.
@@ -177,7 +177,7 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
   ##   assign x = 5
   ##   echo x
   ## %}"""
-  ## let (sections, endPos) = lexLiquidBlock(input, 9)  # Start after "liquid"
+  ## let (sections, endPos) = lex_liquid_block(input, 9)  # Start after "liquid"
   ## assert sections.len == 2
   ## assert sections[0].kind == skTag  # assign statement
   ## assert sections[1].kind == skOutput  # echo converted to output
@@ -188,7 +188,7 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
   ##   
   ##   assign y = 10
   ## %}"""
-  ## let (sections2, _) = lexLiquidBlock(input2, 9)
+  ## let (sections2, _) = lex_liquid_block(input2, 9)
   ## assert sections2.len == 1  # Comment and empty line skipped
   ## 
   ## # Nested control flow
@@ -199,7 +199,7 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
   ##     endif
   ##   endfor
   ## %}"""
-  ## let (sections3, _) = lexLiquidBlock(input3, 9)
+  ## let (sections3, _) = lex_liquid_block(input3, 9)
   ## assert sections3.len == 5  # for, if, echo, endif, endfor
   ## 
   ## # Early termination on %}
@@ -207,7 +207,7 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
   ##   assign a = 1
   ## %}
   ## This text is outside the liquid block"""
-  ## let (sections4, endPos4) = lexLiquidBlock(input4, 9)
+  ## let (sections4, endPos4) = lex_liquid_block(input4, 9)
   ## assert sections4.len == 1
   ## assert input4[endPos4..endPos4+10] == "\nThis text"  # After %}
   ## ```
@@ -224,9 +224,9 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
   ##
   ## ```nim
   ## # When encountering {% liquid %} in main lexer
-  ## if input.matchesAt(pos, "liquid"):
+  ## if input.matches_at(pos, "liquid"):
   ##   if pos + 6 >= input.len or input[pos + 6] in {' ', '\t', '\r', '\n', '-', '%'}:
-  ##     let (liquidSections, newPos) = lexLiquidBlock(input, pos + 6)
+  ##     let (liquidSections, newPos) = lex_liquid_block(input, pos + 6)
   ##     result.add(liquidSections)  # Add all sections from liquid block
   ##     pos = newPos  # Continue from after the liquid block
   ## ```
@@ -234,7 +234,7 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
   ## **Implementation Notes:**
   ## - Does not create wrapper sections - each line becomes its own section
   ## - Preserves line-by-line structure for better error reporting
-  ## - Tokens within lines are parsed using the same parseToken logic
+  ## - Tokens within lines are parsed using the same parse_token logic
   ## - Handles both UNIX (\n) and Windows (\r\n) line endings
   ## - The closing `%}` can appear on the same line as content or standalone
   var pos = startPos
@@ -246,15 +246,15 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
     input.skip_whitespace(pos)
     
     # Check if we hit the end - look for standalone %}
-    if input.matchesAt(pos, "%}"):
+    if input.matches_at(pos, "%}"):
       pos += 2
       result.endPos = pos
       return
     
     # Skip comment lines (starting with #)
-    if input.matchesAt(pos, '#'):
+    if input.matches_at(pos, '#'):
       # Skip to end of line
-      while not input.matchesAt(pos, '\n'):
+      while not input.matches_at(pos, '\n'):
         inc pos
       if pos < input.len:
         inc pos  # Skip the newline
@@ -263,20 +263,20 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
     # Parse a line as if it were a tag
     let lineStart = pos
       
-    if input.matchesAt(pos, "echo"):
+    if input.matches_at(pos, "echo"):
       # It's an echo statement - treat as output section
       pos += 4
 
       var section = Section(kind: skOutput, start: lineStart)
       section.tokens = newSeqOfCap[Token](5)
       
-      while not input.matchesAt(pos, '\n'):
+      while not input.matches_at(pos, '\n'):
         # Skip whitespace
-        while input.matchesAt(pos, ' ') or input.matchesAt(pos, '\t'):
+        while input.matches_at(pos, ' ') or input.matches_at(pos, '\t'):
           inc pos
         
         # Parse tokens (same as output section)
-        input.parseToken(pos, input.len, section)
+        input.parse_token(pos, input.len, section)
       
       section.stop = pos;
       result.sections.add(section)
@@ -287,17 +287,17 @@ proc lexLiquidBlock(input: string, startPos: int): tuple[sections: seq[Section],
       
       # Parse the line as tag content (reuse existing token parsing logic)
       var linePos = pos
-      while not input.matchesAt(pos, '\n'):
+      while not input.matches_at(pos, '\n'):
         # Skip whitespace
-        while input.matchesAt(pos, ' ') or input.matchesAt(pos, '\t'):
+        while input.matches_at(pos, ' ') or input.matches_at(pos, '\t'):
           inc pos
         
         # Check for inline comment
         if input[linePos] == '#':
-          while  not input.matchesAt(pos, '\n'):
+          while  not input.matches_at(pos, '\n'):
             inc pos
         
-        input.parseToken(pos, input.len, section)
+        input.parse_token(pos, input.len, section)
       
       section.stop = pos
       if section.tokens.len > 0:
@@ -416,7 +416,7 @@ proc lex*(input: string): seq[Section] =
   var section: Section
   
   while pos < input.len:
-    if input.matchesAt(pos, "{%"):
+    if input.matches_at(pos, "{%"):
       # It's a tag {%
       let tagStart = pos
       pos += 2  # Skip {%
@@ -445,10 +445,10 @@ proc lex*(input: string): seq[Section] =
         profile("inline comment"):
           inc pos  # Skip the #
           while pos < input.len - 1:
-            if input.matchesAt(pos, "%}"):
+            if input.matches_at(pos, "%}"):
               pos += 1
               break
-            if input.matchesAt(pos, "-%}"):
+            if input.matches_at(pos, "-%}"):
               pos += 2
               break
 
@@ -456,7 +456,7 @@ proc lex*(input: string): seq[Section] =
           # Continue to next iteration - inline comments produce no output
           inc pos
         
-      elif input.matchesAt(pos, "comment"):
+      elif input.matches_at(pos, "comment"):
         #      ,pm                                                                                                                             mq.    
         #     6M   ,M""Yg.    ,M'                                                                                    mm        ,M""Yg.    ,M'    Mb   
         #     MM   MY   Mb  ,M'                                                                                      MM        MY   Mb  ,M'      MM   
@@ -472,18 +472,18 @@ proc lex*(input: string): seq[Section] =
           
           # Skip the rest of the opening {% comment %} tag
           while pos < input.len - 1:
-            if input.matchesAt(pos, "%}"):
+            if input.matches_at(pos, "%}"):
               pos += 2
               break
-            if input.matchesAt(pos, "-%}"):
+            if input.matches_at(pos, "-%}"):
               pos += 3
               break
             inc pos
           
           # Use generic scanner - returns -1 since we don't need content
-          discard scanEndTag(input, pos, "endcomment", false)
+          discard scan_end_tag(input, pos, "endcomment", false)
         
-      elif input.matchesAt(pos, "raw"):
+      elif input.matches_at(pos, "raw"):
         #      ,pm                                                                             mq.    
         #     6M   ,M""Yg.    ,M'                                              ,M""Yg.    ,M'    Mb   
         #     MM   MY   Mb  ,M'                                                MY   Mb  ,M'      MM   
@@ -499,24 +499,24 @@ proc lex*(input: string): seq[Section] =
           
           # Skip the rest of the opening tag
           while pos < input.len - 1:
-            if input.matchesAt(pos, "%}"):
+            if input.matches_at(pos, "%}"):
               pos += 2
               break
-            if input.matchesAt(pos, "-%}"):
+            if input.matches_at(pos, "-%}"):
               pos += 3
               break
             inc pos
           
           # Get content until {% endraw %}
           let rawStart = pos
-          let rawEnd = scanEndTag(input, pos, "endraw", true)
+          let rawEnd = scan_end_tag(input, pos, "endraw", true)
           
           # Add the raw content as text if not empty
           if rawEnd > rawStart:
             section = Section(kind: skText, start: rawStart, stop: rawEnd)
             result.add(section)
       
-      elif input.matchesAt(pos, "liquid"):
+      elif input.matches_at(pos, "liquid"):
         #      ,pm                       ,,    ,,                           ,,         ,,                      mq.    
         #     6M   ,M""Yg.    ,M'      `7MM    db                           db       `7MM      ,M""Yg.    ,M'    Mb   
         #     MM   MY   Mb  ,M'          MM                                            MM      MY   Mb  ,M'      MM   
@@ -528,11 +528,11 @@ proc lex*(input: string): seq[Section] =
         #     YM                                          MM                                                     M9   
         #      `bm                                      .JMML.                                                 md'    
         profile("liquid tag"):
-          let (liquidSections, newPos) = lexLiquidBlock(input, pos + 6)
+          let (liquidSections, newPos) = lex_liquid_block(input, pos + 6)
           result.add(liquidSections)
           pos = newPos
       
-      elif pos + 4 <= input.len and input.matchesAt(pos, "echo"):
+      elif pos + 4 <= input.len and input.matches_at(pos, "echo"):
         #      ,pm                                         ,,                                      mq.    
         #     6M   ,M""Yg.    ,M'                        `7MM                      ,M""Yg.    ,M'    Mb   
         #     MM   MY   Mb  ,M'                            MM                      MY   Mb  ,M'      MM   
@@ -562,11 +562,11 @@ proc lex*(input: string): seq[Section] =
             if input[pos] == '#':
               # Skip to end of tag
               while pos < input.len - 1:
-                if input.matchesAt(pos, "%}"):
+                if input.matches_at(pos, "%}"):
                   pos += 2
                   break
                   
-                if input.matchesAt(pos, "-%}"):
+                if input.matches_at(pos, "-%}"):
                   section.stripRight = true
                   pos += 3
                   break
@@ -584,7 +584,7 @@ proc lex*(input: string): seq[Section] =
               break
             
             # Parse token
-            parseToken(input, pos, input.len, section)
+            parse_token(input, pos, input.len, section)
           
           section.stop = pos
           result.add(section)
@@ -617,10 +617,10 @@ proc lex*(input: string): seq[Section] =
             if input[pos] == '#':
               # Skip to end of tag
               while pos < input.len:  # Changed: was input.len - 1
-                if input.matchesAt(pos, "%}"):
+                if input.matches_at(pos, "%}"):
                   pos += 2
                   break
-                if input.matchesAt(pos, "-%}"):
+                if input.matches_at(pos, "-%}"):
                   section.stripRight = true
                   pos += 3
                   break
@@ -638,7 +638,7 @@ proc lex*(input: string): seq[Section] =
               break
             
             # Parse token
-            parseToken(input, pos, input.len, section)
+            parse_token(input, pos, input.len, section)
           
           # Ensure incomplete tags consume everything
           if pos >= input.len:
@@ -647,7 +647,7 @@ proc lex*(input: string): seq[Section] =
           section.stop = pos
           result.add(section)
     
-    elif input.matchesAt(pos, "{{"):
+    elif input.matches_at(pos, "{{"):
       #      ,pm     ,pm                                                                      mq.    mq.    
       #     6M      6M                               mm                             mm          Mb     Mb   
       #     MM      MM                               MM                             MM          MM     MM   
@@ -680,10 +680,10 @@ proc lex*(input: string): seq[Section] =
           if input[pos] == '#':
             # Skip to end
             while pos < input.len - 1:
-              if input.matchesAt(pos, "}}"):
+              if input.matches_at(pos, "}}"):
                 pos += 2
                 break
-              if input.matchesAt(pos, "-}}"):
+              if input.matches_at(pos, "-}}"):
                 section.stripRight = true
                 pos += 3
                 break
@@ -691,16 +691,16 @@ proc lex*(input: string): seq[Section] =
             break
           
           # Check for end
-          if input.matchesAt(pos, "}}"):
+          if input.matches_at(pos, "}}"):
             pos += 2
             break
-          if input.matchesAt(pos, "-}}"):
+          if input.matches_at(pos, "-}}"):
             section.stripRight = true
             pos += 3
             break
           
           # Parse token
-          parseToken(input, pos, input.len, section)
+          parse_token(input, pos, input.len, section)
         
         section.stop = pos
         result.add(section)
@@ -718,7 +718,7 @@ proc lex*(input: string): seq[Section] =
       profile("text"):
         let start = pos
         
-        scanText(input, pos)  # Try different versions
+        scan_text(input, pos)  # Try different versions
         
         # Create text section up to (but not including) the tag
         if pos > start:

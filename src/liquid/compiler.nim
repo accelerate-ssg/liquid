@@ -4,24 +4,24 @@ import types
 import compiler/[types]  # The VM types from previous artifact
 
 # Forward declarations
-proc compileSection(c: var Compiler, section: Section)
-proc compileExpression(c: var Compiler, tokens: openArray[Token], start: int, stop: int)
-proc compileText(c: var Compiler, section: Section)
-proc compileOutput(c: var Compiler, section: Section)
-proc compileTag(c: var Compiler, section: Section)
-proc compileIf(c: var Compiler, tokens: openArray[Token])
-proc compileFor(c: var Compiler, tokens: openArray[Token])
-proc compileAssign(c: var Compiler, tokens: openArray[Token])
-proc compileCapture(c: var Compiler, tokens: openArray[Token])
-proc compileCase(c: var Compiler, tokens: openArray[Token])
-proc compileBreak(c: var Compiler)
-proc compileContinue(c: var Compiler)
-proc compileUntil(c: var Compiler, stopTags: seq[TokenKind])
+proc compile_section(c: var Compiler, section: Section)
+proc compile_expression(c: var Compiler, tokens: openArray[Token], start: int, stop: int)
+proc compile_text(c: var Compiler, section: Section)
+proc compile_output(c: var Compiler, section: Section)
+proc compile_tag(c: var Compiler, section: Section)
+proc compile_if(c: var Compiler, tokens: openArray[Token])
+proc compile_for(c: var Compiler, tokens: openArray[Token])
+proc compile_assign(c: var Compiler, tokens: openArray[Token])
+proc compile_capture(c: var Compiler, tokens: openArray[Token])
+proc compile_case(c: var Compiler, tokens: openArray[Token])
+proc compile_break(c: var Compiler)
+proc compile_continue(c: var Compiler)
+proc compile_until(c: var Compiler, stop_tags: seq[TokenKind])
 #proc peekNextTag(c: Compiler): TokenKind
 #proc skipToTag(c: var Compiler, tag: TokenKind)
 
 # Basic utility functions (no dependencies)
-proc internString(c: var Compiler, s: string): uint32 =
+proc intern_string(c: var Compiler, s: string): uint32 =
   if s in c.stringMap:
     return c.stringMap[s]
   result = c.strings.len.uint32
@@ -31,7 +31,7 @@ proc internString(c: var Compiler, s: string): uint32 =
 proc emit(c: var Compiler, inst: Instruction) =
   c.instructions.add(inst)
 
-proc emitJump(c: var Compiler, op: OpCode): int =
+proc emit_jump(c: var Compiler, op: OpCode): int =
   ## Emit jump with placeholder offset, return position for patching
   let inst = case op
     of opJump:
@@ -50,7 +50,7 @@ proc emitJump(c: var Compiler, op: OpCode): int =
   c.emit(inst)
   result = c.instructions.len - 1
 
-proc patchJump(c: var Compiler, pos: int) =
+proc patch_jump(c: var Compiler, pos: int) =
   ## Patch jump at pos to jump to current position
   let offset = c.instructions.len - pos - 1
   
@@ -88,23 +88,23 @@ proc patchJump(c: var Compiler, pos: int) =
 #         return
 #     c.currentSection += 1
 
-proc compileUntil(c: var Compiler, stopTags: seq[TokenKind]) =
+proc compile_until(c: var Compiler, stop_tags: seq[TokenKind]) =
   ## Compile sections until we hit one of the stop tags
   while c.currentSection < c.sections.len:
     let section = c.sections[c.currentSection]
     
     # Check if this is a stop tag
     if section.kind == skTag and section.tokens.len > 0:
-      if section.tokens[0].kind in stopTags:
+      if section.tokens[0].kind in stop_tags:
         # DON'T increment currentSection here - leave it pointing at the stop tag
         # The caller will handle moving past it
         return
     
     # Compile this section
-    c.compileSection(section)
+    c.compile_section(section)
 
 # Expression compilation
-proc compileExpression(c: var Compiler, tokens: openArray[Token], 
+proc compile_expression(c: var Compiler, tokens: openArray[Token], 
                       start: int, stop: int) =
   if start >= stop:
     c.emit(Instruction(op: opPushNull))
@@ -123,23 +123,23 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
     # Check if it's a local variable first
     if name notin c.localVars:
       c.requiredVars.incl(name)
-    let stringId = c.internString(name)
+    let stringId = c.intern_string(name)
     c.emit(Instruction(op: opLoadVar, stringId: stringId))
     inc pos
     
   of tkNumber:
-    let numStr = c.input[token.start..<token.stop]
-    if '.' in numStr:
-      let floatVal = parseFloat(numStr)
+    let num_str = c.input[token.start..<token.stop]
+    if '.' in num_str:
+      let floatVal = parseFloat(num_str)
       c.emit(Instruction(op: opPushFloat, floatVal: floatVal))
     else:
-      let intVal = parseInt(numStr)
+      let intVal = parseInt(num_str)
       c.emit(Instruction(op: opPushInt, intVal: intVal))
     inc pos
     
   of tkString:
     let str = c.input[token.start + 1..<token.stop - 1]
-    let stringId = c.internString(str)
+    let stringId = c.intern_string(str)
     c.emit(Instruction(op: opPushString, stringId: stringId))
     inc pos
     
@@ -158,7 +158,7 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
   of tkNot:
     # Unary not operator
     inc pos
-    c.compileExpression(tokens, pos, stop)
+    c.compile_expression(tokens, pos, stop)
     c.emit(Instruction(op: opNot))
     return
     
@@ -167,18 +167,18 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
     if pos + 1 < stop and tokens[pos + 1].kind == tkNumber:
       # Negative number literal
       inc pos
-      let numStr = "-" & c.input[tokens[pos].start..<tokens[pos].stop]
-      if '.' in numStr:
-        let floatVal = parseFloat(numStr)
+      let num_str = "-" & c.input[tokens[pos].start..<tokens[pos].stop]
+      if '.' in num_str:
+        let floatVal = parseFloat(num_str)
         c.emit(Instruction(op: opPushFloat, floatVal: floatVal))
       else:
-        let intVal = parseInt(numStr)
+        let intVal = parseInt(num_str)
         c.emit(Instruction(op: opPushInt, intVal: intVal))
       inc pos
     else:
       # Unary minus operator
       inc pos
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       c.emit(Instruction(op: opNegate))
       return
     
@@ -196,7 +196,7 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       inc endPos
     
     # Compile the expression inside parens
-    c.compileExpression(tokens, pos, endPos - 1)
+    c.compile_expression(tokens, pos, endPos - 1)
     pos = endPos  # Skip past the right paren
     
   else:
@@ -211,8 +211,8 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       # Property access
       inc pos
       if pos < stop and tokens[pos].kind == tkIdentifier:
-        let propName = c.input[tokens[pos].start..<tokens[pos].stop]
-        let propId = c.internString(propName)
+        let prop_name = c.input[tokens[pos].start..<tokens[pos].stop]
+        let propId = c.intern_string(prop_name)
         c.emit(Instruction(op: opGetProp, stringId: propId))
         inc pos
       elif pos < stop and tokens[pos].kind == tkNumber:
@@ -233,7 +233,7 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
         inc endPos
       
       # Compile index expression
-      c.compileExpression(tokens, pos, endPos - 1)
+      c.compile_expression(tokens, pos, endPos - 1)
       c.emit(Instruction(op: opGetIndex))
       pos = endPos
       
@@ -241,8 +241,8 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       # Filter
       inc pos
       if pos < stop and tokens[pos].kind == tkIdentifier:
-        let filterName = c.input[tokens[pos].start..<tokens[pos].stop]
-        let filterId = c.internString(filterName)
+        let filter_name = c.input[tokens[pos].start..<tokens[pos].stop]
+        let filterId = c.intern_string(filter_name)
         inc pos
         
         var argCount: uint8 = 0
@@ -252,13 +252,13 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
           inc pos
           # Parse filter arguments
           while pos < stop and tokens[pos].kind != tkPipe:
-            let argStart = pos
+            let arg_start = pos
             # Find end of this argument (comma or end)
             while pos < stop and tokens[pos].kind notin [tkComma, tkPipe]:
               inc pos
             
             # Compile the argument
-            c.compileExpression(tokens, argStart, pos)
+            c.compile_expression(tokens, arg_start, pos)
             inc argCount
             
             if pos < stop and tokens[pos].kind == tkComma:
@@ -271,7 +271,7 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       let opKind = op.kind
       inc pos
       # Compile right-hand side
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       
       # Emit comparison instruction
       case opKind
@@ -300,7 +300,7 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       inc pos
       # For now, compile rest as right operand
       # A proper implementation would handle precedence
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       
       case opKind
       of tkPlus: c.emit(Instruction(op: opAdd))
@@ -313,25 +313,25 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       
     of tkAnd:
       inc pos
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       c.emit(Instruction(op: opAnd))
       return
       
     of tkOr:
       inc pos
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       c.emit(Instruction(op: opOr))
       return
       
     of tkContains:
       inc pos
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       c.emit(Instruction(op: opContains))
       return
       
     of tkDoubleDot:
       inc pos
-      c.compileExpression(tokens, pos, stop)
+      c.compile_expression(tokens, pos, stop)
       c.emit(Instruction(op: opRange))
       return
       
@@ -340,28 +340,28 @@ proc compileExpression(c: var Compiler, tokens: openArray[Token],
       inc pos
 
 # Section compilation procedures
-proc compileText(c: var Compiler, section: Section) =
+proc compile_text(c: var Compiler, section: Section) =
   let text = c.input[section.start..<section.stop]
   
   if text.len == 0:
     return
   
   # ALWAYS use batch output for text sections (never escaped)
-  let stringId = c.internString(text)
+  let stringId = c.intern_string(text)
   c.emit(Instruction(op: opBatchOutput, batchCount: 1, stringIds: @[stringId]))
 
-proc compileOutput(c: var Compiler, section: Section) =
+proc compile_output(c: var Compiler, section: Section) =
   let tokens = section.tokens
   
   if tokens.len == 0:
     return
   
   if tokens.len == 1 and tokens[0].kind == tkIdentifier:
-    let varName = c.input[tokens[0].start..<tokens[0].stop]
+    let var_name = c.input[tokens[0].start..<tokens[0].stop]
     # Check if it's a local variable first
-    if varName notin c.localVars:
-      c.requiredVars.incl(varName)
-    let stringId = c.internString(varName)
+    if var_name notin c.localVars:
+      c.requiredVars.incl(var_name)
+    let stringId = c.intern_string(var_name)
     c.emit(Instruction(op: opLoadVar, stringId: stringId))
     c.emit(Instruction(op: opOutput))
     return
@@ -371,40 +371,40 @@ proc compileOutput(c: var Compiler, section: Section) =
      tokens[1].kind == tkDot and
      tokens[2].kind == tkIdentifier:
     let objName = c.input[tokens[0].start..<tokens[0].stop]
-    let propName = c.input[tokens[2].start..<tokens[2].stop]
+    let prop_name = c.input[tokens[2].start..<tokens[2].stop]
     # Check if it's a local variable first
     if objName notin c.localVars:
       c.requiredVars.incl(objName)
     
-    let objId = c.internString(objName)
-    let propId = c.internString(propName)
+    let objId = c.intern_string(objName)
+    let propId = c.intern_string(prop_name)
     
     c.emit(Instruction(op: opLoadVar, stringId: objId))
     c.emit(Instruction(op: opGetProp, stringId: propId))
     c.emit(Instruction(op: opOutput))
     return
   
-  c.compileExpression(tokens, 0, tokens.len)
+  c.compile_expression(tokens, 0, tokens.len)
   c.emit(Instruction(op: opOutput))
 
 # Tag compilation procedures
-proc compileBreak(c: var Compiler) =
+proc compile_break(c: var Compiler) =
   if c.loopDepth > 0:
-    let jumpPos = c.emitJump(opJump)
+    let jumpPos = c.emit_jump(opJump)
     c.breakJumps[^1].add(jumpPos)
 
-proc compileContinue(c: var Compiler) =
+proc compile_continue(c: var Compiler) =
   if c.loopDepth > 0:
-    let jumpPos = c.emitJump(opJump)
+    let jumpPos = c.emit_jump(opJump)
     c.continueJumps[^1].add(jumpPos)
 
-proc compileCapture(c: var Compiler, tokens: openArray[Token]) =
+proc compile_capture(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 2:
     return
   
-  let varName = c.input[tokens[1].start..<tokens[1].stop]
-  c.localVars.incl(varName)
-  let varId = c.internString(varName)
+  let var_name = c.input[tokens[1].start..<tokens[1].stop]
+  c.localVars.incl(var_name)
+  let varId = c.intern_string(var_name)
   
   # Emit begin capture instruction
   c.emit(Instruction(op: opBeginCapture, captureId: varId))
@@ -414,38 +414,38 @@ proc compileCapture(c: var Compiler, tokens: openArray[Token]) =
   
   # Compile everything until we hit endcapture
   # This will compile nested captures recursively
-  c.compileUntil(@[tkEndcapture])
+  c.compile_until(@[tkEndcapture])
   
   # Emit end capture instruction
   c.emit(Instruction(op: opEndCapture, varId: varId))
   
   # Now move past the endcapture tag
-  # currentSection is pointing AT the endcapture tag (from compileUntil)
+  # currentSection is pointing AT the endcapture tag (from compile_until)
   if c.currentSection < c.sections.len:
     let section = c.sections[c.currentSection]
     if section.kind == skTag and section.tokens.len > 0 and 
        section.tokens[0].kind == tkEndcapture:
       c.currentSection += 1 
 
-proc compileAssign(c: var Compiler, tokens: openArray[Token]) =
+proc compile_assign(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 4:
     return
   
-  let varName = c.input[tokens[1].start..<tokens[1].stop]
-  c.localVars.incl(varName)
-  let varId = c.internString(varName)
+  let var_name = c.input[tokens[1].start..<tokens[1].stop]
+  c.localVars.incl(var_name)
+  let varId = c.intern_string(var_name)
   
-  c.compileExpression(tokens, 3, tokens.len)
+  c.compile_expression(tokens, 3, tokens.len)
   c.emit(Instruction(op: opStoreVar, stringId: varId))
 
-proc compileFor(c: var Compiler, tokens: openArray[Token]) =
+proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 4:
     c.currentSection += 1  # Skip malformed for
     return
   
-  let iterVar = c.input[tokens[1].start..<tokens[1].stop]
-  c.localVars.incl(iterVar)
-  let iterVarId = c.internString(iterVar)
+  let iter_var = c.input[tokens[1].start..<tokens[1].stop]
+  c.localVars.incl(iter_var)
+  let iter_varId = c.intern_string(iter_var)
   
   # Find "in" position
   var inPos = 2
@@ -459,20 +459,20 @@ proc compileFor(c: var Compiler, tokens: openArray[Token]) =
   # Simple validation for limit/offset - check for obvious string literals
   for i in (inPos + 1)..<tokens.len:
     if tokens[i].kind == tkIdentifier:
-      let tokenText = c.input[tokens[i].start..<tokens[i].stop]
-      if tokenText in ["limit", "offset"] and i + 2 < tokens.len and 
+      let token_text = c.input[tokens[i].start..<tokens[i].stop]
+      if token_text in ["limit", "offset"] and i + 2 < tokens.len and 
          tokens[i + 1].kind == tkColon and tokens[i + 2].kind == tkString:
         let strVal = c.input[tokens[i + 2].start + 1..<tokens[i + 2].stop - 1]  # Remove quotes
         try:
           discard parseInt(strVal)  # Valid number string - allow it
         except ValueError:
-          raise newException(ValueError, tokenText & " must be a number, got string '" & strVal & "'")
+          raise newException(ValueError, token_text & " must be a number, got string '" & strVal & "'")
   
   # Compile collection expression (including limit/offset)
-  c.compileExpression(tokens, inPos + 1, tokens.len)
+  c.compile_expression(tokens, inPos + 1, tokens.len)
   
   # Setup loop
-  c.emit(Instruction(op: opBeginLoop, loopVarIndex: iterVarId.uint16))
+  c.emit(Instruction(op: opBeginLoop, loopVarIndex: iter_varId.uint16))
   c.loopDepth += 1
   c.breakJumps.add(@[])
   c.continueJumps.add(@[])
@@ -485,13 +485,13 @@ proc compileFor(c: var Compiler, tokens: openArray[Token]) =
   c.emit(Instruction(op: opIterNext, endOffset: 0))
   
   # Store loop variable
-  c.emit(Instruction(op: opStoreVar, stringId: iterVarId))
+  c.emit(Instruction(op: opStoreVar, stringId: iter_varId))
   
   # Move past the for tag
   c.currentSection += 1
   
   # Compile loop body
-  c.compileUntil(@[tkEndfor])
+  c.compile_until(@[tkEndfor])
   
   # Jump back to iteration check
   let jumpBack = loopStart - c.instructions.len - 1
@@ -503,7 +503,7 @@ proc compileFor(c: var Compiler, tokens: openArray[Token]) =
   
   # Handle breaks and continues
   for breakPos in c.breakJumps[^1]:
-    c.patchJump(breakPos)
+    c.patch_jump(breakPos)
   
   for continuePos in c.continueJumps[^1]:
     let continueOffset = loopStart - continuePos - 1
@@ -520,15 +520,15 @@ proc compileFor(c: var Compiler, tokens: openArray[Token]) =
        section.tokens[0].kind == tkEndfor:
       c.currentSection += 1
 
-proc compileIf(c: var Compiler, tokens: openArray[Token]) =
-  c.compileExpression(tokens, 1, tokens.len)
-  let jumpIfFalse = c.emitJump(opJumpIfFalse)
+proc compile_if(c: var Compiler, tokens: openArray[Token]) =
+  c.compile_expression(tokens, 1, tokens.len)
+  let jumpIfFalse = c.emit_jump(opJumpIfFalse)
   
   # Move past the if tag
   c.currentSection += 1
   
   # Compile then-branch
-  c.compileUntil(@[tkElsif, tkElse, tkEndif])
+  c.compile_until(@[tkElsif, tkElse, tkEndif])
   
   # Check what we stopped at
   if c.currentSection < c.sections.len:
@@ -536,30 +536,30 @@ proc compileIf(c: var Compiler, tokens: openArray[Token]) =
     if section.kind == skTag and section.tokens.len > 0:
       case section.tokens[0].kind
       of tkElsif:
-        let jumpEnd = c.emitJump(opJump)
-        c.patchJump(jumpIfFalse)
-        c.compileIf(section.tokens)  # Recursive for elsif
-        c.patchJump(jumpEnd)
+        let jumpEnd = c.emit_jump(opJump)
+        c.patch_jump(jumpIfFalse)
+        c.compile_if(section.tokens)  # Recursive for elsif
+        c.patch_jump(jumpEnd)
       of tkElse:
-        let jumpEnd = c.emitJump(opJump)
-        c.patchJump(jumpIfFalse)
+        let jumpEnd = c.emit_jump(opJump)
+        c.patch_jump(jumpIfFalse)
         c.currentSection += 1  # Move past else
-        c.compileUntil(@[tkEndif])
-        c.patchJump(jumpEnd)
+        c.compile_until(@[tkEndif])
+        c.patch_jump(jumpEnd)
       of tkEndif:
-        c.patchJump(jumpIfFalse)
+        c.patch_jump(jumpIfFalse)
         c.currentSection += 1  # Move past endif
       else:
-        c.patchJump(jumpIfFalse)
+        c.patch_jump(jumpIfFalse)
     else:
-      c.patchJump(jumpIfFalse)
+      c.patch_jump(jumpIfFalse)
   else:
-    c.patchJump(jumpIfFalse)
+    c.patch_jump(jumpIfFalse)
 
-proc compileCase(c: var Compiler, tokens: openArray[Token]) =
+proc compile_case(c: var Compiler, tokens: openArray[Token]) =
   # Compile the expression being switched on
   if tokens.len > 1:
-    c.compileExpression(tokens, 1, tokens.len)
+    c.compile_expression(tokens, 1, tokens.len)
   else:
     # No expression in case statement
     raise newException(ValueError, "case tag requires an expression")
@@ -599,11 +599,11 @@ proc compileCase(c: var Compiler, tokens: openArray[Token]) =
         
         # Compile the condition value
         c.emit(Instruction(op: opDup))  # Duplicate case value for this comparison
-        c.compileExpression(section.tokens, i, endPos)
+        c.compile_expression(section.tokens, i, endPos)
         c.emit(Instruction(op: opEqual))
         
         # If true, jump to execute the when body
-        conditionResult.add(c.emitJump(opJumpIfTrue))
+        conditionResult.add(c.emit_jump(opJumpIfTrue))
         
         # Move to next condition
         i = endPos
@@ -612,11 +612,11 @@ proc compileCase(c: var Compiler, tokens: openArray[Token]) =
       
       # No condition matched - pop case value and skip when body
       c.emit(Instruction(op: opPop))  # Pop the case value
-      let skipWhenBody = c.emitJump(opJump)
+      let skipWhenBody = c.emit_jump(opJump)
       
       # Patch all condition jumps to here (when body start)
       for condPos in conditionResult:
-        c.patchJump(condPos)
+        c.patch_jump(condPos)
       
       # Pop the case value (one of the conditions matched)
       c.emit(Instruction(op: opPop))
@@ -625,20 +625,20 @@ proc compileCase(c: var Compiler, tokens: openArray[Token]) =
       c.currentSection += 1
       
       # Compile when body
-      c.compileUntil(@[tkWhen, tkElse, tkEndcase])
+      c.compile_until(@[tkWhen, tkElse, tkEndcase])
       
       # Jump to end
-      endJumps.add(c.emitJump(opJump))
+      endJumps.add(c.emit_jump(opJump))
       
       # Patch the skip jump to after the when body
-      c.patchJump(skipWhenBody)
+      c.patch_jump(skipWhenBody)
       
     of tkElse:
       # Default case
       hasDefault = true
       c.emit(Instruction(op: opPop))  # Pop the case value
       c.currentSection += 1
-      c.compileUntil(@[tkEndcase])
+      c.compile_until(@[tkEndcase])
       
     of tkEndcase:
       # Pop the case value if no default case handled it
@@ -647,7 +647,7 @@ proc compileCase(c: var Compiler, tokens: openArray[Token]) =
       
       # Patch all end jumps
       for jump in endJumps:
-        c.patchJump(jump)
+        c.patch_jump(jump)
       
       c.currentSection += 1
       return
@@ -655,7 +655,7 @@ proc compileCase(c: var Compiler, tokens: openArray[Token]) =
     else:
       c.currentSection += 1
 
-proc compileTag(c: var Compiler, section: Section) =
+proc compile_tag(c: var Compiler, section: Section) =
   let tokens = section.tokens
   if tokens.len == 0:
     c.currentSection += 1  # Move past empty tag
@@ -664,25 +664,25 @@ proc compileTag(c: var Compiler, section: Section) =
   let firstToken = tokens[0]
   case firstToken.kind
   of tkIf:
-    c.compileIf(tokens)
-    # compileIf handles its own advancement
+    c.compile_if(tokens)
+    # compile_if handles its own advancement
   of tkFor:
-    c.compileFor(tokens)
-    # compileFor handles its own advancement
+    c.compile_for(tokens)
+    # compile_for handles its own advancement
   of tkAssignTag:
-    c.compileAssign(tokens)
+    c.compile_assign(tokens)
     c.currentSection += 1  # Move past assign tag
   of tkCapture:
-    c.compileCapture(tokens)
-    # compileCapture handles its own advancement
+    c.compile_capture(tokens)
+    # compile_capture handles its own advancement
   of tkCase:
-    c.compileCase(tokens)
-    # compileCase handles its own advancement
+    c.compile_case(tokens)
+    # compile_case handles its own advancement
   of tkBreak:
-    c.compileBreak()
+    c.compile_break()
     c.currentSection += 1  # Move past break tag
   of tkContinue:
-    c.compileContinue()
+    c.compile_continue()
     c.currentSection += 1  # Move past continue tag
   of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase:
     # These are handled by their parent structures
@@ -693,16 +693,16 @@ proc compileTag(c: var Compiler, section: Section) =
     # TODO: Add proper unknown tag detection in strict mode
     c.currentSection += 1
 
-proc compileSection(c: var Compiler, section: Section) =
+proc compile_section(c: var Compiler, section: Section) =
   case section.kind
   of skText:
-    c.compileText(section)
+    c.compile_text(section)
     c.currentSection += 1  # Move past this section
   of skOutput:
-    c.compileOutput(section)
+    c.compile_output(section)
     c.currentSection += 1  # Move past this section
   of skTag:
-    c.compileTag(section)
+    c.compile_tag(section)
 
 # Main entry point (depends on everything else)
 proc compile*(sections: seq[Section], input: string, strict: bool = false): CompileResult =
@@ -723,10 +723,10 @@ proc compile*(sections: seq[Section], input: string, strict: bool = false): Comp
   )
   
   while compiler.currentSection < sections.len:
-    let oldSection = compiler.currentSection
-    compiler.compileSection(sections[compiler.currentSection])
+    let old_section = compiler.currentSection
+    compiler.compile_section(sections[compiler.currentSection])
     # Only increment if the section didn't change (i.e., it wasn't a control flow tag)
-    if compiler.currentSection == oldSection:
+    if compiler.currentSection == old_section:
       compiler.currentSection += 1
   
   result.bytecode = compiler.instructions

@@ -1,4 +1,4 @@
-template scanIdentifier*(input: string, pos: var int) =
+template scan_identifier*(input: string, pos: var int) =
   ## High-performance identifier scanner using bit tables for character classification.
   ##
   ## This template efficiently scans Liquid template identifiers without allocations
@@ -33,39 +33,39 @@ template scanIdentifier*(input: string, pos: var int) =
   ## # Basic identifier scanning
   ## var input = "product_name }}"
   ## var pos = 0
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## assert pos == 12  # Scanned "product_name"
   ## assert input[0..<pos] == "product_name"
   ##
   ## # With trailing question mark
   ## input = "empty? }}"
   ## pos = 0
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## assert pos == 6  # Scanned "empty?"
   ##
   ## # With hyphens
   ## input = "data-value-1 | filter"
   ## pos = 0
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## assert pos == 12  # Scanned "data-value-1"
   ##
   ## # Stops at invalid characters
   ## input = "name.property"
   ## pos = 0
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## assert pos == 4  # Stopped at '.'
   ## assert input[0..<pos] == "name"
   ##
   ## # No identifier found
   ## input = "123abc"
   ## pos = 0
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## assert pos == 0  # First char is not valid identifier start
   ##
   ## # Empty input
   ## input = ""
   ## pos = 0
-  ## scanIdentifier(input, pos)
+  ## scan_identifier(input, pos)
   ## assert pos == 0  # No change
   ## ```
   ##
@@ -74,7 +74,7 @@ template scanIdentifier*(input: string, pos: var int) =
   ## ```nim
   ## proc lexToken(input: string, pos: var int): Token =
   ##   let start = pos
-  ##   scanIdentifier(input, pos)
+  ##   scan_identifier(input, pos)
   ##   if pos > start:
   ##     # Successfully scanned an identifier
   ##     return Token(

@@ -2,7 +2,7 @@ import math, strutils
 import ../shared
 
 # Helper to get numeric value
-proc getNumericVal(v: VMValue): float =
+proc to_numeric(v: VMValue): float =
   case v.kind
   of vmInt: v.intVal.float
   of vmFloat: v.floatVal
@@ -38,13 +38,13 @@ create_filter:
 # Returns the smallest integer greater than or equal to a number
 create_filter:
   proc ceil(value: VMValue): VMValue =
-    let num = getNumericVal(value)
+    let num = to_numeric(value)
     result = VMValue(kind: vmInt, intVal: ceil(num).int64)
 
 # Returns the largest integer less than or equal to a number
 create_filter:
   proc floor(value: VMValue): VMValue =
-    let num = getNumericVal(value)
+    let num = to_numeric(value)
     result = VMValue(kind: vmInt, intVal: floor(num).int64)
 
 # Rounds a number to the nearest integer
@@ -58,7 +58,7 @@ create_filter:
     else: 
       0
     
-    let num = getNumericVal(value)
+    let num = to_numeric(value)
     if decimals == 0:
       result = VMValue(kind: vmInt, intVal: round(num).int64)
     else:
@@ -69,8 +69,8 @@ create_filter:
 # Adds a number to another number
 create_filter:
   proc plus(value: VMValue, addend: VMValue): VMValue =
-    let a = getNumericVal(value)
-    let b = getNumericVal(addend)
+    let a = to_numeric(value)
+    let b = to_numeric(addend)
     
     if value.kind == vmInt and addend.kind == vmInt:
       result = VMValue(kind: vmInt, intVal: value.intVal + addend.intVal)
@@ -80,8 +80,8 @@ create_filter:
 # Subtracts a number from another number
 create_filter:
   proc minus(value: VMValue, subtrahend: VMValue): VMValue =
-    let a = getNumericVal(value)
-    let b = getNumericVal(subtrahend)
+    let a = to_numeric(value)
+    let b = to_numeric(subtrahend)
     
     if value.kind == vmInt and subtrahend.kind == vmInt:
       result = VMValue(kind: vmInt, intVal: value.intVal - subtrahend.intVal)
@@ -91,8 +91,8 @@ create_filter:
 # Multiplies a number by another number
 create_filter:
   proc times(value: VMValue, multiplier: VMValue): VMValue =
-    let a = getNumericVal(value)
-    let b = getNumericVal(multiplier)
+    let a = to_numeric(value)
+    let b = to_numeric(multiplier)
     
     if value.kind == vmInt and multiplier.kind == vmInt:
       result = VMValue(kind: vmInt, intVal: value.intVal * multiplier.intVal)
@@ -102,8 +102,8 @@ create_filter:
 # Divides a number by another number
 create_filter:
   proc divided_by(value: VMValue, divisor: VMValue): VMValue =
-    let a = getNumericVal(value)
-    let b = getNumericVal(divisor)
+    let a = to_numeric(value)
+    let b = to_numeric(divisor)
     
     if b == 0:
       raise newException(ValueError, "Division by zero")
@@ -117,10 +117,10 @@ create_filter:
 # Returns the remainder of division
 create_filter:
   proc modulo(value: VMValue, divisor: VMValue): VMValue =
-    let a = getNumericVal(value)
-    let b = getNumericVal(divisor)
+    let a = to_numeric(value)
+    let b = to_numeric(divisor)
     
-    # Check if divisor is undefined (converted to 0 by getNumericVal)
+    # Check if divisor is undefined (converted to 0 by to_numeric)
     if divisor.kind == vmNull:
       raise newException(ValueError, "Modulo by zero")
     
@@ -135,8 +135,8 @@ create_filter:
 # Limits a number to a minimum value
 create_filter:
   proc at_least(value: VMValue, minVal: VMValue): VMValue =
-    let val = getNumericVal(value)
-    let minValue = getNumericVal(minVal)
+    let val = to_numeric(value)
+    let minValue = to_numeric(minVal)
     
     if val < minValue:
       result = minVal
@@ -146,8 +146,8 @@ create_filter:
 # Limits a number to a maximum value
 create_filter:
   proc at_most(value: VMValue, maxVal: VMValue): VMValue =
-    let val = getNumericVal(value)
-    let maxValue = getNumericVal(maxVal)
+    let val = to_numeric(value)
+    let maxValue = to_numeric(maxVal)
     
     if val > maxValue:
       result = maxVal

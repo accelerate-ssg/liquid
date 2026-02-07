@@ -9,7 +9,7 @@ import shared
 import filters
 
 # Create VM with data
-proc newLiquidVM*(bytecode: seq[Instruction], strings: seq[string], 
+proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string], 
                   constants: seq[VMValue], data: Table[string, VMValue]): LiquidVM =
   result = LiquidVM(
     stack: newSeqOfCap[VMValue](32),
@@ -21,18 +21,18 @@ proc newLiquidVM*(bytecode: seq[Instruction], strings: seq[string],
     locals: initTable[string, VMValue](),
     iterators: @[],
     output: "",
-    escapeHtml: true,
-    captureStack: @[],
-    isCapturing: false,
+    escape_html: true,
+    capture_stack: @[],
+    is_capturing: false,
     # filters field removed - now using filters module directly
-    instructionCount: 0,
-    maxStackSize: 0
+    instruction_count: 0,
+    max_stack_size: 0
   )
 
 # Stack operations
 template push(vm: var LiquidVM, val: VMValue) =
   vm.stack.add(val)
-  vm.maxStackSize = max(vm.maxStackSize, vm.stack.len)
+  vm.max_stack_size = max(vm.max_stack_size, vm.stack.len)
 
 template pop(vm: var LiquidVM): VMValue =
   if vm.stack.len > 0:
@@ -47,7 +47,7 @@ template peek(vm: LiquidVM, offset: int = 0): VMValue =
     VMValue(kind: vmNull)
 
 # Value operations
-proc isTruthy(v: VMValue): bool =
+proc is_truthy(v: VMValue): bool =
   case v.kind
   of vmNull: false
   of vmBool: v.boolVal
@@ -59,7 +59,7 @@ proc isTruthy(v: VMValue): bool =
   else: true
 
 
-proc escapeHtmlStr(s: string): string =
+proc escape_html_str(s: string): string =
   result = newStringOfCap(s.len + 10)
   for c in s:
     case c
@@ -77,7 +77,7 @@ proc execute*(vm: var LiquidVM): string =
   while vm.pc < vm.bytecode.len:
     let inst = vm.bytecode[vm.pc]
     inc vm.pc
-    inc vm.instructionCount
+    inc vm.instruction_count
     
     case inst.op
     # Stack operations
@@ -108,33 +108,33 @@ proc execute*(vm: var LiquidVM): string =
     
     # Variable operations
     of opLoadVar:
-      let varName = vm.strings[inst.stringId]
-      if varName in vm.locals:
-        vm.push(vm.locals[varName])
-      elif varName in vm.variables:
-        vm.push(vm.variables[varName])
+      let var_name = vm.strings[inst.stringId]
+      if var_name in vm.locals:
+        vm.push(vm.locals[var_name])
+      elif var_name in vm.variables:
+        vm.push(vm.variables[var_name])
       else:
         vm.push(VMValue(kind: vmNull))
       
     of opStoreVar:
-      let varName = vm.strings[inst.stringId]
+      let var_name = vm.strings[inst.stringId]
       let value = vm.pop()
-      vm.locals[varName] = value
+      vm.locals[var_name] = value
       
     # Property access
     of opGetProp:
       let obj = vm.pop()
-      let propName = vm.strings[inst.stringId]
+      let prop_name = vm.strings[inst.stringId]
       
       case obj.kind
       of vmObject:
-        if propName in obj.objectVal:
-          vm.push(obj.objectVal[propName])
+        if prop_name in obj.objectVal:
+          vm.push(obj.objectVal[prop_name])
         else:
           vm.push(VMValue(kind: vmNull))
       of vmArray:
         # Special array properties
-        case propName
+        case prop_name
         of "size", "length":
           vm.push(VMValue(kind: vmInt, intVal: obj.arrayVal.len.int64))
         of "first":
@@ -158,41 +158,41 @@ proc execute*(vm: var LiquidVM): string =
       let val = vm.pop()
       let str = val.to_string()
       
-      if vm.isCapturing:
+      if vm.is_capturing:
         # When capturing, store raw (escaping happens on final output)
-        vm.captureStack[^1].add(str)
+        vm.capture_stack[^1].add(str)
       else:
         # Escape if enabled (default true for safety)
-        let outputStr = if vm.escapeHtml:
-          str.escapeHtmlStr()
+        let output_str = if vm.escape_html:
+          str.escape_html_str()
         else:
           str
-        vm.output.add(outputStr)
+        vm.output.add(output_str)
       
     of opBatchOutput:
       # Batch output is ALWAYS literal template text - NEVER escape
       for stringId in inst.stringIds:
         let text = vm.strings[stringId]
-        if vm.isCapturing:
-          vm.captureStack[^1].add(text)
+        if vm.is_capturing:
+          vm.capture_stack[^1].add(text)
         else:
           vm.output.add(text)  # Direct output, no escaping
     
     of opBeginCapture:
       # Start capturing output
-      vm.captureStack.add("")
-      vm.isCapturing = true
+      vm.capture_stack.add("")
+      vm.is_capturing = true
       # Save current escape state and disable escaping during capture
-      vm.captureEscapeStack.add(vm.escapeHtml)
-      vm.escapeHtml = false
+      vm.capture_escape_stack.add(vm.escape_html)
+      vm.escape_html = false
     
     of opEndCapture:
-      if vm.captureStack.len > 0:
-        let capturedOutput = vm.captureStack.pop()
-        let varName = vm.strings[inst.varId]
+      if vm.capture_stack.len > 0:
+        let captured_output = vm.capture_stack.pop()
+        let var_name = vm.strings[inst.varId]
         # Store captured content as-is (already unescaped)
-        vm.locals[varName] = VMValue(kind: vmString, stringVal: capturedOutput)
-        vm.isCapturing = vm.captureStack.len > 0
+        vm.locals[var_name] = VMValue(kind: vmString, stringVal: captured_output)
+        vm.is_capturing = vm.capture_stack.len > 0
     
     # Control flow
     of opJump:
@@ -200,12 +200,12 @@ proc execute*(vm: var LiquidVM): string =
       
     of opJumpIfFalse:
       let cond = vm.pop()
-      if not cond.isTruthy():
+      if not cond.is_truthy():
         vm.pc += inst.offset
       
     of opJumpIfTrue:
       let cond = vm.pop()
-      if cond.isTruthy():
+      if cond.is_truthy():
         vm.pc += inst.offset
     
     # Loops
@@ -216,7 +216,7 @@ proc execute*(vm: var LiquidVM): string =
         vm.iterators.add(Iterator(
           items: collection.arrayVal,
           index: 0,
-          varName: "" # We'll use the string from the instruction
+          var_name: "" # We'll use the string from the instruction
         ))
       of vmObject:
         # Convert object to array of key-value pairs
@@ -229,14 +229,14 @@ proc execute*(vm: var LiquidVM): string =
         vm.iterators.add(Iterator(
           items: items,
           index: 0,
-          varName: ""
+          var_name: ""
         ))
       else:
         # Empty iterator for non-iterable
         vm.iterators.add(Iterator(
           items: @[],
           index: 0,
-          varName: ""
+          var_name: ""
         ))
       
     of opIterNext:
@@ -409,7 +409,7 @@ proc execute*(vm: var LiquidVM): string =
 
     # Filters
     of opCallFilter:
-      let filterName = vm.strings[inst.filterId]
+      let filter_name = vm.strings[inst.filterId]
       
       # Pop arguments (they were pushed in order during compilation)
       var args: seq[VMValue] = @[]
@@ -424,7 +424,7 @@ proc execute*(vm: var LiquidVM): string =
       
       # Apply filter using the filters module
       try:
-        let filter_result = applyFilter(value, filterName, args)
+        let filter_result = apply_filter(value, filter_name, args)
         vm.push(filter_result)
       except Exception as e:
         echo "Filter error: ", e.msg
@@ -432,42 +432,42 @@ proc execute*(vm: var LiquidVM): string =
     
     of opRange:
       # Create a range from start..end
-      let endVal = vm.pop()
-      let startVal = vm.pop()
+      let end_val = vm.pop()
+      let start_val = vm.pop()
       
       # Convert to integers
-      var startInt: int64
-      var endInt: int64
+      var start_int: int64
+      var end_int: int64
       
-      case startVal.kind
+      case start_val.kind
       of vmInt:
-        startInt = startVal.intVal
+        start_int = start_val.intVal
       of vmFloat:
-        startInt = startVal.floatVal.int64
+        start_int = start_val.floatVal.int64
       else:
         vm.push(VMValue(kind: vmNull))
         continue
       
-      case endVal.kind
+      case end_val.kind
       of vmInt:
-        endInt = endVal.intVal
+        end_int = end_val.intVal
       of vmFloat:
-        endInt = endVal.floatVal.int64
+        end_int = end_val.floatVal.int64
       else:
         vm.push(VMValue(kind: vmNull))
         continue
       
       # Create array with range values
-      var rangeArray: seq[VMValue] = @[]
-      if startInt <= endInt:
-        for i in startInt..endInt:
-          rangeArray.add(VMValue(kind: vmInt, intVal: i))
+      var range_array: seq[VMValue] = @[]
+      if start_int <= end_int:
+        for i in start_int..end_int:
+          range_array.add(VMValue(kind: vmInt, intVal: i))
       else:
         # Handle reverse ranges
-        for i in countdown(startInt, endInt):
-          rangeArray.add(VMValue(kind: vmInt, intVal: i))
+        for i in countdown(start_int, end_int):
+          range_array.add(VMValue(kind: vmInt, intVal: i))
       
-      vm.push(VMValue(kind: vmArray, arrayVal: rangeArray))
+      vm.push(VMValue(kind: vmArray, arrayVal: range_array))
     
     else:
       # Unimplemented opcode
@@ -480,7 +480,7 @@ proc execute*(vm: var LiquidVM): string =
 proc render*(bytecode: seq[Instruction], strings: seq[string],
             constants: seq[VMValue], data: Table[string, VMValue]): string =
   ## Render a template with the given data
-  var vm = newLiquidVM(bytecode, strings, constants, data)
+  var vm = new_liquid_vm(bytecode, strings, constants, data)
   result = vm.execute()
 
 
@@ -492,46 +492,46 @@ when isMainModule:
   let empty_array:seq[string] = @[]
 
   # Helper to compile and run a template
-  proc renderTemplate(source: string, data: Table[string, VMValue]): string =
+  proc render_template(source: string, data: Table[string, VMValue]): string =
     let sections = lex(source)
     let compiled = compile(sections, source)
     result = render(compiled.bytecode, compiled.strings, compiled.constants, data)
 
   # Helper to create VMValue from various types
-  # proc toVMValue(x: int): VMValue = vmInt(x.int64)
-  # proc toVMValue(x: float): VMValue = vmFloat(x)
-  # proc toVMValue(x: string): VMValue = vmString(x)
-  # proc toVMValue(x: bool): VMValue = vmBool(x)
-  proc toVMValue(x: seq[int]): VMValue =
+  # proc to_vm_value(x: int): VMValue = vmInt(x.int64)
+  # proc to_vm_value(x: float): VMValue = vmFloat(x)
+  # proc to_vm_value(x: string): VMValue = vmString(x)
+  # proc to_vm_value(x: bool): VMValue = vmBool(x)
+  proc to_vm_value(x: seq[int]): VMValue =
     var arr: seq[VMValue] = @[]
     for item in x:
       arr.add(vmInt(item.int64))
     vmArray(arr)
 
-  proc toVMValue(x: seq[string]): VMValue =
+  proc to_vm_value(x: seq[string]): VMValue =
     var arr: seq[VMValue] = @[]
     for item in x:
       arr.add(vmString(item))
     vmArray(arr)
 
-  # proc toVMValue(x: seq[float]): VMValue =
+  # proc to_vm_value(x: seq[float]): VMValue =
   #   var arr: seq[VMValue] = @[]
   #   for item in x:
   #     arr.add(vmFloat(item))
   #   vmArray(arr)
 
-  # proc toVMValue(x: seq[bool]): VMValue =
+  # proc to_vm_value(x: seq[bool]): VMValue =
   #   var arr: seq[VMValue] = @[]
   #   for item in x:
   #     arr.add(vmBool(item))
   #   vmArray(arr)
 
   # # For already converted VMValues
-  # proc toVMValue(x: seq[VMValue]): VMValue =
+  # proc to_vm_value(x: seq[VMValue]): VMValue =
   #   vmArray(x)
 
   # Helper to create object VMValue
-  proc makeObject(pairs: varargs[(string, VMValue)]): VMValue =
+  proc make_object(pairs: varargs[(string, VMValue)]): VMValue =
     var obj = initTable[string, VMValue]()
     for (k, v) in pairs:
       obj[k] = v
@@ -541,177 +541,177 @@ when isMainModule:
     test "Empty template":
       let source = ""
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == ""
 
     test "Plain text":
       let source = "Hello, World!"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Hello, World!"
 
     test "Simple variable":
       let source = "Hello, {{ name }}!"
       let data = {"name": vmString("Alice")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Hello, Alice!"
 
     test "Missing variable as empty":
       let source = "Hello, {{ name }}!"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Hello, !"
 
     test "Integer output":
       let source = "Count: {{ count }}"
       let data = {"count": vmInt(42)}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Count: 42"
 
     test "Float output":
       let source = "Price: {{ price }}"
       let data = {"price": vmFloat(19.99)}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Price: 19.99"
 
     test "Boolean output":
       let source = "Active: {{ active }}"
       let data = {"active": vmBool(true)}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Active: true"
 
   suite "VM Property Access":
     test "Object property":
       let source = "Name: {{ user.name }}"
       let data = {
-        "user": makeObject(("name", vmString("Bob")))
+        "user": make_object(("name", vmString("Bob")))
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Name: Bob"
 
     test "Nested property":
       let source = "City: {{ user.address.city }}"
       let data = {
-        "user": makeObject(
-          ("address", makeObject(
+        "user": make_object(
+          ("address", make_object(
             ("city", vmString("New York"))
           ))
         )
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "City: New York"
 
     test "Missing property as empty":
       let source = "Age: {{ user.age }}"
       let data = {
-        "user": makeObject(("name", vmString("Charlie")))
+        "user": make_object(("name", vmString("Charlie")))
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Age: "
 
     test "Array property - size":
       let source = "Items: {{ items.size }}"
       let data = {
-        "items": toVMValue(@[1, 2, 3])
+        "items": to_vm_value(@[1, 2, 3])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Items: 3"
 
   suite "VM Conditionals":
     test "Simple if - true":
       let source = "{% if show %}Visible{% endif %}"
       let data = {"show": vmBool(true)}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Visible"
 
     test "Simple if - false":
       let source = "{% if show %}Visible{% endif %}"
       let data = {"show": vmBool(false)}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == ""
 
     test "If-else":
       let source = "{% if logged_in %}Welcome{% else %}Please login{% endif %}"
       
       let data1 = {"logged_in": vmBool(true)}.toTable
-      check renderTemplate(source, data1) == "Welcome"
+      check render_template(source, data1) == "Welcome"
       
       let data2 = {"logged_in": vmBool(false)}.toTable
-      check renderTemplate(source, data2) == "Please login"
+      check render_template(source, data2) == "Please login"
 
     test "Truthy values":
       let source = "{% if value %}Yes{% else %}No{% endif %}"
       
       # Truthy values
-      check renderTemplate(source, {"value": vmInt(1)}.toTable) == "Yes"
-      check renderTemplate(source, {"value": vmString("text")}.toTable) == "Yes"
-      check renderTemplate(source, {"value": toVMValue(@[1])}.toTable) == "Yes"
+      check render_template(source, {"value": vmInt(1)}.toTable) == "Yes"
+      check render_template(source, {"value": vmString("text")}.toTable) == "Yes"
+      check render_template(source, {"value": to_vm_value(@[1])}.toTable) == "Yes"
       
       # Falsy values
-      check renderTemplate(source, {"value": vmInt(0)}.toTable) == "No"
-      check renderTemplate(source, {"value": vmString("")}.toTable) == "No"
-      check renderTemplate(source, {"value": vmNull()}.toTable) == "No"
-      check renderTemplate(source, {"value": toVMValue(empty_array)}.toTable) == "No"
+      check render_template(source, {"value": vmInt(0)}.toTable) == "No"
+      check render_template(source, {"value": vmString("")}.toTable) == "No"
+      check render_template(source, {"value": vmNull()}.toTable) == "No"
+      check render_template(source, {"value": to_vm_value(empty_array)}.toTable) == "No"
 
     test "Comparison operators":
       let source = "{% if age > 18 %}Adult{% else %}Minor{% endif %}"
       
-      check renderTemplate(source, {"age": vmInt(21)}.toTable) == "Adult"
-      check renderTemplate(source, {"age": vmInt(18)}.toTable) == "Minor"
-      check renderTemplate(source, {"age": vmInt(16)}.toTable) == "Minor"
+      check render_template(source, {"age": vmInt(21)}.toTable) == "Adult"
+      check render_template(source, {"age": vmInt(18)}.toTable) == "Minor"
+      check render_template(source, {"age": vmInt(16)}.toTable) == "Minor"
 
   suite "VM Loops":
     test "Simple for loop":
       let source = "{% for item in items %}{{ item }} {% endfor %}"
       let data = {
-        "items": toVMValue(@[1, 2, 3])
+        "items": to_vm_value(@[1, 2, 3])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "1 2 3 "
 
     test "For loop with strings":
       let source = "{% for name in names %}Hello {{ name }}! {% endfor %}"
       let data = {
-        "names": toVMValue(@["Alice", "Bob"])
+        "names": to_vm_value(@["Alice", "Bob"])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Hello Alice! Hello Bob! "
 
     test "Empty loop":
       let source = "{% for item in items %}{{ item }}{% endfor %}Done"
       let data = {
-        "items": toVMValue(empty_array)
+        "items": to_vm_value(empty_array)
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Done"
 
     test "Loop with object properties":
       let source = "{% for user in users %}{{ user.name }}: {{ user.age }} {% endfor %}"
       let data = {
         "users": vmArray(@[
-          makeObject(
+          make_object(
             ("name", vmString("Alice")),
             ("age", vmInt(30))
           ),
-          makeObject(
+          make_object(
             ("name", vmString("Bob")),
             ("age", vmInt(25))
           )
         ])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Alice: 30 Bob: 25 "
 
     test "Nested loops":
       let source = "{% for row in rows %}{% for col in row %}{{ col }} {% endfor %}| {% endfor %}"
       let data = {
         "rows": vmArray(@[
-          toVMValue(@[1, 2]),
-          toVMValue(@[3, 4])
+          to_vm_value(@[1, 2]),
+          to_vm_value(@[3, 4])
         ])
       }.toTable
       
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == "1 2 | 3 4 | "
 
@@ -719,32 +719,32 @@ when isMainModule:
     test "Assign literal":
       let source = "{% assign x = 5 %}x = {{ x }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "x = 5"
 
     test "Assign from variable":
       let source = "{% assign copy = original %}{{ copy }}"
       let data = {"original": vmString("test")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "test"
 
     test "Assign overwrites":
       let source = "{% assign x = 1 %}First: {{ x }} {% assign x = 2 %}Second: {{ x }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "First: 1 Second: 2"
 
     test "Local shadows global":
       let source = "Global: {{ x }} {% assign x = 'local' %}Local: {{ x }}"
       let data = {"x": vmString("global")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Global: global Local: local"
 
   suite "VM Capture":
     test "Simple capture":
       let source = "{% capture greeting %}Hello, {{ name }}!{% endcapture %}{{ greeting }}"
       let data = {"name": vmString("World")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Hello, World!"
 
     test "Capture with multiple outputs":
@@ -753,13 +753,13 @@ when isMainModule:
         "title": vmString("Test"),
         "desc": vmString("Description")
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "<h1>Test</h1><p>Description</p>"
 
     test "Nested capture":
       let source = """{% capture outer %}[{% capture inner %}{{ x }}{% endcapture %}{{ inner }}]{% endcapture %}{{ outer }}"""
       let data = {"x": vmString("nested")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "[nested]"
     
     test "Capture without HTML escaping":
@@ -772,8 +772,8 @@ when isMainModule:
       # Render with HTML escaping disabled
       let sections = lex(source)
       let compiled = compile(sections, source)
-      var vm = newLiquidVM(compiled.bytecode, compiled.strings, compiled.constants, data)
-      vm.escapeHtml = false  # Disable HTML escaping
+      var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)
+      vm.escape_html = false  # Disable HTML escaping
       let output = vm.execute()
       
       check output == "<h1>Test</h1><p>Description</p>"
@@ -782,25 +782,25 @@ when isMainModule:
     test "String literal":
       let source = "{{ 'hello world' }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "hello world"
 
     test "Number literals":
       let source = "Int: {{ 42 }} Float: {{ 3.14 }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "Int: 42 Float: 3.14"
 
     test "Boolean literals":
       let source = "True: {{ true }} False: {{ false }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "True: true False: false"
 
     test "Nil literal - actual":
       let source = "Nil: '{{ nil }}'"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       # The single quotes might be getting escaped
       # Let's check what we actually get
@@ -811,37 +811,37 @@ when isMainModule:
     test "Upcase filter":
       let source = "{{ name | upcase }}"
       let data = {"name": vmString("hello")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "HELLO"
 
     test "Downcase filter":
       let source = "{{ name | downcase }}"
       let data = {"name": vmString("HELLO")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "hello"
 
     test "Size filter":
       let source = "{{ items | size }}"
-      let data = {"items": toVMValue(@[1, 2, 3, 4, 5])}.toTable
-      let output = renderTemplate(source, data)
+      let data = {"items": to_vm_value(@[1, 2, 3, 4, 5])}.toTable
+      let output = render_template(source, data)
       check output == "5"
 
     test "First filter":
       let source = "{{ items | first }}"
-      let data = {"items": toVMValue(@["a", "b", "c"])}.toTable
-      let output = renderTemplate(source, data)
+      let data = {"items": to_vm_value(@["a", "b", "c"])}.toTable
+      let output = render_template(source, data)
       check output == "a"
 
     test "Last filter":
       let source = "{{ items | last }}"
-      let data = {"items": toVMValue(@["a", "b", "c"])}.toTable
-      let output = renderTemplate(source, data)
+      let data = {"items": to_vm_value(@["a", "b", "c"])}.toTable
+      let output = render_template(source, data)
       check output == "c"
 
     test "Chained filters":
       let source = "{{ name | downcase | size }}"
       let data = {"name": vmString("HELLO")}.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "5"
 
   suite "VM Complex Templates":
@@ -862,16 +862,16 @@ when isMainModule:
   </article>"""
       
       let data = {
-        "post": makeObject(
+        "post": make_object(
           ("title", vmString("Hello World")),
           ("author", vmString("Alice")),
           ("date", vmString("2024-01-01")),
-          ("tags", toVMValue(@["nim", "templates", "liquid"])),
+          ("tags", to_vm_value(@["nim", "templates", "liquid"])),
           ("content", vmString("This is the post content."))
         )
       }.toTable
       
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check "Hello World" in output
       check "Alice" in output
       check "<li>nim</li>" in output
@@ -887,12 +887,12 @@ when isMainModule:
       
       let data = {
         "cart": vmArray(@[
-          makeObject(
+          make_object(
             ("name", vmString("Book")),
             ("price", vmFloat(19.99)),
             ("quantity", vmInt(2))
           ),
-          makeObject(
+          make_object(
             ("name", vmString("Pen")),
             ("price", vmFloat(1.99)),
             ("quantity", vmInt(5))
@@ -900,7 +900,7 @@ when isMainModule:
         ])
       }.toTable
       
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check "Book: $19.99 x 2" in output
       check "Pen: $1.99 x 5" in output
       check "Total items: 2" in output
@@ -909,17 +909,17 @@ when isMainModule:
     test "Deeply nested properties":
       let source = "{{ a.b.c.d.e }}"
       let data = {
-        "a": makeObject(
-          ("b", makeObject(
-            ("c", makeObject(
-              ("d", makeObject(
+        "a": make_object(
+          ("b", make_object(
+            ("c", make_object(
+              ("d", make_object(
                 ("e", vmString("deep"))
               ))
             ))
           ))
         )
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       check output == "deep"
 
     test "HTML escaping":
@@ -929,8 +929,8 @@ when isMainModule:
       # Create VM with HTML escaping enabled (default)
       let sections = lex(source)
       let compiled = compile(sections, source)
-      var vm = newLiquidVM(compiled.bytecode, compiled.strings, compiled.constants, data)
-      vm.escapeHtml = true
+      var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)
+      vm.escape_html = true
       let output = vm.execute()
       
       check "<script>" notin output
@@ -939,84 +939,84 @@ when isMainModule:
     test "Division by zero":
       let source = "{{ 10 / 0 }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == ""
 
     test "Division by zero - float":
       let source = "{{ 10.5 / 0.0 }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == "inf"
 
     test "Modulo by zero":
       let source = "{{ 10 % 0 }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == ""
 
     test "Array index out of bounds - positive":
       let source = "{{ items[10] }}"
       let data = {
-        "items": toVMValue(@["a", "b", "c"])
+        "items": to_vm_value(@["a", "b", "c"])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == ""
 
     test "Array index out of bounds - negative":
       let source = "{{ items[-1] }}"
       let data = {
-        "items": toVMValue(@["a", "b", "c"])
+        "items": to_vm_value(@["a", "b", "c"])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == "c"
 
     test "Array index with non-integer":
       let source = "{{ items['hello'] }}"
       let data = {
-        "items": toVMValue(@["a", "b", "c"])
+        "items": to_vm_value(@["a", "b", "c"])
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == ""
 
     test "Null property access":
       let source = "{{ nothing.property }}"
       let data = initTable[string, VMValue]()
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == ""
 
     test "Deep property chain with null":
       let source = "{{ a.b.c.d.e.f.g }}"
       let data = {
-        "a": makeObject(
+        "a": make_object(
           ("b", vmNull())
         )
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output == ""
 
     test "Type coercion edge cases":
       let source1 = "{{ true + 1 }}"
-      let output1 = renderTemplate(source1, initTable[string, VMValue]())
+      let output1 = render_template(source1, initTable[string, VMValue]())
       
       check output1 == ""
 
     test "String coercion 1":
       let source = "{{ '5' + 5 }}"
-      let output = renderTemplate(source, initTable[string, VMValue]())
+      let output = render_template(source, initTable[string, VMValue]())
 
       check output == "55"
 
     test "String coercion 1":
       let source = "{{ 5 + '5' }}"
-      let output = renderTemplate(source, initTable[string, VMValue]())
+      let output = render_template(source, initTable[string, VMValue]())
 
       check output == "55"
 
@@ -1030,7 +1030,7 @@ when isMainModule:
         "empty_array": vmArray(@[]),
         "empty_object": vmObject(initTable[string, VMValue]())
       }.toTable
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       check output.strip() == ""
 
@@ -1040,15 +1040,15 @@ when isMainModule:
       let source = "{% for i in items %}{{ i }}{% endfor %}"
       
       # Create a very large array
-      var bigArray: seq[VMValue] = @[]
+      var big_array: seq[VMValue] = @[]
       for i in 0..1000:
-        bigArray.add(vmInt(i))
+        big_array.add(vmInt(i))
       
       let data = {
-        "items": vmArray(bigArray)
+        "items": vmArray(big_array)
       }.toTable
       
-      let output = renderTemplate(source, data)
+      let output = render_template(source, data)
       
       # Should complete without hanging
       check output.len > 0

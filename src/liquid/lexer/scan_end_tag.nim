@@ -4,7 +4,7 @@ when defined(posix) or defined(windows):
   else:
     proc memchr(s: pointer, c: cint, n: csize_t): pointer {.importc, header: "<string.h>".}
 
-proc scanEndTag*(input: string, pos: var int, endTag: static string, 
+proc scan_end_tag*(input: string, pos: var int, endTag: static string, 
                         returnRawEnd: static bool = false): int {. inline .} =
   ## Ultra-fast scanning for {% endXXX %} tags using memchr
   ## 
@@ -20,9 +20,9 @@ proc scanEndTag*(input: string, pos: var int, endTag: static string,
   ## - If returnRawEnd is false: -1 (content is discarded)
   ## 
   ## Examples:
-  ## - For comment: scanEndTag(input, pos, "endcomment", false)
-  ## - For raw: let rawEnd = scanEndTag(input, pos, "endraw", true)
-  ## - For capture: let captureEnd = scanEndTag(input, pos, "endcapture", true)
+  ## - For comment: scan_end_tag(input, pos, "endcomment", false)
+  ## - For raw: let rawEnd = scan_end_tag(input, pos, "endraw", true)
+  ## - For capture: let captureEnd = scan_end_tag(input, pos, "endcapture", true)
   
   when returnRawEnd:
     result = pos  # Initialize to current position for raw-style blocks
