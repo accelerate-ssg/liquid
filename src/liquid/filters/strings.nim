@@ -316,27 +316,37 @@ create_filter:
     if args.len > 2:
       raise newException(ValueError, "slice filter takes at most 2 arguments")
 
-    # Parse start index
-    var startIdx: int = 0
-    case args[0].kind
-    of vmInt: startIdx = args[0].intVal.int
-    of vmFloat: startIdx = args[0].floatVal.int
-    of vmString:
-      try: startIdx = args[0].stringVal.parseInt()
-      except: startIdx = 0
-    of vmNull: startIdx = 0
-    else: startIdx = 0
+    # Parse start index with strict type checking
+    if args[0].kind == vmNull:
+      raise newException(ValueError, "slice filter: first argument cannot be undefined")
+    if args[0].kind == vmFloat:
+      raise newException(ValueError, "slice filter: first argument must be an integer, not a float")
+    var startIdx: int
+    if args[0].kind == vmInt:
+      startIdx = args[0].intVal.int
+    elif args[0].kind == vmString:
+      try:
+        startIdx = args[0].stringVal.parseInt()
+      except:
+        raise newException(ValueError, "slice filter: first argument must be an integer")
+    else:
+      raise newException(ValueError, "slice filter: first argument must be an integer")
 
     var length = 1
     if args.len > 1:
-      case args[1].kind
-      of vmInt: length = args[1].intVal.int
-      of vmFloat: length = args[1].floatVal.int
-      of vmString:
-        try: length = args[1].stringVal.parseInt()
-        except: length = 1
-      of vmNull: length = 1
-      else: length = 1
+      if args[1].kind == vmNull:
+        length = 1
+      elif args[1].kind == vmFloat:
+        raise newException(ValueError, "slice filter: second argument must be an integer, not a float")
+      elif args[1].kind == vmInt:
+        length = args[1].intVal.int
+      elif args[1].kind == vmString:
+        try:
+          length = args[1].stringVal.parseInt()
+        except:
+          raise newException(ValueError, "slice filter: second argument must be an integer")
+      else:
+        raise newException(ValueError, "slice filter: second argument must be an integer")
 
     if value.kind == vmString:
       let str = value.stringVal

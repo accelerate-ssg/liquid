@@ -4,7 +4,10 @@ import ../shared
 # Returns the default value if the input is null, false, or empty
 create_filter:
   proc default(value: VMValue, args: varargs[VMValue]): VMValue =
-    # Default value: empty string if no argument, otherwise the first non-keyword arg
+    if args.len > 2:
+      raise newException(ValueError, "default filter takes at most 2 arguments")
+
+    # Default value: empty string if no argument, otherwise the first arg
     let defaultValue = if args.len > 0:
       args[0]
     else:

@@ -2,35 +2,21 @@ import sequtils, algorithm, strutils, tables
 import ../shared
 
 
-# Returns the first element of an array or first char of string
+# Returns the first element of an array
 create_filter:
   proc first(value: VMValue): VMValue =
     case value.kind
     of vmArray:
       if value.arrayVal.len > 0: value.arrayVal[0]
       else: VMValue(kind: vmNull)
-    of vmString:
-      if value.stringVal.len > 0:
-        VMValue(kind: vmString, stringVal: $value.stringVal[0])
-      else: VMValue(kind: vmNull)
-    of vmObject:
-      # Return first key-value pair as array [key, value]
-      for key, val in value.objectVal:
-        return VMValue(kind: vmArray, arrayVal: @[
-          VMValue(kind: vmString, stringVal: key), val])
-      VMValue(kind: vmNull)
     else: VMValue(kind: vmNull)
 
-# Returns the last element of an array or last char of string
+# Returns the last element of an array
 create_filter:
   proc last(value: VMValue): VMValue =
     case value.kind
     of vmArray:
       if value.arrayVal.len > 0: value.arrayVal[^1]
-      else: VMValue(kind: vmNull)
-    of vmString:
-      if value.stringVal.len > 0:
-        VMValue(kind: vmString, stringVal: $value.stringVal[^1])
       else: VMValue(kind: vmNull)
     else: VMValue(kind: vmNull)
 
@@ -273,6 +259,13 @@ create_filter:
     if args.len == 0:
       raise newException(ValueError, "concat filter requires at least 1 argument")
 
+    # Validate arguments are arrays
+    for arg in args:
+      if arg.kind == vmNull:
+        raise newException(ValueError, "concat filter argument is undefined or null")
+      elif arg.kind != vmArray:
+        raise newException(ValueError, "concat filter arguments must be arrays")
+
     # Convert left value to array if needed
     var left: seq[VMValue]
     case value.kind
@@ -281,10 +274,7 @@ create_filter:
     else: left = @[value]
 
     for arg in args:
-      case arg.kind
-      of vmArray: left.add(arg.arrayVal)
-      of vmNull: discard  # null is treated as empty array
-      else: left.add(arg)
+      left.add(arg.arrayVal)
 
     result = VMValue(kind: vmArray, arrayVal: left)
 

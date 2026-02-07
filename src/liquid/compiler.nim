@@ -252,8 +252,7 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
         inc pos
         
         var argCount: uint8 = 0
-        #var args: seq[int] = @[]
-        
+
         if pos < stop and tokens[pos].kind == tkColon:
           inc pos
           # Parse filter arguments
@@ -262,11 +261,18 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
             # Find end of this argument (comma or end)
             while pos < stop and tokens[pos].kind notin [tkComma, tkPipe]:
               inc pos
-            
-            # Compile the argument
-            c.compile_expression(tokens, arg_start, pos)
+
+            # Check for keyword argument pattern: identifier:value
+            # Skip the keyword name and colon, just compile the value
+            var expr_start = arg_start
+            if pos - arg_start >= 3 and
+               tokens[arg_start].kind == tkIdentifier and
+               tokens[arg_start + 1].kind == tkColon:
+              expr_start = arg_start + 2
+
+            c.compile_expression(tokens, expr_start, pos)
             inc argCount
-            
+
             if pos < stop and tokens[pos].kind == tkComma:
               inc pos  # Skip comma
         
