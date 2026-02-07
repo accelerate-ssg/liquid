@@ -355,11 +355,23 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
 
 # Section compilation procedures
 proc compile_text(c: var Compiler, section: Section) =
-  let text = c.input[section.start..<section.stop]
-  
+  var text = c.input[section.start..<section.stop]
+
+  # Whitespace control: strip leading whitespace if previous section has stripRight
+  if c.currentSection > 0:
+    let prev = c.sections[c.currentSection - 1]
+    if prev.stripRight:
+      text = text.strip(leading=true, trailing=false)
+
+  # Whitespace control: strip trailing whitespace if next section has stripLeft
+  if c.currentSection + 1 < c.sections.len:
+    let next = c.sections[c.currentSection + 1]
+    if next.stripLeft:
+      text = text.strip(leading=false, trailing=true)
+
   if text.len == 0:
     return
-  
+
   # ALWAYS use batch output for text sections (never escaped)
   let stringId = c.intern_string(text)
   c.emit(Instruction(op: opBatchOutput, batchCount: 1, stringIds: @[stringId]))

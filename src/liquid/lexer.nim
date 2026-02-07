@@ -469,19 +469,33 @@ proc lex*(input: string): seq[Section] =
         #      `bm                                                                                                                             md'    
         profile("comment tag"):
           pos += 7  # Skip "comment"
-          
+
           # Skip the rest of the opening {% comment %} tag
           while pos < input.len - 1:
-            if input.matches_at(pos, "%}"):
-              pos += 2
-              break
             if input.matches_at(pos, "-%}"):
               pos += 3
               break
+            if input.matches_at(pos, "%}"):
+              pos += 2
+              break
             inc pos
-          
+
+          # Save position to detect endcomment strip flags
+          let commentContentStart = pos
+
           # Use generic scanner - returns -1 since we don't need content
           discard scan_end_tag(input, pos, "endcomment", false)
+
+          # Detect endcomment strip flags
+          var endcommentStripRight = false
+          if pos >= 3 and input[pos-3] == '-' and input[pos-2] == '%' and input[pos-1] == '}':
+            endcommentStripRight = true
+
+          # If strip flags present, insert zero-length text section to propagate them
+          if stripLeft or endcommentStripRight:
+            section = Section(kind: skText, start: commentContentStart, stop: commentContentStart,
+                             stripLeft: stripLeft, stripRight: endcommentStripRight)
+            result.add(section)
         
       elif input.matches_at(pos, "raw"):
         #      ,pm                                                                             mq.    
@@ -496,24 +510,56 @@ proc lex*(input: string): seq[Section] =
         #      `bm                                                                             md'    
         profile("raw tag"):
           pos += 3  # Skip "raw"
-          
-          # Skip the rest of the opening tag
+
+          # Skip the rest of the opening tag, detect stripRight on opening tag
+          var rawOpenStripRight = false
           while pos < input.len - 1:
+            if input.matches_at(pos, "-%}"):
+              rawOpenStripRight = true
+              pos += 3
+              break
             if input.matches_at(pos, "%}"):
               pos += 2
               break
-            if input.matches_at(pos, "-%}"):
-              pos += 3
-              break
             inc pos
-          
+
           # Get content until {% endraw %}
-          let rawStart = pos
+          var rawStart = pos
+          let savedPos = pos
           let rawEnd = scan_end_tag(input, pos, "endraw", true)
-          
+
+          # Detect endraw strip flags by scanning the endraw tag
+          var endrawStripLeft = false
+          var endrawStripRight = false
+          if rawEnd < input.len:
+            # Check if {%- was used for endraw
+            if rawEnd >= 3 and input[rawEnd] == '{' and input[rawEnd+1] == '%' and input[rawEnd+2] == '-':
+              endrawStripLeft = true
+            elif rawEnd >= 2 and input[rawEnd] == '{' and input[rawEnd+1] == '%':
+              endrawStripLeft = false
+            # Check if -%} was used at the end (pos is now past the endraw tag)
+            if pos >= 3 and input[pos-3] == '-' and input[pos-2] == '%' and input[pos-1] == '}':
+              endrawStripRight = true
+
+          # Apply internal stripping to raw content range
+          var actualStart = rawStart
+          var actualEnd = rawEnd
+          if rawOpenStripRight and actualStart < actualEnd:
+            while actualStart < actualEnd and input[actualStart] in {' ', '\t', '\r', '\n'}:
+              inc actualStart
+          if endrawStripLeft and actualStart < actualEnd:
+            while actualEnd > actualStart and input[actualEnd - 1] in {' ', '\t', '\r', '\n'}:
+              dec actualEnd
+
           # Add the raw content as text if not empty
-          if rawEnd > rawStart:
-            section = Section(kind: skText, start: rawStart, stop: rawEnd)
+          if actualEnd > actualStart:
+            section = Section(kind: skText, start: actualStart, stop: actualEnd,
+                             stripLeft: stripLeft, stripRight: endrawStripRight)
+            result.add(section)
+          elif stripLeft or endrawStripRight:
+            # Even if raw content is empty, propagate strip flags via a zero-length text section
+            section = Section(kind: skText, start: actualStart, stop: actualStart,
+                             stripLeft: stripLeft, stripRight: endrawStripRight)
             result.add(section)
       
       elif input.matches_at(pos, "liquid"):
