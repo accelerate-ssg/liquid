@@ -121,7 +121,18 @@ proc execute*(vm: var LiquidVM): string =
     let inst = vm.bytecode[vm.pc]
     inc vm.pc
     inc vm.instruction_count
-    
+
+    # When pending break/continue is active, skip all instructions except
+    # opIterNext (which handles the break/continue) and opStoreVar (to pop stack)
+    if (vm.pending_break or vm.pending_continue) and inst.op != opIterNext:
+      # Skip instructions, but pop any stack values that were pushed
+      case inst.op
+      of opStoreVar:
+        discard vm.pop()
+      else:
+        discard
+      continue
+
     case inst.op
     # Stack operations
     of opPushNull:
@@ -155,7 +166,9 @@ proc execute*(vm: var LiquidVM): string =
     # Variable operations
     of opLoadVar:
       let var_name = vm.strings[inst.stringId]
-      if var_name in vm.locals:
+      if var_name in vm.keyword_args:
+        vm.push(vm.keyword_args[var_name])
+      elif var_name in vm.locals:
         vm.push(vm.locals[var_name])
       elif var_name in vm.variables:
         vm.push(vm.variables[var_name])
@@ -653,7 +666,7 @@ proc execute*(vm: var LiquidVM): string =
       for i in countdown(vm.iterators.len - 1, 0):
         if vm.iterators[i].var_name == loop_var_name:
           let stale = vm.iterators[i]
-          vm.loop_offsets[stale.var_name] = stale.original_offset + stale.index
+          vm.loop_offsets[stale.var_name] = stale.original_offset + stale.items.len
           # Restore the forloop saved by the stale iterator
           if stale.saved_forloop.kind != vm_null:
             vm.locals["forloop"] = stale.saved_forloop
@@ -720,54 +733,95 @@ proc execute*(vm: var LiquidVM): string =
 
     of opIterNext:
       if vm.iterators.len > 0:
-        # Get the current iterator (don't pop it yet)
-        var iter = addr vm.iterators[^1]
-        if iter.index < iter.items.len:
-          # Push next item and continue
-          vm.push(iter.items[iter.index])
-          iter.index += 1
-
-          # Build forloop helper object
-          let idx0 = iter.index - 1  # 0-based (already incremented above)
-          let length = iter.items.len
-          var forloopObj = {
-            "index": vm_int((idx0 + 1).int64),
-            "index0": vm_int(idx0.int64),
-            "first": vm_bool(idx0 == 0),
-            "last": vm_bool(idx0 == length - 1),
-            "length": vm_int(length.int64),
-            "rindex": vm_int((length - idx0).int64),
-            "rindex0": vm_int((length - idx0 - 1).int64),
-            "name": vm_string(iter.loop_name),
-          }.toTable
-
-          # Set parentloop from the saved forloop in this iterator
-          let saved = iter.saved_forloop
-          if saved.kind != vm_null:
-            forloopObj["parentloop"] = saved
-          else:
-            forloopObj["parentloop"] = vm_null()
-
-          vm.locals["forloop"] = vm_object(forloopObj)
-        else:
-          # Determine if collection was empty (never iterated) or exhausted
-          let wasEmpty = iter.index == 0
-          # End of iteration - save loop offset for offset: continue
+        if vm.pending_break:
+          # Break from included partial: end the loop immediately
+          vm.pending_break = false
           let finished_iter = vm.iterators[^1]
-          vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.index
-          # NOW we pop the iterator
+          vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.items.len
           vm.iterators.setLen(vm.iterators.len - 1)
-          # Restore saved forloop from the finished iterator
+          vm.locals.del(finished_iter.var_name)
           if finished_iter.saved_forloop.kind != vm_null:
             vm.locals["forloop"] = finished_iter.saved_forloop
           else:
-            # No outer loop — forloop goes out of scope
             vm.locals.del("forloop")
-          # Jump to else block if empty, or past loop if exhausted
-          if wasEmpty and inst.elseOffset != 0:
-            vm.pc += inst.elseOffset
+          vm.pc += inst.endOffset
+        elif vm.pending_continue:
+          # Continue from included partial: skip to next iteration
+          vm.pending_continue = false
+          # Fall through to normal iteration (index already advanced)
+          var iter = addr vm.iterators[^1]
+          if iter.index < iter.items.len:
+            vm.push(iter.items[iter.index])
+            iter.index += 1
+            let idx0 = iter.index - 1
+            let length = iter.items.len
+            var forloopObj = {
+              "index": vm_int((idx0 + 1).int64),
+              "index0": vm_int(idx0.int64),
+              "first": vm_bool(idx0 == 0),
+              "last": vm_bool(idx0 == length - 1),
+              "length": vm_int(length.int64),
+              "rindex": vm_int((length - idx0).int64),
+              "rindex0": vm_int((length - idx0 - 1).int64),
+              "name": vm_string(iter.loop_name),
+            }.toTable
+            let saved = iter.saved_forloop
+            if saved.kind != vm_null:
+              forloopObj["parentloop"] = saved
+            else:
+              forloopObj["parentloop"] = vm_null()
+            vm.locals["forloop"] = vm_object(forloopObj)
           else:
+            let finished_iter = vm.iterators[^1]
+            vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.items.len
+            vm.iterators.setLen(vm.iterators.len - 1)
+            vm.locals.del(finished_iter.var_name)
+            if finished_iter.saved_forloop.kind != vm_null:
+              vm.locals["forloop"] = finished_iter.saved_forloop
+            else:
+              vm.locals.del("forloop")
             vm.pc += inst.endOffset
+        else:
+          # Normal iteration
+          var iter = addr vm.iterators[^1]
+          if iter.index < iter.items.len:
+            vm.push(iter.items[iter.index])
+            iter.index += 1
+
+            let idx0 = iter.index - 1
+            let length = iter.items.len
+            var forloopObj = {
+              "index": vm_int((idx0 + 1).int64),
+              "index0": vm_int(idx0.int64),
+              "first": vm_bool(idx0 == 0),
+              "last": vm_bool(idx0 == length - 1),
+              "length": vm_int(length.int64),
+              "rindex": vm_int((length - idx0).int64),
+              "rindex0": vm_int((length - idx0 - 1).int64),
+              "name": vm_string(iter.loop_name),
+            }.toTable
+
+            let saved = iter.saved_forloop
+            if saved.kind != vm_null:
+              forloopObj["parentloop"] = saved
+            else:
+              forloopObj["parentloop"] = vm_null()
+
+            vm.locals["forloop"] = vm_object(forloopObj)
+          else:
+            let wasEmpty = iter.index == 0
+            let finished_iter = vm.iterators[^1]
+            vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.items.len
+            vm.iterators.setLen(vm.iterators.len - 1)
+            vm.locals.del(finished_iter.var_name)
+            if finished_iter.saved_forloop.kind != vm_null:
+              vm.locals["forloop"] = finished_iter.saved_forloop
+            else:
+              vm.locals.del("forloop")
+            if wasEmpty and inst.elseOffset != 0:
+              vm.pc += inst.elseOffset
+            else:
+              vm.pc += inst.endOffset
     
     # Comparison
     of opEqual:
@@ -1094,9 +1148,14 @@ proc execute*(vm: var LiquidVM): string =
             # Bind the loop item as the partial name variable
             subVm.locals[partialName] = item
             # Set keyword args
-            for (k, v) in kwArgs:
-              subVm.locals[k] = v
-            # Build forloop helper
+            if inst.withContext:
+              for (k, v) in kwArgs:
+                subVm.keyword_args[k] = v
+            else:
+              for (k, v) in kwArgs:
+                subVm.locals[k] = v
+            # Build forloop helper for render for-loop
+            # Use variables (not locals) so inner for-loops don't pick it up as parentloop
             var forloopObj = {
               "index": vm_int((idx + 1).int64),
               "index0": vm_int(idx.int64),
@@ -1107,7 +1166,10 @@ proc execute*(vm: var LiquidVM): string =
               "rindex0": vm_int((totalItems - idx - 1).int64),
               "parentloop": vm_null(),
             }.toTable
-            subVm.locals["forloop"] = vm_object(forloopObj)
+            if inst.withContext:
+              subVm.locals["forloop"] = vm_object(forloopObj)
+            else:
+              subVm.variables["forloop"] = vm_object(forloopObj)
 
             subVm.partial_cache = vm.partial_cache
             let sub_output = subVm.execute()
@@ -1128,6 +1190,7 @@ proc execute*(vm: var LiquidVM): string =
             # Include: share locals (assigns persist back)
             subVm.locals = vm.locals
             subVm.loop_offsets = vm.loop_offsets
+            subVm.counters = vm.counters
 
           # Handle 'with' binding
           if inst.includeWithVar >= 0:
@@ -1137,9 +1200,14 @@ proc execute*(vm: var LiquidVM): string =
             else:
               subVm.locals[partialName] = withVal
 
-          # Set keyword args
-          for (k, v) in kwArgs:
-            subVm.locals[k] = v
+          # Set keyword args as read-only overlay (not in locals)
+          if inst.withContext:
+            for (k, v) in kwArgs:
+              subVm.keyword_args[k] = v
+          else:
+            # Render: keyword args go into locals (isolated scope)
+            for (k, v) in kwArgs:
+              subVm.locals[k] = v
 
           subVm.partial_cache = vm.partial_cache
           let sub_output = subVm.execute()
@@ -1152,12 +1220,29 @@ proc execute*(vm: var LiquidVM): string =
             # Include: propagate locals back to parent
             vm.locals = subVm.locals
             vm.loop_offsets = subVm.loop_offsets
+            vm.counters = subVm.counters
+            # Propagate break/continue from include
+            if subVm.pending_break:
+              vm.pending_break = true
+            if subVm.pending_continue:
+              vm.pending_continue = true
+
+    of opBreak:
+      # Break outside a loop (e.g. from an included partial)
+      # Set pending_break flag and stop execution — parent will handle
+      vm.pending_break = true
+      break  # Stop executing this partial
+
+    of opContinue:
+      # Continue outside a loop (e.g. from an included partial)
+      vm.pending_continue = true
+      break  # Stop executing this partial
 
     else:
       # Unimplemented opcode
       raise newException(CatchableError,
         "Unimplemented opcode: " & $inst.op)
-  
+
   result = vm.output
 
 # Public API

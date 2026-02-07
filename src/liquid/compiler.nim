@@ -516,11 +516,18 @@ proc compile_break(c: var Compiler) =
   if c.loopDepth > 0:
     let jumpPos = c.emit_jump(opJump)
     c.breakJumps[^1].add(jumpPos)
+  else:
+    # Outside a loop (e.g. inside an included partial) — emit opBreak
+    # which sets pending_break on the VM for propagation to parent
+    c.emit(Instruction(op: opBreak, levels: 1))
 
 proc compile_continue(c: var Compiler) =
   if c.loopDepth > 0:
     let jumpPos = c.emit_jump(opJump)
     c.continueJumps[^1].add(jumpPos)
+  else:
+    # Outside a loop — emit opContinue for propagation
+    c.emit(Instruction(op: opContinue, levels: 1))
 
 proc compile_capture(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 2:

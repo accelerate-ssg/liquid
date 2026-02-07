@@ -43,6 +43,9 @@ type
     pending_break*: bool
     pending_continue*: bool
 
+    # Keyword arguments (for include tag) - read-only overlay on locals
+    keyword_args*: Table[string, VMValue]
+
     # Cycle tag counters
     cycle_counters*: Table[string, int]  # group_key -> current index
 
