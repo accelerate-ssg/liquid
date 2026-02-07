@@ -133,8 +133,11 @@ type
       hasLimit*: bool
       hasOffset*: bool
       hasOffsetContinue*: bool  # offset: continue (resume from last position)
+      isReversed*: bool         # reversed keyword
+      loopNameId*: int32        # String ID for forloop.name (-1 = none)
     of opIterNext:
-      endOffset*: int32
+      endOffset*: int32       # Jump offset when iteration is exhausted
+      elseOffset*: int32      # Jump offset when collection is empty (for else block)
     of opBreak, opContinue:
       levels*: uint8
     of opBatchOutput:

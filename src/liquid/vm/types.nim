@@ -53,6 +53,7 @@ type
     var_name*: string
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
     saved_forloop*: VMValue  # Saved forloop value from before this loop started (for nesting)
+    loop_name*: string       # forloop.name value (e.g., "tag-product.tags")
     
 
 

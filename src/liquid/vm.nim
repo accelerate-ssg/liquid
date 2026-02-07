@@ -353,6 +353,10 @@ proc execute*(vm: var LiquidVM): string =
             VMValue(kind: vmString, stringVal: key),
             val
           ]))
+      of vmString:
+        # Iterate string as single item
+        if collection.stringVal.len > 0:
+          items = @[collection]
       else:
         discard  # Empty items for non-iterable
 
@@ -368,15 +372,23 @@ proc execute*(vm: var LiquidVM): string =
       if limit_val >= 0 and limit_val < items.len.int64:
         items = items[0..<limit_val]
 
+      # Apply reversed
+      if inst.isReversed:
+        items.reverse()
+
       # Save current forloop value in the iterator for nesting restore
       let saved_fl = if "forloop" in vm.locals: vm.locals["forloop"] else: vm_null()
+
+      # Get loop name from instruction
+      let loop_name = if inst.loopNameId >= 0: vm.strings[inst.loopNameId] else: ""
 
       vm.iterators.add(Iterator(
         items: items,
         index: 0,
         var_name: loop_var_name,
         original_offset: offset_val.int,
-        saved_forloop: saved_fl
+        saved_forloop: saved_fl,
+        loop_name: loop_name
       ))
 
     of opIterNext:
@@ -399,6 +411,7 @@ proc execute*(vm: var LiquidVM): string =
             "length": vm_int(length.int64),
             "rindex": vm_int((length - idx0).int64),
             "rindex0": vm_int((length - idx0 - 1).int64),
+            "name": vm_string(iter.loop_name),
           }.toTable
 
           # Set parentloop from the saved forloop in this iterator
@@ -410,6 +423,8 @@ proc execute*(vm: var LiquidVM): string =
 
           vm.locals["forloop"] = vm_object(forloopObj)
         else:
+          # Determine if collection was empty (never iterated) or exhausted
+          let wasEmpty = iter.index == 0
           # End of iteration - save loop offset for offset: continue
           let finished_iter = vm.iterators[^1]
           vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.index
@@ -421,7 +436,11 @@ proc execute*(vm: var LiquidVM): string =
           else:
             # No outer loop — forloop goes out of scope
             vm.locals.del("forloop")
-          vm.pc += inst.endOffset
+          # Jump to else block if empty, or past loop if exhausted
+          if wasEmpty and inst.elseOffset != 0:
+            vm.pc += inst.elseOffset
+          else:
+            vm.pc += inst.endOffset
     
     # Comparison
     of opEqual:

@@ -606,10 +606,11 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
     c.currentSection += 1  # Skip malformed for
     return
 
-  # Find limit and offset positions in the token stream
+  # Find limit, offset, and reversed positions in the token stream
   var collectionEnd = tokens.len  # End of collection expression
   var limitPos = -1  # Position of "limit" keyword
   var offsetPos = -1  # Position of "offset" keyword
+  var isReversed = false
 
   for i in (inPos + 1)..<tokens.len:
     if tokens[i].kind == tkIdentifier:
@@ -620,6 +621,10 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
           collectionEnd = i
       elif token_text == "offset" and i + 1 < tokens.len and tokens[i + 1].kind == tkColon:
         offsetPos = i
+        if collectionEnd > i:
+          collectionEnd = i
+      elif token_text == "reversed":
+        isReversed = true
         if collectionEnd > i:
           collectionEnd = i
 
@@ -658,10 +663,22 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
       limitValueEnd = offsetPos
     c.compile_expression(tokens, limitPos + 2, limitValueEnd)
 
+  # Build forloop.name: "{var_name}-{collection_source_text}"
+  var collectionText = ""
+  for i in (inPos + 1)..<collectionEnd:
+    collectionText.add(c.input[tokens[i].start..<tokens[i].stop])
+    # Add dots between identifier chains
+    if i + 1 < collectionEnd and tokens[i].kind == tkIdentifier and
+       tokens[i + 1].kind == tkDot:
+      discard  # dot will be added by the next token
+  let loopName = iter_var & "-" & collectionText
+  let loopNameId = c.intern_string(loopName).int32
+
   # Setup loop
   c.emit(Instruction(op: opBeginLoop, loopVarIndex: iter_varId.uint16,
                      hasLimit: hasLimit, hasOffset: hasOffset,
-                     hasOffsetContinue: hasOffsetContinue))
+                     hasOffsetContinue: hasOffsetContinue,
+                     isReversed: isReversed, loopNameId: loopNameId))
   c.loopDepth += 1
   c.breakJumps.add(@[])
   c.continueJumps.add(@[])
@@ -678,30 +695,61 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   
   # Move past the for tag
   c.currentSection += 1
-  
-  # Compile loop body
-  c.compile_until(@[tkEndfor])
-  
+
+  # Compile loop body (stop at else or endfor)
+  c.compile_until(@[tkElse, tkEndfor])
+
   # Jump back to iteration check
   let jumpBack = loopStart - c.instructions.len - 1
   c.emit(Instruction(op: opJump, offset: jumpBack.int32))
-  
-  # Patch the IterNext to jump here when done
-  let endOffset = c.instructions.len - iterCheckPos - 1
-  c.instructions[iterCheckPos] = Instruction(op: opIterNext, endOffset: endOffset.int32)
-  
+
+  # After the loop body: this is where opIterNext jumps when iteration ends
+  let afterLoop = c.instructions.len
+
   # Handle breaks and continues
   for breakPos in c.breakJumps[^1]:
     c.patch_jump(breakPos)
-  
+
   for continuePos in c.continueJumps[^1]:
     let continueOffset = loopStart - continuePos - 1
     c.instructions[continuePos] = Instruction(op: opJump, offset: continueOffset.int32)
-  
+
   c.breakJumps.setLen(c.breakJumps.len - 1)
   c.continueJumps.setLen(c.continueJumps.len - 1)
   c.loopDepth -= 1
-  
+
+  # Check for {% else %} block (default for empty collections)
+  var hasElse = false
+  if c.currentSection < c.sections.len:
+    let section = c.sections[c.currentSection]
+    if section.kind == skTag and section.tokens.len > 0 and
+       section.tokens[0].kind == tkElse:
+      hasElse = true
+      # Jump over else block after normal loop completion
+      let jumpOverElse = c.emit_jump(opJump)
+
+      # Else block starts here
+      let elseStart = c.instructions.len
+
+      c.currentSection += 1  # Move past else tag
+      c.compile_until(@[tkEndfor])
+
+      let afterElse = c.instructions.len
+      c.patch_jump(jumpOverElse)
+
+      # Patch iterNext with both offsets:
+      # endOffset = past else (after completing iteration)
+      # elseOffset = to else content (when collection is empty)
+      c.instructions[iterCheckPos] = Instruction(op: opIterNext,
+        endOffset: (afterElse - iterCheckPos - 1).int32,
+        elseOffset: (elseStart - iterCheckPos - 1).int32)
+
+  if not hasElse:
+    # No else block: patch iterNext to jump after loop
+    let endOffset = afterLoop - iterCheckPos - 1
+    c.instructions[iterCheckPos] = Instruction(op: opIterNext,
+      endOffset: endOffset.int32, elseOffset: 0)
+
   # Move past the endfor tag
   if c.currentSection < c.sections.len:
     let section = c.sections[c.currentSection]
