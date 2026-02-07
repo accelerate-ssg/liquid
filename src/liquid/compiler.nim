@@ -1299,73 +1299,92 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
     else:
       c.currentSection += 1
 
+# ─── Tag Registration ────────────────────────────────────────────────
+
+proc register_tag*(c: var Compiler, name: string, compile_proc: TagCompileProc,
+                   is_block: bool, token_kind: TokenKind = tkIdentifier) =
+  ## Register a tag compiler. Block tags handle their own section advancement.
+  ## Inline tags do NOT — the dispatcher advances after calling compile_proc.
+  c.tag_registry[name] = TagRegistration(
+    name: name,
+    compile: compile_proc,
+    is_block: is_block,
+    token_kind: token_kind,
+  )
+
+# Mapping from lexer keyword token kinds to tag names
+const token_to_tag_name*: array[TokenKind, string] = block:
+  var result: array[TokenKind, string]
+  for tk in TokenKind:
+    result[tk] = ""
+  result[tkIf] = "if"
+  result[tkUnless] = "unless"
+  result[tkFor] = "for"
+  result[tkAssignTag] = "assign"
+  result[tkCapture] = "capture"
+  result[tkCase] = "case"
+  result[tkBreak] = "break"
+  result[tkContinue] = "continue"
+  result
+
+# End/inner tags are NOT dispatched — they're handled by parent block tags
+const inner_tag_kinds = {tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture,
+                          tkWhen, tkEndcase, tkEndunless, tkEndtablerow,
+                          tkEndifchanged}
+
+proc register_liquid_tags*(c: var Compiler) =
+  ## Register all standard Liquid tags
+  # Block tags (handle their own section advancement)
+  c.register_tag("if", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_if(tokens), is_block = true, token_kind = tkIf)
+  c.register_tag("unless", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_unless(tokens), is_block = true, token_kind = tkUnless)
+  c.register_tag("for", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_for(tokens), is_block = true, token_kind = tkFor)
+  c.register_tag("capture", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_capture(tokens), is_block = true, token_kind = tkCapture)
+  c.register_tag("case", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_case(tokens), is_block = true, token_kind = tkCase)
+  c.register_tag("tablerow", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_tablerow(tokens), is_block = true)
+  c.register_tag("ifchanged", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_ifchanged(tokens), is_block = true)
+
+  # Inline tags (dispatcher handles section advancement)
+  c.register_tag("assign", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_assign(tokens), is_block = false, token_kind = tkAssignTag)
+  c.register_tag("break", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_break(), is_block = false, token_kind = tkBreak)
+  c.register_tag("continue", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_continue(), is_block = false, token_kind = tkContinue)
+  c.register_tag("increment", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_increment(tokens), is_block = false)
+  c.register_tag("decrement", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_decrement(tokens), is_block = false)
+  c.register_tag("include", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_include(tokens), is_block = false)
+  c.register_tag("render", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_render(tokens), is_block = false)
+  c.register_tag("cycle", proc(c: var Compiler, tokens: openArray[Token]) = c.compile_cycle(tokens), is_block = false)
+
 proc compile_tag(c: var Compiler, section: Section) =
   let tokens = section.tokens
   if tokens.len == 0:
     c.currentSection += 1  # Move past empty tag
     return
-  
+
   let firstToken = tokens[0]
-  case firstToken.kind
-  of tkIf:
-    c.compile_if(tokens)
-    # compile_if handles its own advancement
-  of tkUnless:
-    c.compile_unless(tokens)
-    # compile_unless handles its own advancement
-  of tkFor:
-    c.compile_for(tokens)
-    # compile_for handles its own advancement
-  of tkAssignTag:
-    c.compile_assign(tokens)
-    c.currentSection += 1  # Move past assign tag
-  of tkCapture:
-    c.compile_capture(tokens)
-    # compile_capture handles its own advancement
-  of tkCase:
-    c.compile_case(tokens)
-    # compile_case handles its own advancement
-  of tkBreak:
-    c.compile_break()
-    c.currentSection += 1  # Move past break tag
-  of tkContinue:
-    c.compile_continue()
-    c.currentSection += 1  # Move past continue tag
-  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase, tkEndunless, tkEndtablerow, tkEndifchanged:
-    # These are handled by their parent structures
-    # Don't compile them directly
+
+  # Check for inner/end tags first (handled by parent block tags)
+  if firstToken.kind in inner_tag_kinds:
     c.currentSection += 1
-  of tkIdentifier:
-    # Handle custom tags by name (increment, decrement, etc.)
-    let tag_name = c.input[firstToken.start..<firstToken.stop]
-    case tag_name
-    of "increment":
-      c.compile_increment(tokens)
-      c.currentSection += 1
-    of "decrement":
-      c.compile_decrement(tokens)
-      c.currentSection += 1
-    of "include":
-      c.compile_include(tokens)
-      c.currentSection += 1
-    of "render":
-      c.compile_render(tokens)
-      c.currentSection += 1
-    of "cycle":
-      c.compile_cycle(tokens)
-      c.currentSection += 1
-    of "tablerow":
-      c.compile_tablerow(tokens)
-    of "ifchanged":
-      c.compile_ifchanged(tokens)
-    else:
-      if c.strict:
-        raise newException(ValueError, "Unknown tag: '" & tag_name & "'")
+    return
+
+  # Determine tag name from token kind or identifier
+  var tag_name: string
+  if firstToken.kind == tkIdentifier:
+    tag_name = c.input[firstToken.start..<firstToken.stop]
+  else:
+    tag_name = token_to_tag_name[firstToken.kind]
+
+  # Look up in registry
+  if tag_name.len > 0 and tag_name in c.tag_registry:
+    let reg = c.tag_registry[tag_name]
+    reg.compile(c, tokens)
+    if not reg.is_block:
       c.currentSection += 1
   else:
+    # Unknown tag
     if c.strict:
-      let tag_name = c.input[firstToken.start..<firstToken.stop]
-      raise newException(ValueError, "Unknown tag: '" & tag_name & "'")
+      let name = if tag_name.len > 0: tag_name
+                 else: c.input[firstToken.start..<firstToken.stop]
+      raise newException(ValueError, "Unknown tag: '" & name & "'")
     c.currentSection += 1
 
 proc compile_section(c: var Compiler, section: Section) =
@@ -1394,8 +1413,10 @@ proc compile*(sections: seq[Section], input: string, strict: bool = false): Comp
     optionalVars: initHashSet[string](),
     localVars: initHashSet[string](),
     scopeDepth: 0,
-    loopDepth: 0
+    loopDepth: 0,
+    tag_registry: initTable[string, TagRegistration](),
   )
+  compiler.register_liquid_tags()
   
   while compiler.currentSection < sections.len:
     let old_section = compiler.currentSection

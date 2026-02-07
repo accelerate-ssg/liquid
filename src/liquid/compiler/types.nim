@@ -246,31 +246,46 @@ type
     constants*: seq[VMValue]    # Other constants
     variables*: VariableRequirements
     
+  # Tag compiler registration
+  TagCompileProc* = proc(c: var Compiler, tokens: openArray[Token]) {.nimcall.}
+    ## A tag compilation function that emits bytecode for a tag.
+    ## Block tags (if, for, etc.) handle their own section advancement.
+    ## Inline tags (assign, increment, etc.) do NOT — the dispatcher advances.
+
+  TagRegistration* = object
+    name*: string           ## Tag name (e.g., "if", "for", "increment")
+    compile*: TagCompileProc
+    is_block*: bool         ## Block tags handle their own section advancement
+    token_kind*: TokenKind  ## Lexer keyword token kind (tkIdentifier for non-keyword tags)
+
   # Compiler state
   Compiler* = object
     # Input
     sections*: seq[Section]
     input*: string
     current_section*: int
-    
+
     # Compilation options
     strict*: bool  # Strict mode for Ruby Liquid compatibility
-    
+
     # Output being built
     instructions*: seq[Instruction]
     strings*: seq[string]
     string_map*: Table[string, uint32]
     constants*: seq[VMValue]
-    
+
     # Variable tracking
     required_vars*: HashSet[string]
     optional_vars*: HashSet[string]
     local_vars*: HashSet[string]
     scope_depth*: int
-    
+
     # Control flow tracking
     loop_depth*: int
     break_jumps*: seq[seq[int]]    # Stack of break positions per loop
     continue_jumps*: seq[seq[int]] # Stack of continue positions per loop
+
+    # Tag registration
+    tag_registry*: Table[string, TagRegistration]  ## Registered tag compilers
 
   
