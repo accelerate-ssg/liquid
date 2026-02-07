@@ -39,7 +39,16 @@ create_filter:
     else:
       " "
 
-    let joined = value.arrayVal.mapIt(to_string(it)).join(delimiter)
+    # Flatten nested arrays (Ruby's Array#join behavior)
+    proc flatten_items(items: seq[VMValue]): seq[VMValue] =
+      for item in items:
+        if item.kind == vmArray:
+          result.add(flatten_items(item.arrayVal))
+        else:
+          result.add(item)
+
+    let flat = flatten_items(value.arrayVal)
+    let joined = flat.mapIt(to_string(it)).join(delimiter)
     result = VMValue(kind: vmString, stringVal: joined)
 
 # Returns the size of an array or string or object

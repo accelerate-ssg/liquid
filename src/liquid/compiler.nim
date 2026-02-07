@@ -1007,29 +1007,55 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   # Move past the unless tag
   c.currentSection += 1
 
-  # Compile body (until else or endunless)
-  c.compile_until(@[tkElse, tkEndunless])
+  # Compile body (until else, elsif, or endunless)
+  c.compile_until(@[tkElse, tkElsif, tkEndunless])
 
-  # Check what we stopped at
-  if c.currentSection < c.sections.len:
+  var endJumps: seq[int] = @[]
+  var lastSkipJump = jumpIfTrue
+
+  # Handle elsif/else chains
+  while c.currentSection < c.sections.len:
     let section = c.sections[c.currentSection]
-    if section.kind == skTag and section.tokens.len > 0:
-      case section.tokens[0].kind
-      of tkElse:
-        let jumpEnd = c.emit_jump(opJump)
-        c.patch_jump(jumpIfTrue)
-        c.currentSection += 1  # Move past else
-        c.compile_until(@[tkEndunless])
-        c.patch_jump(jumpEnd)
-      of tkEndunless:
-        c.patch_jump(jumpIfTrue)
-        c.currentSection += 1  # Move past endunless
-      else:
-        c.patch_jump(jumpIfTrue)
+    if section.kind != skTag or section.tokens.len == 0:
+      break
+
+    case section.tokens[0].kind
+    of tkElsif:
+      # Jump over remaining branches (previous body matched)
+      endJumps.add(c.emit_jump(opJump))
+      # Patch the previous skip jump to here
+      c.patch_jump(lastSkipJump)
+
+      # Compile elsif condition
+      c.compile_expression(section.tokens, 1, section.tokens.len)
+      lastSkipJump = c.emit_jump(opJumpIfFalse)
+
+      c.currentSection += 1
+      c.compile_until(@[tkElse, tkElsif, tkEndunless])
+
+    of tkElse:
+      endJumps.add(c.emit_jump(opJump))
+      c.patch_jump(lastSkipJump)
+      lastSkipJump = -1
+
+      c.currentSection += 1
+      c.compile_until(@[tkEndunless])
+      break
+
+    of tkEndunless:
+      c.currentSection += 1
+      break
+
     else:
-      c.patch_jump(jumpIfTrue)
-  else:
-    c.patch_jump(jumpIfTrue)
+      break
+
+  # Patch the last skip jump (if no else, goes to after all)
+  if lastSkipJump >= 0:
+    c.patch_jump(lastSkipJump)
+
+  # Patch all end jumps to here
+  for j in endJumps:
+    c.patch_jump(j)
 
 proc compile_case(c: var Compiler, tokens: openArray[Token]) =
   # Compile the expression being switched on
