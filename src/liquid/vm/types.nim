@@ -122,12 +122,6 @@ proc `==`*(a, b: VMValue): bool =
       if aVal != b.objectVal[key]:
         return false
     return true
-  of vmLazy:
-    # Lazy values can't be compared directly
-    return false
-  of vmIterator:
-    # Iterators can't be compared directly
-    return false
   of vmEmpty:
     return true  # All empty values are equal
 
@@ -162,9 +156,6 @@ proc hash*(v: VMValue): Hash =
       h = h !& hash(v.objectVal[k])
   of vmEmpty:
     discard  # All empty values hash the same
-  of vmLazy, vmIterator:
-    # Can't hash functions reliably
-    h = h !& hash(cast[int](unsafeAddr v))
   
   result = !$h
 
@@ -188,8 +179,6 @@ proc to_bool*(v: VMValue): bool =
     return v.objectVal.len > 0
   of vmEmpty:
     return false  # empty is falsy like null
-  of vmLazy, vmIterator:
-    return true  # Functions/iterators are truthy
 
 # Helper constructor functions for cleaner code
 proc vm_null*(): VMValue =

@@ -617,9 +617,6 @@ proc execute*(vm: var LiquidVM): string =
           if isBlank:
             vm.output.setLen(startPos)
 
-    # Note: opTablerowBegin, opTablerowIter, opCycle, opIncrement, opDecrement,
-    # opBeginIfchanged, opEndIfchanged are handled via opCallTag dispatch above
-
     # Control flow
     of opJump:
       vm.pc += inst.offset

@@ -26,11 +26,11 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token])
 
 # Basic utility functions (no dependencies)
 proc intern_string(c: var Compiler, s: string): uint32 =
-  if s in c.stringMap:
-    return c.stringMap[s]
+  if s in c.string_map:
+    return c.string_map[s]
   result = c.strings.len.uint32
   c.strings.add(s)
-  c.stringMap[s] = result
+  c.string_map[s] = result
 
 proc emit(c: var Compiler, inst: Instruction) =
   c.instructions.add(inst)
@@ -44,10 +44,6 @@ proc emit_jump(c: var Compiler, op: OpCode): int =
       Instruction(op: opJumpIfFalse, offset: 0'i32)
     of opJumpIfTrue:
       Instruction(op: opJumpIfTrue, offset: 0'i32)
-    of opJumpIfNull:
-      Instruction(op: opJumpIfNull, offset: 0'i32)
-    of opJumpIfEqual:
-      Instruction(op: opJumpIfEqual, offset: 0'i32)
     else:
       raise newException(ValueError, "Invalid jump opcode: " & $op)
   
@@ -65,10 +61,6 @@ proc patch_jump(c: var Compiler, pos: int) =
     c.instructions[pos] = Instruction(op: opJumpIfFalse, offset: offset.int32)
   of opJumpIfTrue:
     c.instructions[pos] = Instruction(op: opJumpIfTrue, offset: offset.int32)
-  of opJumpIfNull:
-    c.instructions[pos] = Instruction(op: opJumpIfNull, offset: offset.int32)
-  of opJumpIfEqual:
-    c.instructions[pos] = Instruction(op: opJumpIfEqual, offset: offset.int32)
   of opIterNext:
     c.instructions[pos] = Instruction(op: opIterNext, endOffset: offset.int32)
   else:
@@ -76,7 +68,7 @@ proc patch_jump(c: var Compiler, pos: int) =
 
 # Helper functions (depend on basic utils)
 # proc peekNextTag(c: Compiler): TokenKind =
-#   var i = c.currentSection + 1
+#   var i = c.current_section + 1
 #   while i < c.sections.len:
 #     if c.sections[i].kind == skTag and c.sections[i].tokens.len > 0:
 #       return c.sections[i].tokens[0].kind
@@ -84,13 +76,13 @@ proc patch_jump(c: var Compiler, pos: int) =
 #   return tkIdentifier
 
 # proc skipToTag(c: var Compiler, tag: TokenKind) =
-#   while c.currentSection < c.sections.len:
-#     let section = c.sections[c.currentSection]
+#   while c.current_section < c.sections.len:
+#     let section = c.sections[c.current_section]
 #     if section.kind == skTag and section.tokens.len > 0:
 #       if section.tokens[0].kind == tag:
-#         c.currentSection += 1
+#         c.current_section += 1
 #         return
-#     c.currentSection += 1
+#     c.current_section += 1
 
 proc is_blank_block(c: Compiler, startSection: int, endTag: TokenKind): bool =
   ## Check if a block between startSection and its end tag contains only
@@ -155,13 +147,13 @@ proc is_blank_block(c: Compiler, startSection: int, endTag: TokenKind): bool =
 
 proc compile_until(c: var Compiler, stop_tags: seq[TokenKind]) =
   ## Compile sections until we hit one of the stop tags
-  while c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  while c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     
     # Check if this is a stop tag
     if section.kind == skTag and section.tokens.len > 0:
       if section.tokens[0].kind in stop_tags:
-        # DON'T increment currentSection here - leave it pointing at the stop tag
+        # DON'T increment current_section here - leave it pointing at the stop tag
         # The caller will handle moving past it
         return
     
@@ -186,8 +178,8 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
     if c.strict and '@' in name:
       raise newException(ValueError, "Invalid identifier: '" & name & "' not allowed in strict mode")
     # Check if it's a local variable first
-    if name notin c.localVars:
-      c.requiredVars.incl(name)
+    if name notin c.local_vars:
+      c.required_vars.incl(name)
     let stringId = c.intern_string(name)
     c.emit(Instruction(op: opLoadVar, stringId: stringId))
     inc pos
@@ -448,14 +440,14 @@ proc compile_text(c: var Compiler, section: Section) =
   var text = c.input[section.start..<section.stop]
 
   # Whitespace control: strip leading whitespace if previous section has stripRight
-  if c.currentSection > 0:
-    let prev = c.sections[c.currentSection - 1]
+  if c.current_section > 0:
+    let prev = c.sections[c.current_section - 1]
     if prev.stripRight:
       text = text.strip(leading=true, trailing=false)
 
   # Whitespace control: strip trailing whitespace if next section has stripLeft
-  if c.currentSection + 1 < c.sections.len:
-    let next = c.sections[c.currentSection + 1]
+  if c.current_section + 1 < c.sections.len:
+    let next = c.sections[c.current_section + 1]
     if next.stripLeft:
       text = text.strip(leading=false, trailing=true)
 
@@ -478,8 +470,8 @@ proc compile_output(c: var Compiler, section: Section) =
     if c.strict and '@' in var_name:
       raise newException(ValueError, "Invalid identifier: '" & var_name & "' not allowed in strict mode")
     # Check if it's a local variable first
-    if var_name notin c.localVars:
-      c.requiredVars.incl(var_name)
+    if var_name notin c.local_vars:
+      c.required_vars.incl(var_name)
     let stringId = c.intern_string(var_name)
     c.emit(Instruction(op: opLoadVar, stringId: stringId))
     c.emit(Instruction(op: opOutput))
@@ -497,8 +489,8 @@ proc compile_output(c: var Compiler, section: Section) =
     if c.strict and '@' in prop_name:
       raise newException(ValueError, "Invalid identifier: '" & prop_name & "' not allowed in strict mode")
     # Check if it's a local variable first
-    if objName notin c.localVars:
-      c.requiredVars.incl(objName)
+    if objName notin c.local_vars:
+      c.required_vars.incl(objName)
     
     let objId = c.intern_string(objName)
     let propId = c.intern_string(prop_name)
@@ -513,18 +505,18 @@ proc compile_output(c: var Compiler, section: Section) =
 
 # Tag compilation procedures
 proc compile_break(c: var Compiler) =
-  if c.loopDepth > 0:
+  if c.loop_depth > 0:
     let jumpPos = c.emit_jump(opJump)
-    c.breakJumps[^1].add(jumpPos)
+    c.break_jumps[^1].add(jumpPos)
   else:
     # Outside a loop (e.g. inside an included partial) — emit opBreak
     # which sets pending_break on the VM for propagation to parent
     c.emit(Instruction(op: opBreak, levels: 1))
 
 proc compile_continue(c: var Compiler) =
-  if c.loopDepth > 0:
+  if c.loop_depth > 0:
     let jumpPos = c.emit_jump(opJump)
-    c.continueJumps[^1].add(jumpPos)
+    c.continue_jumps[^1].add(jumpPos)
   else:
     # Outside a loop — emit opContinue for propagation
     c.emit(Instruction(op: opContinue, levels: 1))
@@ -537,14 +529,14 @@ proc compile_capture(c: var Compiler, tokens: openArray[Token]) =
   if c.strict and tokens[1].kind notin {tkIdentifier, tkNumber}:
     raise newException(ValueError, "Invalid capture target")
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
-  c.localVars.incl(var_name)
+  c.local_vars.incl(var_name)
   let varId = c.intern_string(var_name)
   
   # Emit begin capture instruction
   c.emit(Instruction(op: opBeginCapture, captureId: varId))
   
   # Move past the capture tag itself
-  c.currentSection += 1
+  c.current_section += 1
   
   # Compile everything until we hit endcapture
   # This will compile nested captures recursively
@@ -554,12 +546,12 @@ proc compile_capture(c: var Compiler, tokens: openArray[Token]) =
   c.emit(Instruction(op: opEndCapture, varId: varId))
   
   # Now move past the endcapture tag
-  # currentSection is pointing AT the endcapture tag (from compile_until)
-  if c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  # current_section is pointing AT the endcapture tag (from compile_until)
+  if c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind == skTag and section.tokens.len > 0 and 
        section.tokens[0].kind == tkEndcapture:
-      c.currentSection += 1 
+      c.current_section += 1 
 
 proc compile_assign(c: var Compiler, tokens: openArray[Token]) =
   if tokens.len < 4:
@@ -572,7 +564,7 @@ proc compile_assign(c: var Compiler, tokens: openArray[Token]) =
   # Validate variable name in strict mode
   if c.strict and ('@' in var_name or '?' in var_name):
     raise newException(ValueError, "Invalid variable name: '" & var_name & "' not allowed in strict mode")
-  c.localVars.incl(var_name)
+  c.local_vars.incl(var_name)
   let varId = c.intern_string(var_name)
   
   c.compile_expression(tokens, 3, tokens.len)
@@ -700,15 +692,15 @@ proc compile_render(c: var Compiler, tokens: openArray[Token]) =
   c.compile_include_render(tokens, withContext = false)
 
 proc compile_for(c: var Compiler, tokens: openArray[Token]) =
-  let doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndfor)
+  let doBlankCheck = c.is_blank_block(c.current_section + 1, tkEndfor)
   if doBlankCheck:
     c.emit(Instruction(op: opBeginBlankCheck))
   if tokens.len < 4:
-    c.currentSection += 1  # Skip malformed for
+    c.current_section += 1  # Skip malformed for
     return
 
   let iter_var = c.input[tokens[1].start..<tokens[1].stop]
-  c.localVars.incl(iter_var)
+  c.local_vars.incl(iter_var)
   let iter_varId = c.intern_string(iter_var)
 
   # Find "in" position
@@ -717,7 +709,7 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
     inc inPos
 
   if inPos >= tokens.len:
-    c.currentSection += 1  # Skip malformed for
+    c.current_section += 1  # Skip malformed for
     return
 
   # Find limit, offset, and reversed positions in the token stream
@@ -793,9 +785,9 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
                      hasLimit: hasLimit, hasOffset: hasOffset,
                      hasOffsetContinue: hasOffsetContinue,
                      isReversed: isReversed, loopNameId: loopNameId))
-  c.loopDepth += 1
-  c.breakJumps.add(@[])
-  c.continueJumps.add(@[])
+  c.loop_depth += 1
+  c.break_jumps.add(@[])
+  c.continue_jumps.add(@[])
   
   # Mark loop start (after BeginLoop)
   let loopStart = c.instructions.len
@@ -808,7 +800,7 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   c.emit(Instruction(op: opStoreVar, stringId: iter_varId))
   
   # Move past the for tag
-  c.currentSection += 1
+  c.current_section += 1
 
   # Compile loop body (stop at else or endfor)
   c.compile_until(@[tkElse, tkEndfor])
@@ -821,21 +813,21 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   let afterLoop = c.instructions.len
 
   # Handle breaks and continues
-  for breakPos in c.breakJumps[^1]:
+  for breakPos in c.break_jumps[^1]:
     c.patch_jump(breakPos)
 
-  for continuePos in c.continueJumps[^1]:
+  for continuePos in c.continue_jumps[^1]:
     let continueOffset = loopStart - continuePos - 1
     c.instructions[continuePos] = Instruction(op: opJump, offset: continueOffset.int32)
 
-  c.breakJumps.setLen(c.breakJumps.len - 1)
-  c.continueJumps.setLen(c.continueJumps.len - 1)
-  c.loopDepth -= 1
+  c.break_jumps.setLen(c.break_jumps.len - 1)
+  c.continue_jumps.setLen(c.continue_jumps.len - 1)
+  c.loop_depth -= 1
 
   # Check for {% else %} block (default for empty collections)
   var hasElse = false
-  if c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  if c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind == skTag and section.tokens.len > 0 and
        section.tokens[0].kind == tkElse:
       hasElse = true
@@ -845,7 +837,7 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
       # Else block starts here
       let elseStart = c.instructions.len
 
-      c.currentSection += 1  # Move past else tag
+      c.current_section += 1  # Move past else tag
       c.compile_until(@[tkEndfor])
 
       let afterElse = c.instructions.len
@@ -865,11 +857,11 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
       endOffset: endOffset.int32, elseOffset: 0)
 
   # Move past the endfor tag
-  if c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  if c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind == skTag and section.tokens.len > 0 and
        section.tokens[0].kind == tkEndfor:
-      c.currentSection += 1
+      c.current_section += 1
 
   if doBlankCheck:
     c.emit(Instruction(op: opEndBlankCheck))
@@ -878,7 +870,7 @@ proc compile_if(c: var Compiler, tokens: openArray[Token], isTopLevel: bool = tr
   # Blank check only for the top-level if (not recursive elsif calls)
   var doBlankCheck = false
   if isTopLevel:
-    doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndif)
+    doBlankCheck = c.is_blank_block(c.current_section + 1, tkEndif)
     if doBlankCheck:
       c.emit(Instruction(op: opBeginBlankCheck))
 
@@ -886,14 +878,14 @@ proc compile_if(c: var Compiler, tokens: openArray[Token], isTopLevel: bool = tr
   let jumpIfFalse = c.emit_jump(opJumpIfFalse)
 
   # Move past the if tag
-  c.currentSection += 1
+  c.current_section += 1
 
   # Compile then-branch
   c.compile_until(@[tkElsif, tkElse, tkEndif])
 
   # Check what we stopped at
-  if c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  if c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind == skTag and section.tokens.len > 0:
       case section.tokens[0].kind
       of tkElsif:
@@ -904,18 +896,18 @@ proc compile_if(c: var Compiler, tokens: openArray[Token], isTopLevel: bool = tr
       of tkElse:
         let jumpEnd = c.emit_jump(opJump)
         c.patch_jump(jumpIfFalse)
-        c.currentSection += 1  # Move past else
+        c.current_section += 1  # Move past else
         c.compile_until(@[tkEndif, tkElse, tkElsif])
         # Skip any extra else/elsif blocks (only first else is executed)
-        while c.currentSection < c.sections.len:
-          let s = c.sections[c.currentSection]
+        while c.current_section < c.sections.len:
+          let s = c.sections[c.current_section]
           if s.kind == skTag and s.tokens.len > 0 and s.tokens[0].kind == tkEndif:
             break
-          c.currentSection += 1
+          c.current_section += 1
         c.patch_jump(jumpEnd)
       of tkEndif:
         c.patch_jump(jumpIfFalse)
-        c.currentSection += 1  # Move past endif
+        c.current_section += 1  # Move past endif
       else:
         c.patch_jump(jumpIfFalse)
     else:
@@ -1008,11 +1000,11 @@ proc compile_cycle(c: var Compiler, tokens: openArray[Token]) =
 proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
   # {% tablerow var in collection [cols:N] [limit:N] [offset:N] %}...{% endtablerow %}
   if tokens.len < 4:
-    c.currentSection += 1
+    c.current_section += 1
     return
 
   let iter_var = c.input[tokens[1].start..<tokens[1].stop]
-  c.localVars.incl(iter_var)
+  c.local_vars.incl(iter_var)
   let iter_varId = c.intern_string(iter_var)
 
   # Find "in" position
@@ -1020,7 +1012,7 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
   while inPos < tokens.len and tokens[inPos].kind != tkIn:
     inc inPos
   if inPos >= tokens.len:
-    c.currentSection += 1
+    c.current_section += 1
     return
 
   # Find cols, limit, offset positions
@@ -1087,7 +1079,7 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
   let bodyStart = c.instructions.len
 
   # Move past the tablerow tag
-  c.currentSection += 1
+  c.current_section += 1
 
   # Compile loop body (until endtablerow)
   c.compile_until(@[tkEndtablerow])
@@ -1106,11 +1098,11 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
   c.instructions[iterPos].tagData[0] = (afterLoop - iterPos - 1).int32
 
   # Move past endtablerow
-  if c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  if c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind == skTag and section.tokens.len > 0 and
        section.tokens[0].kind == tkEndtablerow:
-      c.currentSection += 1
+      c.current_section += 1
 
 proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
   # {% ifchanged %}...{% endifchanged %}
@@ -1118,7 +1110,7 @@ proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
   c.emit(Instruction(op: opCallTag, tagId: beginTagId, tagArgCount: 0, tagData: @[]))
 
   # Move past the ifchanged tag
-  c.currentSection += 1
+  c.current_section += 1
 
   # Compile body until endifchanged
   c.compile_until(@[tkEndifchanged])
@@ -1127,22 +1119,22 @@ proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
   c.emit(Instruction(op: opCallTag, tagId: endTagId, tagArgCount: 0, tagData: @[]))
 
   # Move past endifchanged
-  if c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  if c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind == skTag and section.tokens.len > 0 and
        section.tokens[0].kind == tkEndifchanged:
-      c.currentSection += 1
+      c.current_section += 1
 
 proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   # Unless is the inverse of if: execute body when condition is FALSE
-  let doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndunless)
+  let doBlankCheck = c.is_blank_block(c.current_section + 1, tkEndunless)
   if doBlankCheck:
     c.emit(Instruction(op: opBeginBlankCheck))
   c.compile_expression(tokens, 1, tokens.len)
   let jumpIfTrue = c.emit_jump(opJumpIfTrue)  # Skip body if condition is true
 
   # Move past the unless tag
-  c.currentSection += 1
+  c.current_section += 1
 
   # Compile body (until else, elsif, or endunless)
   c.compile_until(@[tkElse, tkElsif, tkEndunless])
@@ -1151,8 +1143,8 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   var lastSkipJump = jumpIfTrue
 
   # Handle elsif/else chains
-  while c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  while c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind != skTag or section.tokens.len == 0:
       break
 
@@ -1167,7 +1159,7 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
       c.compile_expression(section.tokens, 1, section.tokens.len)
       lastSkipJump = c.emit_jump(opJumpIfFalse)
 
-      c.currentSection += 1
+      c.current_section += 1
       c.compile_until(@[tkElse, tkElsif, tkEndunless])
 
     of tkElse:
@@ -1175,18 +1167,18 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
       c.patch_jump(lastSkipJump)
       lastSkipJump = -1
 
-      c.currentSection += 1
+      c.current_section += 1
       c.compile_until(@[tkEndunless, tkElse, tkElsif])
       # Skip any extra else/elsif blocks (only first else is executed)
-      while c.currentSection < c.sections.len:
-        let s = c.sections[c.currentSection]
+      while c.current_section < c.sections.len:
+        let s = c.sections[c.current_section]
         if s.kind == skTag and s.tokens.len > 0 and s.tokens[0].kind == tkEndunless:
           break
-        c.currentSection += 1
+        c.current_section += 1
       break
 
     of tkEndunless:
-      c.currentSection += 1
+      c.current_section += 1
       break
 
     else:
@@ -1204,7 +1196,7 @@ proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
     c.emit(Instruction(op: opEndBlankCheck))
 
 proc compile_case(c: var Compiler, tokens: openArray[Token]) =
-  let doBlankCheck = c.is_blank_block(c.currentSection + 1, tkEndcase)
+  let doBlankCheck = c.is_blank_block(c.current_section + 1, tkEndcase)
   if doBlankCheck:
     c.emit(Instruction(op: opBeginBlankCheck))
   # Compile the expression being switched on
@@ -1214,15 +1206,15 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
     raise newException(ValueError, "case tag requires an expression")
 
   # Move past the case tag
-  c.currentSection += 1
+  c.current_section += 1
 
   var endJumps: seq[int] = @[]
   var hasDefault = false
 
-  while c.currentSection < c.sections.len:
-    let section = c.sections[c.currentSection]
+  while c.current_section < c.sections.len:
+    let section = c.sections[c.current_section]
     if section.kind != skTag or section.tokens.len == 0:
-      c.currentSection += 1
+      c.current_section += 1
       continue
 
     case section.tokens[0].kind
@@ -1239,13 +1231,13 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
 
       if hasAnd:
         # Skip this when block entirely (advance past body without compiling)
-        c.currentSection += 1
-        while c.currentSection < c.sections.len:
-          let s = c.sections[c.currentSection]
+        c.current_section += 1
+        while c.current_section < c.sections.len:
+          let s = c.sections[c.current_section]
           if s.kind == skTag and s.tokens.len > 0 and
              s.tokens[0].kind in {tkWhen, tkElse, tkEndcase}:
             break
-          c.currentSection += 1
+          c.current_section += 1
       else:
         # Parse when values (comma/or separated)
         # In Ruby Liquid, the body runs once per matching value
@@ -1263,8 +1255,8 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
             inc i
 
         # Save section position for when body
-        c.currentSection += 1
-        let bodyStartSection = c.currentSection
+        c.current_section += 1
+        let bodyStartSection = c.current_section
 
         # For each value, check and conditionally execute the body
         for vi, val in values:
@@ -1275,7 +1267,7 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
           let skipBody = c.emit_jump(opJumpIfFalse)
 
           # Execute body
-          c.currentSection = bodyStartSection
+          c.current_section = bodyStartSection
           c.compile_until(@[tkWhen, tkElse, tkEndcase])
 
           c.patch_jump(skipBody)
@@ -1286,7 +1278,7 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
     of tkElse:
       hasDefault = true
       c.emit(Instruction(op: opPop))  # Pop the case value
-      c.currentSection += 1
+      c.current_section += 1
       c.compile_until(@[tkEndcase])
 
     of tkEndcase:
@@ -1294,13 +1286,13 @@ proc compile_case(c: var Compiler, tokens: openArray[Token]) =
         c.emit(Instruction(op: opPop))
       for jump in endJumps:
         c.patch_jump(jump)
-      c.currentSection += 1
+      c.current_section += 1
       if doBlankCheck:
         c.emit(Instruction(op: opEndBlankCheck))
       return
 
     else:
-      c.currentSection += 1
+      c.current_section += 1
 
 # ─── Tag Registration ────────────────────────────────────────────────
 
@@ -1359,14 +1351,14 @@ proc register_liquid_tags*(c: var Compiler) =
 proc compile_tag(c: var Compiler, section: Section) =
   let tokens = section.tokens
   if tokens.len == 0:
-    c.currentSection += 1  # Move past empty tag
+    c.current_section += 1  # Move past empty tag
     return
 
   let firstToken = tokens[0]
 
   # Check for inner/end tags first (handled by parent block tags)
   if firstToken.kind in inner_tag_kinds:
-    c.currentSection += 1
+    c.current_section += 1
     return
 
   # Determine tag name from token kind or identifier
@@ -1381,23 +1373,23 @@ proc compile_tag(c: var Compiler, section: Section) =
     let reg = c.tag_registry[tag_name]
     reg.compile(c, tokens)
     if not reg.is_block:
-      c.currentSection += 1
+      c.current_section += 1
   else:
     # Unknown tag
     if c.strict:
       let name = if tag_name.len > 0: tag_name
                  else: c.input[firstToken.start..<firstToken.stop]
       raise newException(ValueError, "Unknown tag: '" & name & "'")
-    c.currentSection += 1
+    c.current_section += 1
 
 proc compile_section(c: var Compiler, section: Section) =
   case section.kind
   of skText:
     c.compile_text(section)
-    c.currentSection += 1  # Move past this section
+    c.current_section += 1  # Move past this section
   of skOutput:
     c.compile_output(section)
-    c.currentSection += 1  # Move past this section
+    c.current_section += 1  # Move past this section
   of skTag:
     c.compile_tag(section)
 
@@ -1406,34 +1398,34 @@ proc compile*(sections: seq[Section], input: string, strict: bool = false): Comp
   var compiler = Compiler(
     sections: sections,
     input: input,
-    currentSection: 0,
+    current_section: 0,
     strict: strict,
     instructions: newSeqOfCap[Instruction](sections.len * 10),
     strings: @[],
-    stringMap: initTable[string, uint32](),
+    string_map: initTable[string, uint32](),
     constants: @[],
-    requiredVars: initHashSet[string](),
-    optionalVars: initHashSet[string](),
-    localVars: initHashSet[string](),
-    scopeDepth: 0,
-    loopDepth: 0,
+    required_vars: initHashSet[string](),
+    optional_vars: initHashSet[string](),
+    local_vars: initHashSet[string](),
+    scope_depth: 0,
+    loop_depth: 0,
     tag_registry: initTable[string, TagRegistration](),
   )
   compiler.register_liquid_tags()
   
-  while compiler.currentSection < sections.len:
-    let old_section = compiler.currentSection
-    compiler.compile_section(sections[compiler.currentSection])
+  while compiler.current_section < sections.len:
+    let old_section = compiler.current_section
+    compiler.compile_section(sections[compiler.current_section])
     # Only increment if the section didn't change (i.e., it wasn't a control flow tag)
-    if compiler.currentSection == old_section:
-      compiler.currentSection += 1
+    if compiler.current_section == old_section:
+      compiler.current_section += 1
   
   result.bytecode = compiler.instructions
   result.strings = compiler.strings
   result.constants = compiler.constants
-  result.variables.required = toSeq(compiler.requiredVars)
-  result.variables.optional = toSeq(compiler.optionalVars)
-  result.variables.locals = toSeq(compiler.localVars)
+  result.variables.required = toSeq(compiler.required_vars)
+  result.variables.optional = toSeq(compiler.optional_vars)
+  result.variables.locals = toSeq(compiler.local_vars)
 
 
 
@@ -1480,7 +1472,7 @@ when isMainModule:
 
   proc validateJumps(bytecode: seq[Instruction]): bool =
     for i, inst in bytecode:
-      if inst.op in [opJump, opJumpIfFalse, opJumpIfTrue, opJumpIfNull]:
+      if inst.op in [opJump, opJumpIfFalse, opJumpIfTrue]:
         let target = i + inst.offset.int + 1
         if target < 0 or target > bytecode.len:
           echo "Invalid jump at ", i, " to ", target, " (bytecode len: ", bytecode.len, ")"
