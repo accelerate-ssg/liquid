@@ -156,7 +156,11 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
   of tkNil:
     c.emit(Instruction(op: opPushNull))
     inc pos
-    
+
+  of tkEmpty:
+    c.emit(Instruction(op: opPushEmpty))
+    inc pos
+
   of tkNot:
     # Unary not operator
     inc pos

@@ -96,6 +96,8 @@ proc `==`*(a, b: VMValue): bool =
   of vmIterator:
     # Iterators can't be compared directly
     return false
+  of vmEmpty:
+    return true  # All empty values are equal
 
 # You might also want to add hash for using VMValue in tables
 proc hash*(v: VMValue): Hash =
@@ -126,6 +128,8 @@ proc hash*(v: VMValue): Hash =
     for k in keys:
       h = h !& hash(k)
       h = h !& hash(v.objectVal[k])
+  of vmEmpty:
+    discard  # All empty values hash the same
   of vmLazy, vmIterator:
     # Can't hash functions reliably
     h = h !& hash(cast[int](unsafeAddr v))
@@ -150,6 +154,8 @@ proc to_bool*(v: VMValue): bool =
     return v.arrayVal.len > 0
   of vm_object:
     return v.objectVal.len > 0
+  of vmEmpty:
+    return false  # empty is falsy like null
   of vmLazy, vmIterator:
     return true  # Functions/iterators are truthy
 

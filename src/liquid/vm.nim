@@ -57,16 +57,50 @@ template peek(vm: LiquidVM, offset: int = 0): VMValue =
 
 # Value operations
 proc is_truthy(v: VMValue): bool =
+  ## In Liquid, only nil and false are falsy. Everything else is truthy,
+  ## including 0, 0.0, "", [], {}.
   case v.kind
   of vmNull: false
   of vmBool: v.boolVal
-  of vmInt: v.intVal != 0
-  of vmFloat: v.floatVal != 0.0
-  of vmString: v.stringVal.len > 0
-  of vmArray: v.arrayVal.len > 0
-  of vmObject: v.objectVal.len > 0
   else: true
 
+proc is_empty(v: VMValue): bool =
+  case v.kind
+  of vmNull: true
+  of vmString: v.stringVal.len == 0
+  of vmArray: v.arrayVal.len == 0
+  of vmObject: v.objectVal.len == 0
+  else: false
+
+proc liquid_eq(a, b: VMValue): bool =
+  ## Liquid equality with cross-type numeric comparison and empty support
+  if a.kind == vmEmpty:
+    return b.is_empty()
+  if b.kind == vmEmpty:
+    return a.is_empty()
+  if a.kind == b.kind:
+    return a == b
+  # Cross-type int/float comparison
+  if a.kind == vmInt and b.kind == vmFloat:
+    return a.intVal.float64 == b.floatVal
+  if a.kind == vmFloat and b.kind == vmInt:
+    return a.floatVal == b.intVal.float64
+  return false
+
+proc liquid_compare(a, b: VMValue): int =
+  ## Compare two VMValues. Returns -1, 0, or 1.
+  ## Raises ValueError for incompatible types.
+  if a.kind == vmInt and b.kind == vmInt:
+    return cmp(a.intVal, b.intVal)
+  if a.kind == vmFloat and b.kind == vmFloat:
+    return cmp(a.floatVal, b.floatVal)
+  if a.kind == vmInt and b.kind == vmFloat:
+    return cmp(a.intVal.float64, b.floatVal)
+  if a.kind == vmFloat and b.kind == vmInt:
+    return cmp(a.floatVal, b.intVal.float64)
+  if a.kind == vmString and b.kind == vmString:
+    return cmp(a.stringVal, b.stringVal)
+  raise newException(ValueError, "comparison of incompatible types")
 
 proc escape_html_str(s: string): string =
   result = newStringOfCap(s.len + 10)
@@ -92,7 +126,10 @@ proc execute*(vm: var LiquidVM): string =
     # Stack operations
     of opPushNull:
       vm.push(VMValue(kind: vmNull))
-      
+
+    of opPushEmpty:
+      vm.push(VMValue(kind: vmEmpty))
+
     of opPushTrue:
       vm.push(VMValue(kind: vmBool, boolVal: true))
       
@@ -368,50 +405,43 @@ proc execute*(vm: var LiquidVM): string =
     of opEqual:
       let b = vm.pop()
       let a = vm.pop()
-      vm.push(VMValue(kind: vmBool, boolVal: a == b))
-      
+      vm.push(VMValue(kind: vmBool, boolVal: liquid_eq(a, b)))
+
     of opNotEqual:
       let b = vm.pop()
       let a = vm.pop()
-      vm.push(VMValue(kind: vmBool, boolVal: a != b))
-      
+      vm.push(VMValue(kind: vmBool, boolVal: not liquid_eq(a, b)))
+
     of opLess:
       let b = vm.pop()
       let a = vm.pop()
-      # Simplified comparison - full version would handle all types
-      if a.kind == vmInt and b.kind == vmInt:
-        vm.push(VMValue(kind: vmBool, boolVal: a.intVal < b.intVal))
-      else:
+      try:
+        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) < 0))
+      except ValueError:
         vm.push(VMValue(kind: vmBool, boolVal: false))
-      
+
     of opLessEqual:
       let b = vm.pop()
       let a = vm.pop()
-      if a.kind == vmInt and b.kind == vmInt:
-        vm.push(VMValue(kind: vmBool, boolVal: a.intVal <= b.intVal))
-      else:
+      try:
+        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) <= 0))
+      except ValueError:
         vm.push(VMValue(kind: vmBool, boolVal: false))
-      
+
     of opGreater:
       let b = vm.pop()
       let a = vm.pop()
-      if a.kind == vmInt and b.kind == vmInt:
-        vm.push(VMValue(kind: vmBool, boolVal: a.intVal > b.intVal))
-      elif a.kind == vmString and b.kind == vmString:
-        vm.push(VMValue(kind: vmBool, boolVal: a.stringVal > b.stringVal))
-      elif (a.kind == vmString and b.kind in [vmInt, vmFloat]) or
-           (b.kind == vmString and a.kind in [vmInt, vmFloat]):
-        # String vs number comparison should error
-        raise newException(ValueError, "Cannot compare string and number")
-      else:
+      try:
+        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) > 0))
+      except ValueError:
         vm.push(VMValue(kind: vmBool, boolVal: false))
-      
+
     of opGreaterEqual:
       let b = vm.pop()
       let a = vm.pop()
-      if a.kind == vmInt and b.kind == vmInt:
-        vm.push(VMValue(kind: vmBool, boolVal: a.intVal >= b.intVal))
-      else:
+      try:
+        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) >= 0))
+      except ValueError:
         vm.push(VMValue(kind: vmBool, boolVal: false))
     
     of opContains:

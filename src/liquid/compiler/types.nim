@@ -7,8 +7,9 @@ type
   OpCode* = enum
     # Stack Operations
     opPushNull           # Push null
-    opPushTrue           # Push true  
+    opPushTrue           # Push true
     opPushFalse          # Push false
+    opPushEmpty          # Push empty (special value for empty comparisons)
     opPushInt            # Push int constant: [int64]
     opPushFloat          # Push float constant: [float64]
     opPushString         # Push string from constant pool: [stringId]
@@ -147,12 +148,14 @@ type
       discard
 
   VMValueKind* = enum
-    vmNull, vmBool, vmInt, vmFloat, vmString, vmArray, vmObject, vmLazy, vmIterator
+    vmNull, vmBool, vmInt, vmFloat, vmString, vmArray, vmObject, vmLazy, vmIterator, vmEmpty
 
   # Values in the VM
   VMValue* = object
     case kind*: VMValueKind
     of vmNull:
+      discard
+    of vmEmpty:
       discard
     of vmBool:
       boolVal*: bool
