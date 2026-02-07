@@ -348,11 +348,17 @@ create_filter:
 
 # Splits a string into an array using a delimiter
 create_filter:
-  proc split(value: VMValue, delimiter: VMValue): VMValue =
-    if value.kind != vmString:
+  proc split(value: VMValue, args: varargs[VMValue]): VMValue =
+    if args.len == 0:
+      raise newException(ValueError, "split filter requires exactly 1 argument")
+    if args.len > 1:
+      raise newException(ValueError, "split filter takes at most 1 argument")
+
+    let input = to_string(value)
+    if input.len == 0:
       return VMValue(kind: vmArray, arrayVal: @[])
-    
-    let delim = to_string(delimiter)
-    let parts = value.stringVal.split(delim)
+
+    let delim = to_string(args[0])
+    let parts = input.split(delim)
     let vmParts = parts.mapIt(VMValue(kind: vmString, stringVal: it))
     result = VMValue(kind: vmArray, arrayVal: vmParts)

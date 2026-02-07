@@ -82,28 +82,6 @@ create_filter:
     
     result = VMValue(kind: vmString, stringVal: inspected)
 
-# Splits a string into an array
-create_filter:
-  proc split(value: VMValue, args: varargs[VMValue]): VMValue =
-    if args.len == 0:
-      raise newException(ValueError, "split filter requires exactly 1 argument")
-    if args.len > 1:
-      raise newException(ValueError, "split filter takes at most 1 argument")
-    
-    if value.kind != vmString:
-      return value
-    
-    let delimiter = if args[0].kind == vmString:
-      args[0].stringVal
-    else:
-      " "
-    
-    let parts = value.stringVal.split(delimiter)
-    var array: seq[VMValue] = @[]
-    for part in parts:
-      array.add(VMValue(kind: vmString, stringVal: part))
-    
-    result = VMValue(kind: vmArray, arrayVal: array)
 
 # URL encodes a string
 create_filter:
