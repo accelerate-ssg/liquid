@@ -168,7 +168,7 @@ type
     of vmArray:
       arrayVal*: seq[VMValue]
     of vmObject:
-      objectVal*: Table[string, VMValue]
+      objectVal*: OrderedTable[string, VMValue]
     of vmLazy:
       # For lazy evaluation of expensive operations
       lazyFn*: proc(): VMValue

@@ -178,5 +178,11 @@ proc vm_string*(s: string): VMValue =
 proc vm_array*(a: seq[VMValue]): VMValue =
   VMValue(kind: vm_array, arrayVal: a)
 
-proc vm_object*(o: Table[string, VMValue]): VMValue =
+proc vm_object*(o: OrderedTable[string, VMValue]): VMValue =
   VMValue(kind: vm_object, objectVal: o)
+
+proc vm_object*(o: Table[string, VMValue]): VMValue =
+  var ordered = initOrderedTable[string, VMValue]()
+  for k, v in o:
+    ordered[k] = v
+  VMValue(kind: vm_object, objectVal: ordered)

@@ -27,7 +27,7 @@ proc json_to_vm_value*(node: JsonNode): VMValue =
     result = VMValue(kind: vmArray, arrayVal: arr)
     
   of JObject:
-    var obj = initTable[string, VMValue]()
+    var obj = initOrderedTable[string, VMValue]()
     for key, value in node.getFields():
       obj[key] = json_to_vm_value(value)
     result = VMValue(kind: vmObject, objectVal: obj)
@@ -60,6 +60,11 @@ proc to_vm_value*(x: float32): VMValue = VMValue(kind: vmFloat, floatVal: x.floa
 proc to_vm_value*(x: float64): VMValue = VMValue(kind: vmFloat, floatVal: x)
 proc to_vm_value*(x: string): VMValue = VMValue(kind: vmString, stringVal: x)
 proc to_vm_value*(x: seq[VMValue]): VMValue = VMValue(kind: vmArray, arrayVal: x)
-proc to_vm_value*(x: Table[string, VMValue]): VMValue = VMValue(kind: vmObject, objectVal: x)
+proc to_vm_value*(x: OrderedTable[string, VMValue]): VMValue = VMValue(kind: vmObject, objectVal: x)
+proc to_vm_value*(x: Table[string, VMValue]): VMValue =
+  var ordered = initOrderedTable[string, VMValue]()
+  for k, v in x:
+    ordered[k] = v
+  VMValue(kind: vmObject, objectVal: ordered)
 
 

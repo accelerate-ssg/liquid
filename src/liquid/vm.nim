@@ -883,7 +883,7 @@ when isMainModule:
 
   # Helper to create object VMValue
   proc make_object(pairs: varargs[(string, VMValue)]): VMValue =
-    var obj = initTable[string, VMValue]()
+    var obj = initOrderedTable[string, VMValue]()
     for (k, v) in pairs:
       obj[k] = v
     vmObject(obj)
@@ -1380,7 +1380,7 @@ when isMainModule:
   """
       let data = {
         "empty_array": vmArray(@[]),
-        "empty_object": vmObject(initTable[string, VMValue]())
+        "empty_object": vmObject(initOrderedTable[string, VMValue]())
       }.toTable
       let output = render_template(source, data)
       
