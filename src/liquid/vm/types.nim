@@ -49,6 +49,9 @@ type
     # Tablerow state
     tablerow_iters*: seq[TablerowState]  # Stack of active tablerow iterators
 
+    # Ifchanged state
+    ifchanged_last*: string  # Last output from ifchanged block
+
     # Performance
     instruction_count*: int
     max_stack_size*: int

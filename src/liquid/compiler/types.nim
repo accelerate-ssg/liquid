@@ -93,6 +93,10 @@ type
     opTablerowBegin      # Start tablerow loop: sets up iterator and outputs initial HTML
     opTablerowIter       # Tablerow iteration: outputs </td>, handles row wrapping, loops or ends
 
+    # Ifchanged tag
+    opBeginIfchanged     # Start ifchanged block (begins capturing output)
+    opEndIfchanged       # End ifchanged block (compare, output if different)
+
     # Special Operations
     opTypeCheck          # Check value type: [expectedType]
     opCoerce             # Coerce to type: [targetType]

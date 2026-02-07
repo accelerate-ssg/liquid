@@ -310,6 +310,30 @@ proc execute*(vm: var LiquidVM): string =
           next = 0
         vm.cycle_counters[group_key] = next
 
+    of opBeginIfchanged:
+      # Start capturing output for ifchanged comparison
+      vm.capture_stack.add("")
+      vm.is_capturing = true
+      vm.capture_escape_stack.add(vm.escape_html)
+      vm.escape_html = false
+
+    of opEndIfchanged:
+      if vm.capture_stack.len > 0:
+        let captured = vm.capture_stack.pop()
+        vm.is_capturing = vm.capture_stack.len > 0
+        if vm.capture_escape_stack.len > 0:
+          vm.escape_html = vm.capture_escape_stack.pop()
+
+        # Compare with last ifchanged output
+        if captured != vm.ifchanged_last:
+          vm.ifchanged_last = captured
+          # Output the captured content
+          if vm.is_capturing:
+            vm.capture_stack[^1].add(captured)
+          else:
+            vm.output.add(captured)
+        # If same, suppress output (do nothing)
+
     of opTablerowBegin:
       # Pop cols, limit, offset, collection from stack (in reverse push order)
       var cols_val = 0  # 0 = unlimited (all in one row)

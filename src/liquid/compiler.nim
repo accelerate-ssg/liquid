@@ -992,6 +992,25 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
        section.tokens[0].kind == tkEndtablerow:
       c.currentSection += 1
 
+proc compile_ifchanged(c: var Compiler, tokens: openArray[Token]) =
+  # {% ifchanged %}...{% endifchanged %}
+  c.emit(Instruction(op: opBeginIfchanged))
+
+  # Move past the ifchanged tag
+  c.currentSection += 1
+
+  # Compile body until endifchanged
+  c.compile_until(@[tkEndifchanged])
+
+  c.emit(Instruction(op: opEndIfchanged))
+
+  # Move past endifchanged
+  if c.currentSection < c.sections.len:
+    let section = c.sections[c.currentSection]
+    if section.kind == skTag and section.tokens.len > 0 and
+       section.tokens[0].kind == tkEndifchanged:
+      c.currentSection += 1
+
 proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   # Unless is the inverse of if: execute body when condition is FALSE
   c.compile_expression(tokens, 1, tokens.len)
@@ -1155,7 +1174,7 @@ proc compile_tag(c: var Compiler, section: Section) =
   of tkContinue:
     c.compile_continue()
     c.currentSection += 1  # Move past continue tag
-  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase, tkEndunless, tkEndtablerow:
+  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase, tkEndunless, tkEndtablerow, tkEndifchanged:
     # These are handled by their parent structures
     # Don't compile them directly
     c.currentSection += 1
@@ -1180,6 +1199,8 @@ proc compile_tag(c: var Compiler, section: Section) =
       c.currentSection += 1
     of "tablerow":
       c.compile_tablerow(tokens)
+    of "ifchanged":
+      c.compile_ifchanged(tokens)
     else:
       if c.strict:
         raise newException(ValueError, "Unknown tag: '" & tag_name & "'")
