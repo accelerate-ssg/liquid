@@ -46,6 +46,9 @@ type
     # Cycle tag counters
     cycle_counters*: Table[string, int]  # group_key -> current index
 
+    # Increment/decrement counters (separate namespace from assign/capture)
+    counters*: Table[string, int64]  # counter_name -> current value
+
     # Tablerow state
     tablerow_iters*: seq[TablerowState]  # Stack of active tablerow iterators
 

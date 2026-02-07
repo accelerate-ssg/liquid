@@ -97,6 +97,10 @@ type
     opBeginIfchanged     # Start ifchanged block (begins capturing output)
     opEndIfchanged       # End ifchanged block (compare, output if different)
 
+    # Increment/Decrement (separate counter namespace)
+    opIncrement          # Output current counter value, then increment: [stringId]
+    opDecrement          # Decrement counter, then output: [stringId]
+
     # Special Operations
     opTypeCheck          # Check value type: [expectedType]
     opCoerce             # Coerce to type: [targetType]
@@ -116,7 +120,7 @@ type
       intVal*: int64
     of opPushFloat:
       floatVal*: float64
-    of opPushString, opLoadVar, opStoreVar, opGetProp, opSetProp:
+    of opPushString, opLoadVar, opStoreVar, opGetProp, opSetProp, opIncrement, opDecrement:
       stringId*: uint32
     of opLoadLocal, opStoreLocal, opLoadUpvalue:
       index*: uint16

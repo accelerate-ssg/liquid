@@ -159,6 +159,8 @@ proc execute*(vm: var LiquidVM): string =
         vm.push(vm.locals[var_name])
       elif var_name in vm.variables:
         vm.push(vm.variables[var_name])
+      elif var_name in vm.counters:
+        vm.push(VMValue(kind: vmInt, intVal: vm.counters[var_name]))
       else:
         vm.push(VMValue(kind: vmNull))
       
@@ -309,6 +311,29 @@ proc execute*(vm: var LiquidVM): string =
         if next >= arg_count:
           next = 0
         vm.cycle_counters[group_key] = next
+
+    of opIncrement:
+      let var_name = vm.strings[inst.stringId]
+      let current = vm.counters.getOrDefault(var_name, 0'i64)
+      # Output current value, then increment
+      let str = $current
+      if vm.is_capturing:
+        vm.capture_stack[^1].add(str)
+      else:
+        vm.output.add(str)
+      vm.counters[var_name] = current + 1
+
+    of opDecrement:
+      let var_name = vm.strings[inst.stringId]
+      let current = vm.counters.getOrDefault(var_name, 0'i64)
+      # Decrement, then output
+      let new_val = current - 1
+      vm.counters[var_name] = new_val
+      let str = $new_val
+      if vm.is_capturing:
+        vm.capture_stack[^1].add(str)
+      else:
+        vm.output.add(str)
 
     of opBeginIfchanged:
       # Start capturing output for ifchanged comparison
@@ -716,34 +741,22 @@ proc execute*(vm: var LiquidVM): string =
     of opLess:
       let b = vm.pop()
       let a = vm.pop()
-      try:
-        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) < 0))
-      except ValueError:
-        vm.push(VMValue(kind: vmBool, boolVal: false))
+      vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) < 0))
 
     of opLessEqual:
       let b = vm.pop()
       let a = vm.pop()
-      try:
-        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) <= 0))
-      except ValueError:
-        vm.push(VMValue(kind: vmBool, boolVal: false))
+      vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) <= 0))
 
     of opGreater:
       let b = vm.pop()
       let a = vm.pop()
-      try:
-        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) > 0))
-      except ValueError:
-        vm.push(VMValue(kind: vmBool, boolVal: false))
+      vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) > 0))
 
     of opGreaterEqual:
       let b = vm.pop()
       let a = vm.pop()
-      try:
-        vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) >= 0))
-      except ValueError:
-        vm.push(VMValue(kind: vmBool, boolVal: false))
+      vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) >= 0))
     
     of opContains:
       let needle = vm.pop()  # What we're looking for
@@ -943,27 +956,27 @@ proc execute*(vm: var LiquidVM): string =
         start_int = start_val.intVal
       of vmFloat:
         start_int = start_val.floatVal.int64
+      of vmString:
+        try: start_int = parseInt(start_val.stringVal).int64
+        except ValueError: start_int = 0
       else:
-        vm.push(VMValue(kind: vmNull))
-        continue
-      
+        start_int = 0
+
       case end_val.kind
       of vmInt:
         end_int = end_val.intVal
       of vmFloat:
         end_int = end_val.floatVal.int64
+      of vmString:
+        try: end_int = parseInt(end_val.stringVal).int64
+        except ValueError: end_int = 0
       else:
-        vm.push(VMValue(kind: vmNull))
-        continue
-      
-      # Create array with range values
+        end_int = 0
+
+      # Create array with range values (empty if start > end)
       var range_array: seq[VMValue] = @[]
       if start_int <= end_int:
         for i in start_int..end_int:
-          range_array.add(VMValue(kind: vmInt, intVal: i))
-      else:
-        # Handle reverse ranges
-        for i in countdown(start_int, end_int):
           range_array.add(VMValue(kind: vmInt, intVal: i))
       
       vm.push(VMValue(kind: vmArray, arrayVal: range_array))

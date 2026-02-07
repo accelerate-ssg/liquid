@@ -87,9 +87,18 @@ create_filter:
       let rounded = round(num * multiplier) / multiplier
       result = VMValue(kind: vmInt, intVal: rounded.int64)
     else:
-      let multiplier = pow(10.0, decimals.float)
-      let rounded = round(num * multiplier) / multiplier
-      result = VMValue(kind: vmFloat, floatVal: rounded)
+      # If original value is integer-like and the result is a whole number, return int
+      if is_int_like(value):
+        let multiplier = pow(10.0, decimals.float)
+        let rounded = round(num * multiplier) / multiplier
+        if rounded == rounded.int64.float:
+          result = VMValue(kind: vmInt, intVal: rounded.int64)
+        else:
+          result = VMValue(kind: vmFloat, floatVal: rounded)
+      else:
+        let multiplier = pow(10.0, decimals.float)
+        let rounded = round(num * multiplier) / multiplier
+        result = VMValue(kind: vmFloat, floatVal: rounded)
 
 # Adds a number to another number
 create_filter:

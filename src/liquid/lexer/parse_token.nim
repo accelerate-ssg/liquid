@@ -134,6 +134,9 @@ template parse_token*(input: string, pos: var int, endPos: int,
     if pos < endPos and input[pos] == '=':
       inc pos
       section.addToken(tkLte, tokStart, pos)
+    elif pos < endPos and input[pos] == '>':
+      inc pos
+      section.addToken(tkNeq, tokStart, pos)
     else:
       section.addToken(tkLt, tokStart, pos)
       

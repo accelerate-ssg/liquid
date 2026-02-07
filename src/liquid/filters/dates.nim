@@ -1,6 +1,83 @@
 import times, strutils
 import ../shared
 
+proc liquid_date_format(dt: DateTime, format: string): string =
+  ## Format a DateTime with Liquid/strftime format directives.
+  ## Processes directives one at a time, building the output string directly.
+  result = ""
+  var i = 0
+
+  while i < format.len:
+    if format[i] == '%' and i + 1 < format.len:
+      case format[i + 1]
+      of '%':
+        result.add('%')
+        i += 2
+      of 's':
+        result.add($dt.toTime.toUnix)
+        i += 2
+      of 'Y':
+        result.add(dt.format("yyyy"))
+        i += 2
+      of 'm':
+        result.add(dt.format("MM"))
+        i += 2
+      of 'd':
+        result.add(dt.format("dd"))
+        i += 2
+      of 'H':
+        result.add(dt.format("HH"))
+        i += 2
+      of 'M':
+        result.add(dt.format("mm"))
+        i += 2
+      of 'S':
+        result.add(dt.format("ss"))
+        i += 2
+      of 'b':
+        result.add(dt.format("MMM"))
+        i += 2
+      of 'B':
+        result.add(dt.format("MMMM"))
+        i += 2
+      of 'y':
+        result.add(dt.format("yy"))
+        i += 2
+      of 'I':
+        result.add(dt.format("hh"))
+        i += 2
+      of 'p':
+        result.add(dt.format("tt"))
+        i += 2
+      of 'P':
+        result.add(if dt.hour < 12: "am" else: "pm")
+        i += 2
+      of 'A':
+        result.add(dt.format("dddd"))
+        i += 2
+      of 'a':
+        result.add(dt.format("ddd"))
+        i += 2
+      of 'e':
+        result.add(align($dt.monthday, 2))
+        i += 2
+      of 'j':
+        result.add(align($(dt.yearday + 1), 3, '0'))
+        i += 2
+      of 'Z':
+        result.add(dt.format("zzz"))
+        i += 2
+      of 'z':
+        result.add(dt.format("zzz"))
+        i += 2
+      else:
+        # Unknown directive — pass through as-is
+        result.add(format[i..i+1])
+        i += 2
+    else:
+      result.add(format[i])
+      i += 1
+
 # Formats a date according to a specified format
 create_filter:
   proc date(value: VMValue, args: varargs[VMValue]): VMValue =
@@ -8,55 +85,57 @@ create_filter:
       raise newException(ValueError, "date filter requires 1 argument (format)")
     if args.len > 1:
       raise newException(ValueError, "date filter takes at most 1 argument")
-    
-    let format = if args[0].kind == vmString:
-      args[0].stringVal
-    else:
-      "%Y-%m-%d"
-    
-    var input: string
+
+    # If format argument is undefined/null, return original value
+    if args[0].kind != vmString:
+      result = value
+      return
+
+    let format = args[0].stringVal
+
+    var dt: DateTime
+
     case value.kind
-    of vmString:
-      input = value.stringVal
     of vmInt:
       # Treat as Unix timestamp
       try:
-        let dt = fromUnix(value.intVal).local
-        result = VMValue(kind: vmString, stringVal: dt.format(format))
-        return
+        dt = fromUnix(value.intVal).utc
       except:
         result = value
         return
+    of vmString:
+      let input = value.stringVal
+      # Try parsing as Unix timestamp (non-negative only)
+      var parsedAsTimestamp = false
+      if input.len > 0 and input[0] in {'0'..'9'}:
+        try:
+          let timestamp = parseBiggestInt(input)
+          dt = fromUnix(timestamp).utc
+          parsedAsTimestamp = true
+        except:
+          discard
+      if not parsedAsTimestamp:
+        # Try various date formats
+        var parsed = false
+        for fmt in ["yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd HH:mm:ss",
+                     "yyyy-MM-dd", "MMMM d, yyyy", "MMMM dd, yyyy",
+                     "MMM d, yyyy", "MMM dd, yyyy",
+                     "d MMMM yyyy", "dd MMMM yyyy"]:
+          try:
+            dt = parse(input, fmt, utc())
+            parsed = true
+            break
+          except:
+            discard
+        if not parsed:
+          result = value
+          return
     else:
       result = value
       return
-    
+
     try:
-      # Parse various date formats
-      var dt: DateTime
-      
-      # Try parsing ISO 8601 format first
-      try:
-        dt = parse(input, "yyyy-MM-dd'T'HH:mm:sszzz")
-      except:
-        try:
-          dt = parse(input, "yyyy-MM-dd HH:mm:ss")
-        except:
-          try:
-            dt = parse(input, "yyyy-MM-dd")
-          except:
-            # Try Unix timestamp
-            try:
-              let timestamp = parseInt(input)
-              dt = fromUnix(timestamp).local
-            except:
-              # Return original if can't parse
-              result = value
-              return
-      
-      # Format the date
-      let formatted = dt.format(format)
-      result = VMValue(kind: vmString, stringVal: formatted)
+      result = VMValue(kind: vmString, stringVal: liquid_date_format(dt, format))
     except:
       result = value
 

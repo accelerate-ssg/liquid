@@ -796,34 +796,22 @@ proc compile_if(c: var Compiler, tokens: openArray[Token]) =
     c.patch_jump(jumpIfFalse)
 
 proc compile_increment(c: var Compiler, tokens: openArray[Token]) =
-  # {% increment var %} - output current value (default 0), then increment
+  # {% increment var %} - output current counter value (default 0), then increment
+  # Uses separate counter namespace from assign/capture
   if tokens.len < 2:
     return
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
-  # Load variable (defaults to null), coerce null to 0, output, add 1, store
   let varId = c.intern_string(var_name)
-  c.emit(Instruction(op: opLoadVar, stringId: varId))
-  c.emit(Instruction(op: opPushInt, intVal: 0))
-  c.emit(Instruction(op: opAdd))  # null + 0 = 0, n + 0 = n
-  c.emit(Instruction(op: opDup))
-  c.emit(Instruction(op: opOutput))
-  c.emit(Instruction(op: opPushInt, intVal: 1))
-  c.emit(Instruction(op: opAdd))
-  c.emit(Instruction(op: opStoreVar, stringId: varId))
+  c.emit(Instruction(op: opIncrement, stringId: varId))
 
 proc compile_decrement(c: var Compiler, tokens: openArray[Token]) =
-  # {% decrement var %} - decrement, then output (starts at -1)
+  # {% decrement var %} - decrement counter, then output (starts at -1)
+  # Uses separate counter namespace from assign/capture
   if tokens.len < 2:
     return
   let var_name = c.input[tokens[1].start..<tokens[1].stop]
-  # Load variable (defaults to null/0), subtract 1, store, output
   let varId = c.intern_string(var_name)
-  c.emit(Instruction(op: opLoadVar, stringId: varId))
-  c.emit(Instruction(op: opPushInt, intVal: 1))
-  c.emit(Instruction(op: opSubtract))
-  c.emit(Instruction(op: opDup))
-  c.emit(Instruction(op: opStoreVar, stringId: varId))
-  c.emit(Instruction(op: opOutput))
+  c.emit(Instruction(op: opDecrement, stringId: varId))
 
 proc compile_cycle(c: var Compiler, tokens: openArray[Token]) =
   # {% cycle [name:] val1, val2, ... %}
