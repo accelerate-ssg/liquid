@@ -2,13 +2,19 @@ import sequtils, algorithm, strutils, tables
 import ../shared
 
 
-# Returns the first element of an array
+# Returns the first element of an array or first key-value pair of an object
 create_filter:
   proc first(value: VMValue): VMValue =
     case value.kind
     of vmArray:
       if value.arrayVal.len > 0: value.arrayVal[0]
       else: VMValue(kind: vmNull)
+    of vmObject:
+      if value.objectVal.len > 0:
+        for k, v in value.objectVal:
+          return VMValue(kind: vmArray, arrayVal: @[
+            VMValue(kind: vmString, stringVal: k), v])
+      VMValue(kind: vmNull)
     else: VMValue(kind: vmNull)
 
 # Returns the last element of an array
@@ -229,9 +235,11 @@ create_filter:
     if args.len > 1:
       raise newException(ValueError, "compact filter takes at most 1 argument")
     
-    # If value is not an array, return it as-is
+    # If value is not an array, wrap in array (non-null values pass through)
     if value.kind != vmArray:
-      return value
+      if value.kind == vmNull:
+        return VMValue(kind: vmArray, arrayVal: @[])
+      return VMValue(kind: vmArray, arrayVal: @[value])
     
     # If a property name is provided, compact based on that property
     if args.len == 1:
@@ -266,10 +274,18 @@ create_filter:
       elif arg.kind != vmArray:
         raise newException(ValueError, "concat filter arguments must be arrays")
 
-    # Convert left value to array if needed
+    # Helper to flatten nested arrays
+    proc flatten(arr: seq[VMValue]): seq[VMValue] =
+      for item in arr:
+        if item.kind == vmArray:
+          result.add(flatten(item.arrayVal))
+        else:
+          result.add(item)
+
+    # Convert left value to array, flattening nested arrays
     var left: seq[VMValue]
     case value.kind
-    of vmArray: left = value.arrayVal
+    of vmArray: left = flatten(value.arrayVal)
     of vmNull: left = @[]
     else: left = @[value]
 
@@ -293,13 +309,12 @@ create_filter:
       var unique: seq[VMValue] = @[]
       var seenKeys: seq[string] = @[]
       for item in value.arrayVal:
-        if item.kind == vmObject and propName in item.objectVal:
-          let keyVal = to_string(item.objectVal[propName])
-          if keyVal notin seenKeys:
-            seenKeys.add(keyVal)
-            unique.add(item)
+        let keyVal = if item.kind == vmObject and propName in item.objectVal:
+          to_string(item.objectVal[propName])
         else:
-          # Items without the property are always included
+          "\x00__nil__"  # Sentinel for missing property
+        if keyVal notin seenKeys:
+          seenKeys.add(keyVal)
           unique.add(item)
       result = VMValue(kind: vmArray, arrayVal: unique)
     else:
@@ -339,8 +354,9 @@ create_filter:
     
     let propName = args[0].stringVal
     
-    if args.len == 1:
+    if args.len == 1 or (args.len == 2 and args[1].kind == vmNull):
       # Filter for objects that have the property with truthy value
+      # (also triggered when second argument is nil/undefined)
       var filtered: seq[VMValue] = @[]
       for item in value.arrayVal:
         if item.kind == vmObject and propName in item.objectVal:

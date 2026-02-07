@@ -29,7 +29,7 @@ proc to_string*(v: VMValue): string =
   of vmString: v.stringVal
   of vmArray:
     v.arrayVal.map(to_string).join("")
-  of vmObject: ""
+  of vmObject: "{}"
   else: ""
 
 # Enhanced macro that registers the filter and adds argument validation

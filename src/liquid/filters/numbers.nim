@@ -82,8 +82,10 @@ create_filter:
       0
 
     let num = to_numeric(value)
-    if decimals == 0:
-      result = VMValue(kind: vmInt, intVal: round(num).int64)
+    if decimals <= 0:
+      let multiplier = pow(10.0, decimals.float)
+      let rounded = round(num * multiplier) / multiplier
+      result = VMValue(kind: vmInt, intVal: rounded.int64)
     else:
       let multiplier = pow(10.0, decimals.float)
       let rounded = round(num * multiplier) / multiplier

@@ -25,7 +25,7 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     locals: initTable[string, VMValue](),
     iterators: @[],
     output: "",
-    escape_html: true,
+    escape_html: false,
     capture_stack: @[],
     is_capturing: false,
     # filters field removed - now using filters module directly
@@ -174,10 +174,25 @@ proc execute*(vm: var LiquidVM): string =
       
       case obj.kind
       of vmObject:
+        # Check for actual property first
         if prop_name in obj.objectVal:
           vm.push(obj.objectVal[prop_name])
         else:
-          vm.push(VMValue(kind: vmNull))
+          # Fall back to special/virtual properties
+          case prop_name
+          of "size", "length":
+            vm.push(VMValue(kind: vmInt, intVal: obj.objectVal.len.int64))
+          of "first":
+            # Return first key-value pair as [key, value] array
+            if obj.objectVal.len > 0:
+              for k, v in obj.objectVal:
+                vm.push(VMValue(kind: vmArray, arrayVal: @[
+                  VMValue(kind: vmString, stringVal: k), v]))
+                break
+            else:
+              vm.push(VMValue(kind: vmNull))
+          else:
+            vm.push(VMValue(kind: vmNull))
       of vmArray:
         # Special array properties
         case prop_name
@@ -193,6 +208,13 @@ proc execute*(vm: var LiquidVM): string =
             vm.push(obj.arrayVal[^1])
           else:
             vm.push(VMValue(kind: vmNull))
+        else:
+          vm.push(VMValue(kind: vmNull))
+      of vmString:
+        # Special string properties
+        case prop_name
+        of "size", "length":
+          vm.push(VMValue(kind: vmInt, intVal: obj.stringVal.len.int64))
         else:
           vm.push(VMValue(kind: vmNull))
       else:
@@ -970,17 +992,18 @@ when isMainModule:
 
     test "Truthy values":
       let source = "{% if value %}Yes{% else %}No{% endif %}"
-      
-      # Truthy values
+
+      # Truthy values (in Liquid, only nil and false are falsy)
       check render_template(source, {"value": vmInt(1)}.toTable) == "Yes"
       check render_template(source, {"value": vmString("text")}.toTable) == "Yes"
       check render_template(source, {"value": to_vm_value(@[1])}.toTable) == "Yes"
-      
-      # Falsy values
-      check render_template(source, {"value": vmInt(0)}.toTable) == "No"
-      check render_template(source, {"value": vmString("")}.toTable) == "No"
+      check render_template(source, {"value": vmInt(0)}.toTable) == "Yes"
+      check render_template(source, {"value": vmString("")}.toTable) == "Yes"
+      check render_template(source, {"value": to_vm_value(empty_array)}.toTable) == "Yes"
+
+      # Falsy values (only nil and false)
       check render_template(source, {"value": vmNull()}.toTable) == "No"
-      check render_template(source, {"value": to_vm_value(empty_array)}.toTable) == "No"
+      check render_template(source, {"value": VMValue(kind: vmBool, boolVal: false)}.toTable) == "No"
 
     test "Comparison operators":
       let source = "{% if age > 18 %}Adult{% else %}Minor{% endif %}"
@@ -1082,9 +1105,8 @@ when isMainModule:
         "title": vmString("Test"),
         "desc": vmString("Description")
       }.toTable
-      # Default VM has escapeHtml=true, so captured HTML content gets escaped on output
       let output = render_template(source, data)
-      check output == "&lt;h1&gt;Test&lt;/h1&gt;&lt;p&gt;Description&lt;/p&gt;"
+      check output == "<h1>Test</h1><p>Description</p>"
 
     test "Nested capture":
       let source = """{% capture outer %}[{% capture inner %}{{ x }}{% endcapture %}{{ inner }}]{% endcapture %}{{ outer }}"""
@@ -1256,7 +1278,7 @@ when isMainModule:
       let source = "{{ content }}"
       let data = {"content": vmString("<script>alert('xss')</script>")}.toTable
       
-      # Create VM with HTML escaping enabled (default)
+      # Create VM with HTML escaping enabled (not default in Liquid, but available)
       let sections = lex(source)
       let compiled = compile(sections, source)
       var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)

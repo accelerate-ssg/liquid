@@ -7,18 +7,26 @@ create_filter:
     if args.len > 2:
       raise newException(ValueError, "default filter takes at most 2 arguments")
 
-    # Default value: empty string if no argument, otherwise the first arg
-    let defaultValue = if args.len > 0:
-      args[0]
-    else:
-      VMValue(kind: vmString, stringVal: "")
+    # Handle argument ordering: keyword arg (allow_false) may come before or after positional
+    # When both args present and first is bool but second is not, the keyword arg came first
+    var defaultValue: VMValue
+    var allowFalse = false
 
-    # Check for allow_false keyword arg (second arg)
-    # The compiler passes keyword args as positional, so allow_false: true → args[1] = true
-    let allowFalse = if args.len >= 2 and args[1].kind == vmBool:
-      args[1].boolVal
+    if args.len == 0:
+      defaultValue = VMValue(kind: vmString, stringVal: "")
+    elif args.len == 1:
+      defaultValue = args[0]
     else:
-      false
+      # Two args: determine which is allow_false and which is the default value
+      if args[0].kind == vmBool and args[1].kind != vmBool:
+        # Keyword arg first: allow_false: bool, default_value
+        allowFalse = args[0].boolVal
+        defaultValue = args[1]
+      else:
+        # Normal order: default_value, allow_false: bool
+        defaultValue = args[0]
+        if args[1].kind == vmBool:
+          allowFalse = args[1].boolVal
 
     # Determine if we should use the default value
     let shouldUseDefault = case value.kind

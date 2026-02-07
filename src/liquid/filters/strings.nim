@@ -115,6 +115,9 @@ create_filter:
       of vmString:
         try: args[0].stringVal.parseInt()
         except: 50
+      of vmNull:
+        raise newException(ValueError, "truncate filter: first argument cannot be nil")
+        0
       else: 50
     else:
       50
@@ -148,6 +151,9 @@ create_filter:
       of vmString:
         try: args[0].stringVal.parseInt()
         except: 15
+      of vmNull:
+        raise newException(ValueError, "truncatewords filter: first argument cannot be nil")
+        0
       else: 15
     else:
       15
@@ -217,7 +223,16 @@ create_filter:
 
     let searchStr = to_string(args[0])
     let replacementStr = if args.len >= 2: to_string(args[1]) else: ""
-    result = VMValue(kind: vmString, stringVal: input.replace(searchStr, replacementStr))
+    if searchStr.len == 0:
+      # Empty search string: insert replacement between every character and at boundaries
+      var res = newStringOfCap(input.len * (1 + replacementStr.len) + replacementStr.len)
+      for i, c in input:
+        res.add(replacementStr)
+        res.add(c)
+      res.add(replacementStr)
+      result = VMValue(kind: vmString, stringVal: res)
+    else:
+      result = VMValue(kind: vmString, stringVal: input.replace(searchStr, replacementStr))
 
 # Replaces the first occurrence of a substring with another string
 create_filter:
@@ -386,7 +401,7 @@ create_filter:
 
     let input = to_string(value)
     if input.len == 0:
-      return VMValue(kind: vmArray, arrayVal: @[VMValue(kind: vmString, stringVal: "")])
+      return VMValue(kind: vmArray, arrayVal: @[])
 
     let delim = to_string(args[0])
 
@@ -397,6 +412,9 @@ create_filter:
         chars.add(VMValue(kind: vmString, stringVal: $c))
       result = VMValue(kind: vmArray, arrayVal: chars)
     else:
-      let parts = input.split(delim)
+      var parts = input.split(delim)
+      # Drop trailing empty strings (Ruby split behavior)
+      while parts.len > 0 and parts[^1] == "":
+        parts.setLen(parts.len - 1)
       let vmParts = parts.mapIt(VMValue(kind: vmString, stringVal: it))
       result = VMValue(kind: vmArray, arrayVal: vmParts)
