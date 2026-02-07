@@ -113,6 +113,79 @@ proc escape_html_str(s: string): string =
     of '\'': result.add("&#39;")
     else: result.add(c)
 
+# ─── VM Helpers ───────────────────────────────────────────────────────
+
+template emit_output(vm: var LiquidVM, str: string) =
+  ## Emit text to current output target (capture stack or main output)
+  if vm.is_capturing:
+    vm.capture_stack[^1].add(str)
+  else:
+    vm.output.add(str)
+
+proc resolve_var*(vm: LiquidVM, name: string): VMValue =
+  ## Resolve a variable name through the scope chain:
+  ## keyword_args → locals → variables → counters → null
+  if name in vm.keyword_args:
+    vm.keyword_args[name]
+  elif name in vm.locals:
+    vm.locals[name]
+  elif name in vm.variables:
+    vm.variables[name]
+  elif name in vm.counters:
+    VMValue(kind: vmInt, intVal: vm.counters[name])
+  else:
+    VMValue(kind: vmNull)
+
+proc to_int64*(v: VMValue, strict: bool = true): int64 =
+  ## Convert a VMValue to int64.
+  ## In strict mode (default), raises on incompatible types.
+  ## In lenient mode, returns 0 for incompatible types.
+  case v.kind
+  of vmInt: v.intVal
+  of vmFloat: v.floatVal.int64
+  of vmString:
+    try: parseInt(v.stringVal).int64
+    except ValueError:
+      if strict:
+        raise newException(ValueError, "expected a number, got string '" & v.stringVal & "'")
+      else: 0'i64
+  of vmNull: 0'i64
+  else:
+    if strict:
+      raise newException(ValueError, "expected a number, got " & $v.kind)
+    else: 0'i64
+
+proc build_forloop*(idx0, length: int, name: string, parent: VMValue): VMValue =
+  ## Build a forloop helper object for Liquid {% for %} loops
+  var obj = {
+    "index": vm_int((idx0 + 1).int64),
+    "index0": vm_int(idx0.int64),
+    "first": vm_bool(idx0 == 0),
+    "last": vm_bool(idx0 == length - 1),
+    "length": vm_int(length.int64),
+    "rindex": vm_int((length - idx0).int64),
+    "rindex0": vm_int((length - idx0 - 1).int64),
+    "name": vm_string(name),
+  }.toTable
+  if parent.kind != vm_null:
+    obj["parentloop"] = parent
+  else:
+    obj["parentloop"] = vm_null()
+  vm_object(obj)
+
+proc finish_iterator*(vm: var LiquidVM, iter_index: int = -1) =
+  ## Clean up a finished iterator: save offset, remove from stack,
+  ## restore parent forloop, delete loop variable from locals
+  let idx = if iter_index < 0: vm.iterators.len - 1 else: iter_index
+  let finished = vm.iterators[idx]
+  vm.loop_offsets[finished.var_name] = finished.original_offset + finished.items.len
+  vm.iterators.delete(idx)
+  vm.locals.del(finished.var_name)
+  if finished.saved_forloop.kind != vm_null:
+    vm.locals["forloop"] = finished.saved_forloop
+  else:
+    vm.locals.del("forloop")
+
 # Main execution function
 proc execute*(vm: var LiquidVM): string =
   ## Execute the bytecode and return the output
@@ -165,30 +238,11 @@ proc execute*(vm: var LiquidVM): string =
     
     # Variable operations
     of opLoadVar:
-      let var_name = vm.strings[inst.stringId]
-      if var_name in vm.keyword_args:
-        vm.push(vm.keyword_args[var_name])
-      elif var_name in vm.locals:
-        vm.push(vm.locals[var_name])
-      elif var_name in vm.variables:
-        vm.push(vm.variables[var_name])
-      elif var_name in vm.counters:
-        vm.push(VMValue(kind: vmInt, intVal: vm.counters[var_name]))
-      else:
-        vm.push(VMValue(kind: vmNull))
+      vm.push(vm.resolve_var(vm.strings[inst.stringId]))
       
     of opDynamicLoadVar:
       # Pop key from stack, use it as a variable name
-      let key_val = vm.pop()
-      let var_name = key_val.to_string()
-      if var_name in vm.locals:
-        vm.push(vm.locals[var_name])
-      elif var_name in vm.variables:
-        vm.push(vm.variables[var_name])
-      elif var_name in vm.counters:
-        vm.push(VMValue(kind: vmInt, intVal: vm.counters[var_name]))
-      else:
-        vm.push(VMValue(kind: vmNull))
+      vm.push(vm.resolve_var(vm.pop().to_string()))
 
     of opStoreVar:
       let var_name = vm.strings[inst.stringId]
@@ -268,11 +322,7 @@ proc execute*(vm: var LiquidVM): string =
     of opBatchOutput:
       # Batch output is ALWAYS literal template text - NEVER escape
       for stringId in inst.stringIds:
-        let text = vm.strings[stringId]
-        if vm.is_capturing:
-          vm.capture_stack[^1].add(text)
-        else:
-          vm.output.add(text)  # Direct output, no escaping
+        vm.emit_output(vm.strings[stringId])
     
     of opBeginCapture:
       # Start capturing output
@@ -304,15 +354,7 @@ proc execute*(vm: var LiquidVM): string =
       if inst.cycleGroupId >= 0:
         if inst.cycleGroupIsVar:
           # Resolve variable name to get group key
-          let var_name = vm.strings[inst.cycleGroupId.uint32]
-          var resolved: VMValue
-          if var_name in vm.locals:
-            resolved = vm.locals[var_name]
-          elif var_name in vm.variables:
-            resolved = vm.variables[var_name]
-          else:
-            resolved = VMValue(kind: vmNull)
-          group_key = resolved.to_string()
+          group_key = vm.resolve_var(vm.strings[inst.cycleGroupId.uint32]).to_string()
         else:
           # Literal group name
           group_key = vm.strings[inst.cycleGroupId.uint32]
@@ -326,12 +368,7 @@ proc execute*(vm: var LiquidVM): string =
       if arg_count > 0:
         # Output value at current index (out of bounds → nothing)
         if iteration < arg_count:
-          let value = values[iteration]
-          let str = value.to_string()
-          if vm.is_capturing:
-            vm.capture_stack[^1].add(str)
-          else:
-            vm.output.add(str)
+          vm.emit_output(values[iteration].to_string())
         # Increment counter, reset to 0 if >= current arg count
         var next = iteration + 1
         if next >= arg_count:
@@ -341,25 +378,15 @@ proc execute*(vm: var LiquidVM): string =
     of opIncrement:
       let var_name = vm.strings[inst.stringId]
       let current = vm.counters.getOrDefault(var_name, 0'i64)
-      # Output current value, then increment
-      let str = $current
-      if vm.is_capturing:
-        vm.capture_stack[^1].add(str)
-      else:
-        vm.output.add(str)
+      vm.emit_output($current)
       vm.counters[var_name] = current + 1
 
     of opDecrement:
       let var_name = vm.strings[inst.stringId]
       let current = vm.counters.getOrDefault(var_name, 0'i64)
-      # Decrement, then output
       let new_val = current - 1
       vm.counters[var_name] = new_val
-      let str = $new_val
-      if vm.is_capturing:
-        vm.capture_stack[^1].add(str)
-      else:
-        vm.output.add(str)
+      vm.emit_output($new_val)
 
     of opBeginIfchanged:
       # Start capturing output for ifchanged comparison
@@ -378,11 +405,7 @@ proc execute*(vm: var LiquidVM): string =
         # Compare with last ifchanged output
         if captured != vm.ifchanged_last:
           vm.ifchanged_last = captured
-          # Output the captured content
-          if vm.is_capturing:
-            vm.capture_stack[^1].add(captured)
-          else:
-            vm.output.add(captured)
+          vm.emit_output(captured)
         # If same, suppress output (do nothing)
 
     of opBeginBlankCheck:
@@ -515,11 +538,7 @@ proc execute*(vm: var LiquidVM): string =
         vm.locals["tablerowloop"] = vm_object(trl)
 
         # Output first row opening: <tr class="row1">\n<td class="col1">
-        let html = "<tr class=\"row1\">\n<td class=\"col1\">"
-        if vm.is_capturing:
-          vm.capture_stack[^1].add(html)
-        else:
-          vm.output.add(html)
+        vm.emit_output("<tr class=\"row1\">\n<td class=\"col1\">")
 
     of opTablerowIter:
       if vm.tablerow_iters.len == 0:
@@ -538,22 +557,14 @@ proc execute*(vm: var LiquidVM): string =
           vm.pc += inst.tablerowEndOffset
         else:
           # Close current cell
-          let closeCell = "</td>"
-          if vm.is_capturing:
-            vm.capture_stack[^1].add(closeCell)
-          else:
-            vm.output.add(closeCell)
+          vm.emit_output("</td>")
 
           # Advance to next item
           state.index += 1
 
           if state.index >= state.items.len:
             # Done iterating - close final row
-            let closeRow = "</tr>\n"
-            if vm.is_capturing:
-              vm.capture_stack[^1].add(closeRow)
-            else:
-              vm.output.add(closeRow)
+            vm.emit_output("</tr>\n")
 
             # Clean up
             vm.locals.del(state.var_name)
@@ -578,10 +589,7 @@ proc execute*(vm: var LiquidVM): string =
               html.add("</tr>\n<tr class=\"row" & $row & "\">")
             html.add("<td class=\"col" & $col & "\">")
 
-            if vm.is_capturing:
-              vm.capture_stack[^1].add(html)
-            else:
-              vm.output.add(html)
+            vm.emit_output(html)
 
             # Set loop variable
             vm.locals[state.var_name] = state.items[idx]
@@ -626,38 +634,10 @@ proc execute*(vm: var LiquidVM): string =
       var offset_val = 0'i64  # 0 means no offset
 
       if inst.hasLimit:
-        let lv = vm.pop()
-        case lv.kind
-        of vmInt:
-          limit_val = lv.intVal
-        of vmFloat:
-          limit_val = lv.floatVal.int64
-        of vmString:
-          try:
-            limit_val = parseInt(lv.stringVal).int64
-          except ValueError:
-            raise newException(ValueError, "limit must be a number, got string '" & lv.stringVal & "'")
-        of vmNull:
-          limit_val = 0
-        else:
-          raise newException(ValueError, "limit must be a number, got " & $lv.kind)
+        limit_val = vm.pop().to_int64()
 
       if inst.hasOffset:
-        let ov = vm.pop()
-        case ov.kind
-        of vmInt:
-          offset_val = ov.intVal
-        of vmFloat:
-          offset_val = ov.floatVal.int64
-        of vmString:
-          try:
-            offset_val = parseInt(ov.stringVal).int64
-          except ValueError:
-            raise newException(ValueError, "offset must be a number, got string '" & ov.stringVal & "'")
-        of vmNull:
-          offset_val = 0
-        else:
-          raise newException(ValueError, "offset must be a number, got " & $ov.kind)
+        offset_val = vm.pop().to_int64()
 
       # Get loop variable name for offset: continue tracking
       let loop_var_name = vm.strings[inst.loopVarIndex]
@@ -665,14 +645,7 @@ proc execute*(vm: var LiquidVM): string =
       # Clean up any stale iterator for this variable (from a broken loop)
       for i in countdown(vm.iterators.len - 1, 0):
         if vm.iterators[i].var_name == loop_var_name:
-          let stale = vm.iterators[i]
-          vm.loop_offsets[stale.var_name] = stale.original_offset + stale.items.len
-          # Restore the forloop saved by the stale iterator
-          if stale.saved_forloop.kind != vm_null:
-            vm.locals["forloop"] = stale.saved_forloop
-          else:
-            vm.locals.del("forloop")
-          vm.iterators.delete(i)
+          vm.finish_iterator(i)
           break
 
       # Handle offset: continue (resume from where last loop left off)
@@ -736,50 +709,19 @@ proc execute*(vm: var LiquidVM): string =
         if vm.pending_break:
           # Break from included partial: end the loop immediately
           vm.pending_break = false
-          let finished_iter = vm.iterators[^1]
-          vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.items.len
-          vm.iterators.setLen(vm.iterators.len - 1)
-          vm.locals.del(finished_iter.var_name)
-          if finished_iter.saved_forloop.kind != vm_null:
-            vm.locals["forloop"] = finished_iter.saved_forloop
-          else:
-            vm.locals.del("forloop")
+          vm.finish_iterator()
           vm.pc += inst.endOffset
         elif vm.pending_continue:
           # Continue from included partial: skip to next iteration
           vm.pending_continue = false
-          # Fall through to normal iteration (index already advanced)
           var iter = addr vm.iterators[^1]
           if iter.index < iter.items.len:
             vm.push(iter.items[iter.index])
             iter.index += 1
             let idx0 = iter.index - 1
-            let length = iter.items.len
-            var forloopObj = {
-              "index": vm_int((idx0 + 1).int64),
-              "index0": vm_int(idx0.int64),
-              "first": vm_bool(idx0 == 0),
-              "last": vm_bool(idx0 == length - 1),
-              "length": vm_int(length.int64),
-              "rindex": vm_int((length - idx0).int64),
-              "rindex0": vm_int((length - idx0 - 1).int64),
-              "name": vm_string(iter.loop_name),
-            }.toTable
-            let saved = iter.saved_forloop
-            if saved.kind != vm_null:
-              forloopObj["parentloop"] = saved
-            else:
-              forloopObj["parentloop"] = vm_null()
-            vm.locals["forloop"] = vm_object(forloopObj)
+            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
           else:
-            let finished_iter = vm.iterators[^1]
-            vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.items.len
-            vm.iterators.setLen(vm.iterators.len - 1)
-            vm.locals.del(finished_iter.var_name)
-            if finished_iter.saved_forloop.kind != vm_null:
-              vm.locals["forloop"] = finished_iter.saved_forloop
-            else:
-              vm.locals.del("forloop")
+            vm.finish_iterator()
             vm.pc += inst.endOffset
         else:
           # Normal iteration
@@ -787,37 +729,11 @@ proc execute*(vm: var LiquidVM): string =
           if iter.index < iter.items.len:
             vm.push(iter.items[iter.index])
             iter.index += 1
-
             let idx0 = iter.index - 1
-            let length = iter.items.len
-            var forloopObj = {
-              "index": vm_int((idx0 + 1).int64),
-              "index0": vm_int(idx0.int64),
-              "first": vm_bool(idx0 == 0),
-              "last": vm_bool(idx0 == length - 1),
-              "length": vm_int(length.int64),
-              "rindex": vm_int((length - idx0).int64),
-              "rindex0": vm_int((length - idx0 - 1).int64),
-              "name": vm_string(iter.loop_name),
-            }.toTable
-
-            let saved = iter.saved_forloop
-            if saved.kind != vm_null:
-              forloopObj["parentloop"] = saved
-            else:
-              forloopObj["parentloop"] = vm_null()
-
-            vm.locals["forloop"] = vm_object(forloopObj)
+            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
           else:
             let wasEmpty = iter.index == 0
-            let finished_iter = vm.iterators[^1]
-            vm.loop_offsets[finished_iter.var_name] = finished_iter.original_offset + finished_iter.items.len
-            vm.iterators.setLen(vm.iterators.len - 1)
-            vm.locals.del(finished_iter.var_name)
-            if finished_iter.saved_forloop.kind != vm_null:
-              vm.locals["forloop"] = finished_iter.saved_forloop
-            else:
-              vm.locals.del("forloop")
+            vm.finish_iterator()
             if wasEmpty and inst.elseOffset != 0:
               vm.pc += inst.elseOffset
             else:
@@ -1039,42 +955,16 @@ proc execute*(vm: var LiquidVM): string =
         raise e  # Re-throw the exception so tests can catch it
     
     of opRange:
-      # Create a range from start..end
-      let end_val = vm.pop()
-      let start_val = vm.pop()
-      
-      # Convert to integers
-      var start_int: int64
-      var end_int: int64
-      
-      case start_val.kind
-      of vmInt:
-        start_int = start_val.intVal
-      of vmFloat:
-        start_int = start_val.floatVal.int64
-      of vmString:
-        try: start_int = parseInt(start_val.stringVal).int64
-        except ValueError: start_int = 0
-      else:
-        start_int = 0
-
-      case end_val.kind
-      of vmInt:
-        end_int = end_val.intVal
-      of vmFloat:
-        end_int = end_val.floatVal.int64
-      of vmString:
-        try: end_int = parseInt(end_val.stringVal).int64
-        except ValueError: end_int = 0
-      else:
-        end_int = 0
+      # Create a range from start..end (lenient: bad values become 0)
+      let end_int = vm.pop().to_int64(strict = false)
+      let start_int = vm.pop().to_int64(strict = false)
 
       # Create array with range values (empty if start > end)
       var range_array: seq[VMValue] = @[]
       if start_int <= end_int:
         for i in start_int..end_int:
           range_array.add(VMValue(kind: vmInt, intVal: i))
-      
+
       vm.push(VMValue(kind: vmArray, arrayVal: range_array))
 
     # Logical operators
@@ -1155,28 +1045,16 @@ proc execute*(vm: var LiquidVM): string =
               for (k, v) in kwArgs:
                 subVm.locals[k] = v
             # Build forloop helper for render for-loop
+            let forloop = build_forloop(idx, totalItems, "", vm_null())
             # Use variables (not locals) so inner for-loops don't pick it up as parentloop
-            var forloopObj = {
-              "index": vm_int((idx + 1).int64),
-              "index0": vm_int(idx.int64),
-              "first": vm_bool(idx == 0),
-              "last": vm_bool(idx == totalItems - 1),
-              "length": vm_int(totalItems.int64),
-              "rindex": vm_int((totalItems - idx).int64),
-              "rindex0": vm_int((totalItems - idx - 1).int64),
-              "parentloop": vm_null(),
-            }.toTable
             if inst.withContext:
-              subVm.locals["forloop"] = vm_object(forloopObj)
+              subVm.locals["forloop"] = forloop
             else:
-              subVm.variables["forloop"] = vm_object(forloopObj)
+              subVm.variables["forloop"] = forloop
 
             subVm.partial_cache = vm.partial_cache
             let sub_output = subVm.execute()
-            if vm.is_capturing:
-              vm.capture_stack[^1].add(sub_output)
-            else:
-              vm.output.add(sub_output)
+            vm.emit_output(sub_output)
             vm.partial_cache = subVm.partial_cache
             if inst.withContext:
               vm.locals = subVm.locals
@@ -1211,10 +1089,7 @@ proc execute*(vm: var LiquidVM): string =
 
           subVm.partial_cache = vm.partial_cache
           let sub_output = subVm.execute()
-          if vm.is_capturing:
-            vm.capture_stack[^1].add(sub_output)
-          else:
-            vm.output.add(sub_output)
+          vm.emit_output(sub_output)
           vm.partial_cache = subVm.partial_cache
           if inst.withContext:
             # Include: propagate locals back to parent
