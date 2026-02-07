@@ -5,12 +5,8 @@
 import compiler/[types]
 import vm/[types]
 import std/[tables, strutils, sequtils, algorithm]
+import shared
 import filters
-
-# Forward declarations
-proc toString(v: VMValue): string
-
-# Filters are now handled by the filters module via applyFilter
 
 # Create VM with data
 proc newLiquidVM*(bytecode: seq[Instruction], strings: seq[string], 
@@ -62,27 +58,6 @@ proc isTruthy(v: VMValue): bool =
   of vmObject: v.objectVal.len > 0
   else: true
 
-proc toString(v: VMValue): string =
-  case v.kind
-  of vmNull: ""
-  of vmBool: 
-    if v.boolVal: "true" else: "false"
-  of vmInt: $v.intVal
-  of vmFloat: 
-    # Format float nicely
-    let s = formatFloat(v.floatVal, ffDecimal, 2)
-    if s.endsWith(".00"):
-      s[0..^4]
-    else:
-      s
-  of vmString: v.stringVal
-  of vmArray:
-    # Format array for output
-    "[" & v.arrayVal.mapIt(it.toString()).join(", ") & "]"
-  of vmObject:
-    # Format object for output
-    "{" & toSeq(v.objectVal.pairs).mapIt($it[0] & ": " & it[1].toString()).join(", ") & "}"
-  else: ""
 
 proc escapeHtmlStr(s: string): string =
   result = newStringOfCap(s.len + 10)
@@ -181,7 +156,7 @@ proc execute*(vm: var LiquidVM): string =
     of opOutput:
       # Regular output is for expressions - escape based on setting
       let val = vm.pop()
-      let str = val.toString()
+      let str = val.to_string()
       
       if vm.isCapturing:
         # When capturing, store raw (escaping happens on final output)
@@ -338,7 +313,7 @@ proc execute*(vm: var LiquidVM): string =
           vm.push(VMValue(kind: vmBool, boolVal: needle.stringVal in haystack.stringVal))
         else:
           # Convert needle to string for string search
-          vm.push(VMValue(kind: vmBool, boolVal: needle.toString() in haystack.stringVal))
+          vm.push(VMValue(kind: vmBool, boolVal: needle.to_string() in haystack.stringVal))
       of vmArray:
         # Array contains element
         var found = false
@@ -395,8 +370,8 @@ proc execute*(vm: var LiquidVM): string =
         vm.push(VMValue(kind: vmInt, intVal: a.intVal + b.intVal))
       elif a.kind == vmString or b.kind == vmString:
         # String concatenation
-        let aStr = a.toString()
-        let bStr = b.toString()
+        let aStr = a.to_string()
+        let bStr = b.to_string()
         vm.push(VMValue(kind: vmString, stringVal: aStr & bStr))
       elif a.kind in [vmInt, vmFloat] and b.kind in [vmInt, vmFloat]:
         let af = if a.kind == vmInt: a.intVal.float else: a.floatVal
@@ -424,7 +399,7 @@ proc execute*(vm: var LiquidVM): string =
           vm.push(VMValue(kind: vmNull))
       of vmObject:
         # For objects, convert index to string key
-        let key = index.toString()
+        let key = index.to_string()
         if key in arr.objectVal:
           vm.push(arr.objectVal[key])
         else:

@@ -1,15 +1,6 @@
 import sequtils, algorithm, strutils, tables
 import ../shared
 
-# Helper to convert VMValue to string
-proc toString(v: VMValue): string =
-  case v.kind
-  of vmString: v.stringVal
-  of vmInt: $v.intVal
-  of vmFloat: $v.floatVal
-  of vmBool: $v.boolVal
-  of vmNull: ""
-  else: ""
 
 # Returns the first element of an array
 create_filter:
@@ -40,7 +31,7 @@ create_filter:
     else:
       " "
     
-    let joined = value.arrayVal.mapIt(toString(it)).join(delimiter)
+    let joined = value.arrayVal.mapIt(to_string(it)).join(delimiter)
     result = VMValue(kind: vmString, stringVal: joined)
 
 # Returns the size of an array or string or object
@@ -89,7 +80,7 @@ create_filter:
         elif aVal.kind == vmFloat and bVal.kind == vmFloat:
           return cmp(aVal.floatVal, bVal.floatVal)
         else:
-          return cmp(toString(aVal), toString(bVal))
+          return cmp(to_string(aVal), to_string(bVal))
       )
     else:
       # No property argument - direct sort
@@ -144,7 +135,7 @@ create_filter:
           return cmp(aFloat, bFloat)
         else:
           # Different types - sort by string representation
-          return cmp(toString(a), toString(b))
+          return cmp(to_string(a), to_string(b))
       )
     
     result = VMValue(kind: vmArray, arrayVal: sorted)
@@ -415,7 +406,7 @@ create_filter:
       elif aVal.kind == vmFloat and bVal.kind == vmFloat:
         return cmp(aVal.floatVal, bVal.floatVal)
       else:
-        return cmp(toString(aVal), toString(bVal))
+        return cmp(to_string(aVal), to_string(bVal))
     )
     
     result = VMValue(kind: vmArray, arrayVal: sorted)
@@ -430,7 +421,7 @@ create_filter:
     # A proper natural sort would handle numbers within strings differently
     var sorted = value.arrayVal
     sorted.sort(proc(a, b: VMValue): int =
-      return cmp(toString(a).toLower(), toString(b).toLower())
+      return cmp(to_string(a).toLower(), to_string(b).toLower())
     )
     
     result = VMValue(kind: vmArray, arrayVal: sorted)

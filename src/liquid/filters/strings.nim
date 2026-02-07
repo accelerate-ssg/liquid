@@ -2,21 +2,12 @@ import strutils, base64, xmltree, sequtils, re
 
 import ../shared
 
-# Helper to get string value or convert to string
-proc getStringVal(v: VMValue): string =
-  case v.kind
-  of vmString: v.stringVal
-  of vmInt: $v.intVal
-  of vmFloat: $v.floatVal
-  of vmBool: $v.boolVal
-  of vmNull: ""
-  else: ""  # Arrays and objects would need special handling
 
 # Appends a string to another string
 create_filter:
   proc append(value: VMValue, suffix: VMValue): VMValue =
-    let input = getStringVal(value)
-    let suffixStr = getStringVal(suffix)
+    let input = to_string(value)
+    let suffixStr = to_string(suffix)
     result = VMValue(kind: vmString, stringVal: input & suffixStr)
 
 # Converts a string into a base64-decoded string
@@ -164,8 +155,8 @@ create_filter:
 # Prepends a string to another string
 create_filter:
   proc prepend(value: VMValue, prefix: VMValue): VMValue =
-    let input = getStringVal(value)
-    let prefixStr = getStringVal(prefix)
+    let input = to_string(value)
+    let prefixStr = to_string(prefix)
     result = VMValue(kind: vmString, stringVal: prefixStr & input)
 
 # Removes a substring from a string
@@ -173,7 +164,7 @@ create_filter:
   proc remove(value: VMValue, substring: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    let substringStr = getStringVal(substring)
+    let substringStr = to_string(substring)
     result = VMValue(kind: vmString, stringVal: value.stringVal.replace(substringStr, ""))
 
 # Removes the first occurrence of a substring from a string
@@ -181,7 +172,7 @@ create_filter:
   proc remove_first(value: VMValue, substring: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    let substringStr = getStringVal(substring)
+    let substringStr = to_string(substring)
     let idx = value.stringVal.find(substringStr)
     var resultStr = value.stringVal
     if idx >= 0:
@@ -199,8 +190,8 @@ create_filter:
     if args.len > 2:
       raise newException(ValueError, "replace filter takes at most 2 arguments")
     
-    let searchStr = getStringVal(args[0])
-    let replacementStr = if args.len >= 2: getStringVal(args[1]) else: ""
+    let searchStr = to_string(args[0])
+    let replacementStr = if args.len >= 2: to_string(args[1]) else: ""
     result = VMValue(kind: vmString, stringVal: value.stringVal.replace(searchStr, replacementStr))
 
 # Replaces the first occurrence of a substring with another string
@@ -208,8 +199,8 @@ create_filter:
   proc replace_first(value: VMValue, search: VMValue, replacement: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    let searchStr = getStringVal(search)
-    let replacementStr = getStringVal(replacement)
+    let searchStr = to_string(search)
+    let replacementStr = to_string(replacement)
     let idx = value.stringVal.find(searchStr)
     var resultStr = value.stringVal
     if idx >= 0:
@@ -246,7 +237,7 @@ create_filter:
   proc remove_last(value: VMValue, substring: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    let substringStr = getStringVal(substring)
+    let substringStr = to_string(substring)
     let idx = value.stringVal.rfind(substringStr)
     var resultStr = value.stringVal
     if idx >= 0:
@@ -258,8 +249,8 @@ create_filter:
   proc replace_last(value: VMValue, search: VMValue, replacement: VMValue): VMValue =
     if value.kind != vmString:
       return value
-    let searchStr = getStringVal(search)
-    let replacementStr = getStringVal(replacement)
+    let searchStr = to_string(search)
+    let replacementStr = to_string(replacement)
     let idx = value.stringVal.rfind(searchStr)
     var resultStr = value.stringVal
     if idx >= 0:
@@ -361,7 +352,7 @@ create_filter:
     if value.kind != vmString:
       return VMValue(kind: vmArray, arrayVal: @[])
     
-    let delim = getStringVal(delimiter)
+    let delim = to_string(delimiter)
     let parts = value.stringVal.split(delim)
     let vmParts = parts.mapIt(VMValue(kind: vmString, stringVal: it))
     result = VMValue(kind: vmArray, arrayVal: vmParts)

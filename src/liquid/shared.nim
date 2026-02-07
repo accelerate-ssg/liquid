@@ -1,4 +1,4 @@
-import json, tables, std/macros
+import json, tables, std/macros, sequtils, strutils
 import compiler/types
 export types
 
@@ -7,6 +7,19 @@ type
   FilterFunc* = proc(value: VMValue, args: varargs[VMValue]): VMValue
 
 var filters* = initTable[string, FilterFunc]()
+
+proc to_string*(v: VMValue): string =
+  case v.kind
+  of vmNull: ""
+  of vmBool:
+    if v.boolVal: "true" else: "false"
+  of vmInt: $v.intVal
+  of vmFloat: $v.floatVal
+  of vmString: v.stringVal
+  of vmArray:
+    v.arrayVal.map(to_string).join("")
+  of vmObject: ""
+  else: ""
 
 # Enhanced macro that registers the filter and adds argument validation
 macro createFilter*(body: untyped): untyped =
