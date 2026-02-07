@@ -68,6 +68,7 @@ type
     tkEndfor           # endfor
     tkBreak            # break
     tkContinue         # continue
+    tkEndtablerow      # endtablerow
     
     # Special blocks
     tkLiquid           # liquid (special multiline liquid tag)

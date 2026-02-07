@@ -46,10 +46,20 @@ type
     # Cycle tag counters
     cycle_counters*: Table[string, int]  # group_key -> current index
 
+    # Tablerow state
+    tablerow_iters*: seq[TablerowState]  # Stack of active tablerow iterators
+
     # Performance
     instruction_count*: int
     max_stack_size*: int
     
+  TablerowState* = object
+    items*: seq[VMValue]
+    index*: int          # Current item index (0-based)
+    cols*: int           # Number of columns (0 = unlimited)
+    var_name*: string    # Loop variable name
+    saved_tablerowloop*: VMValue  # Saved tablerowloop from before this tablerow
+
   Iterator* = object
     items*: seq[VMValue]
     index*: int

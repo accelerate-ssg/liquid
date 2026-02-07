@@ -89,6 +89,10 @@ type
     # Cycle tag
     opCycle              # Cycle through values: [groupId, argCount, values on stack]
 
+    # Tablerow tag
+    opTablerowBegin      # Start tablerow loop: sets up iterator and outputs initial HTML
+    opTablerowIter       # Tablerow iteration: outputs </td>, handles row wrapping, loops or ends
+
     # Special Operations
     opTypeCheck          # Check value type: [expectedType]
     opCoerce             # Coerce to type: [targetType]
@@ -155,6 +159,14 @@ type
       cycleGroupIsVar*: bool     # true = group name is a variable (resolve at runtime)
       cycleArgCount*: uint8      # Number of cycle values (on stack)
       cycleKey*: uint32          # String ID for unnamed cycle key (built from source args)
+    of opTablerowBegin:
+      tablerowVarIndex*: uint16  # Local variable index for loop variable
+      tablerowHasLimit*: bool
+      tablerowHasOffset*: bool
+      tablerowHasCols*: bool
+    of opTablerowIter:
+      tablerowEndOffset*: int32  # Jump offset when iteration is done
+      tablerowBodyOffset*: int32 # Jump offset back to body start (negative)
     else:
       discard
 

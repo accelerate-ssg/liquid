@@ -20,6 +20,7 @@ proc compile_until(c: var Compiler, stop_tags: seq[TokenKind])
 proc compile_include(c: var Compiler, tokens: openArray[Token])
 proc compile_render(c: var Compiler, tokens: openArray[Token])
 proc compile_cycle(c: var Compiler, tokens: openArray[Token])
+proc compile_tablerow(c: var Compiler, tokens: openArray[Token])
 #proc peekNextTag(c: Compiler): TokenKind
 #proc skipToTag(c: var Compiler, tag: TokenKind)
 
@@ -885,6 +886,112 @@ proc compile_cycle(c: var Compiler, tokens: openArray[Token]) =
     cycleArgCount: arg_count,
     cycleKey: cycle_key))
 
+proc compile_tablerow(c: var Compiler, tokens: openArray[Token]) =
+  # {% tablerow var in collection [cols:N] [limit:N] [offset:N] %}...{% endtablerow %}
+  if tokens.len < 4:
+    c.currentSection += 1
+    return
+
+  let iter_var = c.input[tokens[1].start..<tokens[1].stop]
+  c.localVars.incl(iter_var)
+  let iter_varId = c.intern_string(iter_var)
+
+  # Find "in" position
+  var inPos = 2
+  while inPos < tokens.len and tokens[inPos].kind != tkIn:
+    inc inPos
+  if inPos >= tokens.len:
+    c.currentSection += 1
+    return
+
+  # Find cols, limit, offset positions
+  var collectionEnd = tokens.len
+  var colsPos = -1
+  var limitPos = -1
+  var offsetPos = -1
+
+  for i in (inPos + 1)..<tokens.len:
+    if tokens[i].kind == tkIdentifier:
+      let token_text = c.input[tokens[i].start..<tokens[i].stop]
+      if token_text == "cols" and i + 1 < tokens.len and tokens[i + 1].kind == tkColon:
+        colsPos = i
+        if collectionEnd > i: collectionEnd = i
+      elif token_text == "limit" and i + 1 < tokens.len and tokens[i + 1].kind == tkColon:
+        limitPos = i
+        if collectionEnd > i: collectionEnd = i
+      elif token_text == "offset" and i + 1 < tokens.len and tokens[i + 1].kind == tkColon:
+        offsetPos = i
+        if collectionEnd > i: collectionEnd = i
+
+  # Compile collection expression
+  c.compile_expression(tokens, inPos + 1, collectionEnd)
+
+  # Helper to find end of keyword value (next keyword or end)
+  proc findValueEnd(tokens: openArray[Token], kwPos: int,
+                     colsPos, limitPos, offsetPos: int): int =
+    result = tokens.len
+    for other in [colsPos, limitPos, offsetPos]:
+      if other > kwPos and other < result:
+        result = other
+
+  # Compile offset value
+  var hasOffset = false
+  if offsetPos >= 0:
+    hasOffset = true
+    let valEnd = findValueEnd(tokens, offsetPos, colsPos, limitPos, offsetPos)
+    c.compile_expression(tokens, offsetPos + 2, valEnd)
+
+  # Compile limit value
+  var hasLimit = false
+  if limitPos >= 0:
+    hasLimit = true
+    let valEnd = findValueEnd(tokens, limitPos, colsPos, limitPos, offsetPos)
+    c.compile_expression(tokens, limitPos + 2, valEnd)
+
+  # Compile cols value
+  var hasCols = false
+  if colsPos >= 0:
+    hasCols = true
+    let valEnd = findValueEnd(tokens, colsPos, colsPos, limitPos, offsetPos)
+    c.compile_expression(tokens, colsPos + 2, valEnd)
+
+  # Emit tablerow begin
+  c.emit(Instruction(op: opTablerowBegin,
+    tablerowVarIndex: iter_varId.uint16,
+    tablerowHasLimit: hasLimit,
+    tablerowHasOffset: hasOffset,
+    tablerowHasCols: hasCols))
+
+  # Mark body start position
+  let bodyStart = c.instructions.len
+
+  # Move past the tablerow tag
+  c.currentSection += 1
+
+  # Compile loop body (until endtablerow)
+  c.compile_until(@[tkEndtablerow])
+
+  # Emit tablerow iteration (handles </td>, row wrapping, loops back or ends)
+  let iterPos = c.instructions.len
+  c.emit(Instruction(op: opTablerowIter,
+    tablerowEndOffset: 0,  # Will be patched
+    tablerowBodyOffset: (bodyStart - c.instructions.len - 1).int32))
+
+  # After loop
+  let afterLoop = c.instructions.len
+
+  # Patch the iter instruction's end offset
+  c.instructions[iterPos] = Instruction(op: opTablerowIter,
+    tablerowEndOffset: (afterLoop - iterPos - 1).int32,
+    tablerowBodyOffset: (bodyStart - iterPos - 1).int32)
+
+  # Move past endtablerow
+  if c.currentSection < c.sections.len:
+    let section = c.sections[c.currentSection]
+    if section.kind == skTag and section.tokens.len > 0 and
+       section.tokens[0].kind == tkEndtablerow:
+      c.currentSection += 1
+
 proc compile_unless(c: var Compiler, tokens: openArray[Token]) =
   # Unless is the inverse of if: execute body when condition is FALSE
   c.compile_expression(tokens, 1, tokens.len)
@@ -1048,7 +1155,7 @@ proc compile_tag(c: var Compiler, section: Section) =
   of tkContinue:
     c.compile_continue()
     c.currentSection += 1  # Move past continue tag
-  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase, tkEndunless:
+  of tkElse, tkElsif, tkEndif, tkEndfor, tkEndcapture, tkWhen, tkEndcase, tkEndunless, tkEndtablerow:
     # These are handled by their parent structures
     # Don't compile them directly
     c.currentSection += 1
@@ -1071,6 +1178,8 @@ proc compile_tag(c: var Compiler, section: Section) =
     of "cycle":
       c.compile_cycle(tokens)
       c.currentSection += 1
+    of "tablerow":
+      c.compile_tablerow(tokens)
     else:
       if c.strict:
         raise newException(ValueError, "Unknown tag: '" & tag_name & "'")

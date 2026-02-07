@@ -310,6 +310,197 @@ proc execute*(vm: var LiquidVM): string =
           next = 0
         vm.cycle_counters[group_key] = next
 
+    of opTablerowBegin:
+      # Pop cols, limit, offset, collection from stack (in reverse push order)
+      var cols_val = 0  # 0 = unlimited (all in one row)
+      var limit_val = -1'i64
+      var offset_val = 0'i64
+
+      if inst.tablerowHasCols:
+        let cv = vm.pop()
+        case cv.kind
+        of vmInt: cols_val = cv.intVal.int
+        of vmFloat: cols_val = cv.floatVal.int
+        of vmString:
+          try: cols_val = parseInt(cv.stringVal)
+          except ValueError: discard
+        else: discard
+
+      if inst.tablerowHasLimit:
+        let lv = vm.pop()
+        case lv.kind
+        of vmInt: limit_val = lv.intVal
+        of vmFloat: limit_val = lv.floatVal.int64
+        of vmString:
+          try: limit_val = parseInt(lv.stringVal).int64
+          except ValueError: discard
+        of vmNull: limit_val = 0
+        else: discard
+
+      if inst.tablerowHasOffset:
+        let ov = vm.pop()
+        case ov.kind
+        of vmInt: offset_val = ov.intVal
+        of vmFloat: offset_val = ov.floatVal.int64
+        of vmString:
+          try: offset_val = parseInt(ov.stringVal).int64
+          except ValueError: discard
+        of vmNull: offset_val = 0
+        else: discard
+
+      let collection = vm.pop()
+      var items: seq[VMValue] = @[]
+
+      case collection.kind
+      of vmArray: items = collection.arrayVal
+      of vmObject:
+        for key, val in collection.objectVal:
+          items.add(VMValue(kind: vmArray, arrayVal: @[
+            VMValue(kind: vmString, stringVal: key), val]))
+      else: discard
+
+      # Apply offset
+      if offset_val > 0 and offset_val < items.len.int64:
+        items = items[offset_val..^1]
+      elif offset_val >= items.len.int64:
+        items = @[]
+
+      # Apply limit
+      if limit_val >= 0 and limit_val < items.len.int64:
+        items = items[0..<limit_val]
+
+      if items.len == 0:
+        # Empty collection - skip to end (will be handled by opTablerowIter's endOffset)
+        # Push a dummy state so opTablerowIter can clean up
+        let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
+        vm.tablerow_iters.add(TablerowState(
+          items: @[], index: 0, cols: cols_val,
+          var_name: vm.strings[inst.tablerowVarIndex],
+          saved_tablerowloop: saved_trl))
+      else:
+        # Save current tablerowloop
+        let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
+
+        let var_name = vm.strings[inst.tablerowVarIndex]
+        vm.tablerow_iters.add(TablerowState(
+          items: items, index: 0, cols: cols_val,
+          var_name: var_name, saved_tablerowloop: saved_trl))
+
+        # Set loop variable to first item
+        vm.locals[var_name] = items[0]
+
+        # Set up tablerowloop variable
+        let total = items.len
+        let col0 = 0
+        let col = col0 + 1
+        let row = 1
+        let effective_cols = if cols_val > 0: cols_val else: total
+        var trl = initOrderedTable[string, VMValue]()
+        trl["col"] = vm_int(col.int64)
+        trl["col0"] = vm_int(col0.int64)
+        trl["col_first"] = vm_bool(true)
+        trl["col_last"] = vm_bool(col0 == effective_cols - 1 or 0 == total - 1)
+        trl["first"] = vm_bool(true)
+        trl["index"] = vm_int(1)
+        trl["index0"] = vm_int(0)
+        trl["last"] = vm_bool(total == 1)
+        trl["length"] = vm_int(total.int64)
+        trl["rindex"] = vm_int(total.int64)
+        trl["rindex0"] = vm_int((total - 1).int64)
+        trl["row"] = vm_int(row.int64)
+        vm.locals["tablerowloop"] = vm_object(trl)
+
+        # Output first row opening: <tr class="row1">\n<td class="col1">
+        let html = "<tr class=\"row1\">\n<td class=\"col1\">"
+        if vm.is_capturing:
+          vm.capture_stack[^1].add(html)
+        else:
+          vm.output.add(html)
+
+    of opTablerowIter:
+      if vm.tablerow_iters.len == 0:
+        vm.pc += inst.tablerowEndOffset
+      else:
+        let state = addr vm.tablerow_iters[^1]
+
+        if state.items.len == 0:
+          # Empty collection - skip to end
+          # Restore saved tablerowloop
+          if state.saved_tablerowloop.kind != vm_null:
+            vm.locals["tablerowloop"] = state.saved_tablerowloop
+          else:
+            vm.locals.del("tablerowloop")
+          vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
+          vm.pc += inst.tablerowEndOffset
+        else:
+          # Close current cell
+          let closeCell = "</td>"
+          if vm.is_capturing:
+            vm.capture_stack[^1].add(closeCell)
+          else:
+            vm.output.add(closeCell)
+
+          # Advance to next item
+          state.index += 1
+
+          if state.index >= state.items.len:
+            # Done iterating - close final row
+            let closeRow = "</tr>\n"
+            if vm.is_capturing:
+              vm.capture_stack[^1].add(closeRow)
+            else:
+              vm.output.add(closeRow)
+
+            # Clean up
+            vm.locals.del(state.var_name)
+            if state.saved_tablerowloop.kind != vm_null:
+              vm.locals["tablerowloop"] = state.saved_tablerowloop
+            else:
+              vm.locals.del("tablerowloop")
+            vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
+            vm.pc += inst.tablerowEndOffset
+          else:
+            # More items - handle row wrapping
+            let total = state.items.len
+            let idx = state.index
+            let effective_cols = if state.cols > 0: state.cols else: total
+            let col0 = idx mod effective_cols
+            let col = col0 + 1
+            let row = (idx div effective_cols) + 1
+
+            var html = ""
+            if col0 == 0:
+              # Start of new row
+              html.add("</tr>\n<tr class=\"row" & $row & "\">")
+            html.add("<td class=\"col" & $col & "\">")
+
+            if vm.is_capturing:
+              vm.capture_stack[^1].add(html)
+            else:
+              vm.output.add(html)
+
+            # Set loop variable
+            vm.locals[state.var_name] = state.items[idx]
+
+            # Update tablerowloop
+            var trl = initOrderedTable[string, VMValue]()
+            trl["col"] = vm_int(col.int64)
+            trl["col0"] = vm_int(col0.int64)
+            trl["col_first"] = vm_bool(col0 == 0)
+            trl["col_last"] = vm_bool(col0 == effective_cols - 1 or idx == total - 1)
+            trl["first"] = vm_bool(idx == 0)
+            trl["index"] = vm_int((idx + 1).int64)
+            trl["index0"] = vm_int(idx.int64)
+            trl["last"] = vm_bool(idx == total - 1)
+            trl["length"] = vm_int(total.int64)
+            trl["rindex"] = vm_int((total - idx).int64)
+            trl["rindex0"] = vm_int((total - idx - 1).int64)
+            trl["row"] = vm_int(row.int64)
+            vm.locals["tablerowloop"] = vm_object(trl)
+
+            # Jump back to body
+            vm.pc += inst.tablerowBodyOffset
+
     # Control flow
     of opJump:
       vm.pc += inst.offset

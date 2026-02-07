@@ -27,6 +27,7 @@ proc classify_identifier*(input: string, start, stop: int): TokenKind  =
     if len == 7 and input.matchesAt(start + 1, "ndcase"): return tkEndcase
     if len == 9 and input.matchesAt(start + 1, "ndunless"): return tkEndunless
     if len == 10 and input.matchesAt(start + 1, "ndcapture"): return tkEndcapture
+    if len == 11 and input.matchesAt(start + 1, "ndtablerow"): return tkEndtablerow
   of 'f':
     if len == 3 and input.matchesAt(start + 1, "or"): return tkFor
     if len == 5 and input.matchesAt(start + 1, "alse"): return tkFalse
