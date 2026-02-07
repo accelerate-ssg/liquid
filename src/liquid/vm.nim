@@ -9,8 +9,9 @@ import shared
 import filters
 
 # Create VM with data
-proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string], 
-                  constants: seq[VMValue], data: Table[string, VMValue]): LiquidVM =
+proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
+                  constants: seq[VMValue], data: Table[string, VMValue],
+                  partials: Table[string, string] = initTable[string, string]()): LiquidVM =
   result = LiquidVM(
     stack: newSeqOfCap[VMValue](32),
     pc: 0,
@@ -26,6 +27,10 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     is_capturing: false,
     # filters field removed - now using filters module directly
     loop_offsets: initTable[string, int](),
+    partials: partials,
+    partial_cache: initTable[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]](),
+    pending_break: false,
+    pending_continue: false,
     instruction_count: 0,
     max_stack_size: 0
   )
@@ -616,9 +621,10 @@ proc execute*(vm: var LiquidVM): string =
 
 # Public API
 proc render*(bytecode: seq[Instruction], strings: seq[string],
-            constants: seq[VMValue], data: Table[string, VMValue]): string =
+            constants: seq[VMValue], data: Table[string, VMValue],
+            partials: Table[string, string] = initTable[string, string]()): string =
   ## Render a template with the given data
-  var vm = new_liquid_vm(bytecode, strings, constants, data)
+  var vm = new_liquid_vm(bytecode, strings, constants, data, partials)
   result = vm.execute()
 
 

@@ -35,6 +35,14 @@ type
     # Loop continuation tracking (for offset: continue)
     loop_offsets*: Table[string, int]  # var_name -> last consumed index
 
+    # Template partials (for include/render tags)
+    partials*: Table[string, string]  # partial name -> source
+    partial_cache*: Table[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]]
+
+    # Break/continue propagation (for include tag)
+    pending_break*: bool
+    pending_continue*: bool
+
     # Performance
     instruction_count*: int
     max_stack_size*: int

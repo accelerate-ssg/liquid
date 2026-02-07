@@ -73,9 +73,9 @@ proc testCase*(
 
     checkpoint "compiler"
 
-    let rendered = render(compiled.bytecode, compiled.strings, compiled.constants, context)
+    let rendered = render(compiled.bytecode, compiled.strings, compiled.constants, context, partials)
 
-    checkpoint "compiler"
+    checkpoint "renderer"
 
     check rendered == output
 
