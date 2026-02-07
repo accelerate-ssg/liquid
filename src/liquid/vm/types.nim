@@ -3,39 +3,6 @@ import std/[tables, hashes, algorithm, math]
 from ../compiler/types import Instruction, VMValue
 
 type
-  # # VM State
-  # TemplateVM* = object
-  #   # Execution state
-  #   stack*: seq[VMValue]
-  #   pc*: int                     # Program counter
-    
-  #   # Variable scopes
-  #   globals*: Table[string, VMValue]
-  #   locals*: seq[VMValue]
-  #   upvalues*: seq[VMValue]
-    
-  #   # Output handling
-  #   output*: string
-  #   outputBuffers*: seq[string]  # For nested captures
-  #   escapeHtml*: bool
-    
-  #   # Template cache - THE KEY TO PERFORMANCE
-  #   templateCache*: Table[string, CompiledTemplate]
-  #   cacheDir*: string
-    
-  #   # User extensions
-  #   filters*: Table[string, proc(v: VMValue, args: varargs[VMValue]): VMValue]
-  #   tags*: Table[string, proc(vm: var TemplateVM, args: seq[VMValue])]
-    
-  #   # Current template context
-  #   currentTemplate*: string
-  #   includeStack*: seq[string]   # For circular include detection
-  #   blockStack*: seq[string]     # For block inheritance
-    
-  #   # Performance tracking
-  #   instructionCount*: int
-  #   maxStackDepth*: int
-
   # Runtime VM for executing templates
   LiquidVM* = object
     # Execution state
@@ -56,7 +23,6 @@ type
     
     # Output
     output*: string
-    outputBuffer*: seq[char]    # Pre-allocated buffer for performance
     escapeHtml*: bool
     
     # Capture state for {% capture %} tags
@@ -75,7 +41,6 @@ type
     index*: int
     varName*: string
     
-  FilterProc* = proc(value: VMValue, args: seq[VMValue]): VMValue
 
 
 proc `==`*(a, b: VMValue): bool =
