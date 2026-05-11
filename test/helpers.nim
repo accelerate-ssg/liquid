@@ -4,11 +4,6 @@ import ../src/liquid/compiler/[types, context_functions]
 import ../src/liquid/[types, lexer, compiler, vm]
 
 type
-  TestSection* = ref object
-    sectionKind*: SectionKind
-    tokens*: seq[Token]
-    ast*: Node
-
   TestFailure* = ref object
     suiteName*: string
     testName*: string
@@ -20,7 +15,7 @@ type
 let
   formatter* = CustomFormatter(failures: @[])
 
-export Node, Token, TokenKind, SectionKind, Section, Parser, TestSection, unittest, json
+export Node, Token, TokenKind, SectionKind, Section, Parser, unittest, json
 
 method testEnded*(formatter: CustomFormatter, testResult: TestResult) =
   if testResult.status == TestStatus.FAILED:
@@ -85,19 +80,6 @@ proc testCase*(
 proc testCase*(
   name: string,
   source: string,
-  context: JsonNode = newJObject(),
-  output: string = "",
-  partials: Table[string, string] = initTable[string, string](),
-  error: bool = false,
-  strict: bool = false
-) =
-  testCase(name, source, context.jsonToContext(), output, partials, error, strict)
-
-
-proc testCase*(
-  name: string,
-  source: string,
-  expected: seq[TestSection],
   context: JsonNode = newJObject(),
   output: string = "",
   partials: Table[string, string] = initTable[string, string](),
