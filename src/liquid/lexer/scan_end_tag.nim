@@ -31,10 +31,9 @@ proc scan_end_tag*(input: string, pos: var int, endTag: static string,
   
   const endTagLen = endTag.len
   const minCharsNeeded = 5 + endTagLen  # "{% " + endTag + " %}" minimum
-  
+  let inputLen = input.len
+
   when defined(posix) or defined(windows):
-    let inputLen = input.len
-    
     while pos < inputLen - minCharsNeeded:
       # Find next '{' character using memchr
       let searchStart = unsafeAddr input[pos]
