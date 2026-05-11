@@ -9,7 +9,7 @@ let jsonPath = currentSourcePath().parentDir() / "golden_liquid.json"
 let jsonContent = readFile(jsonPath)
 let testData = parseJson(jsonContent)
 
-let enabledSuits = [
+let enabledSuites = [
   "assign tag",
   "capture tag",
   "case tag",
@@ -102,7 +102,7 @@ for testGroup in testData["test_groups"]:
   let suiteName = groupName.replace("liquid.golden.", "").replace("_", " ")
   
   # Skip disabled test groups
-  if suiteName notin enabledSuits:
+  if suiteName notin enabledSuites:
     continue
   
   suite suiteName:
@@ -128,8 +128,8 @@ let duration = t1 - t0
 
 let failures = getFailures()
 let failuresCount = failures.len
-let sucessesCount = getSuccesses()
-let totalCount = failuresCount + sucessesCount;
+let successesCount = getSuccesses()
+let totalCount = failuresCount + successesCount;
 
 # Print failure summary
 if failuresCount > 0:
@@ -142,7 +142,7 @@ if failuresCount > 0:
     echo "    " & failure.testName
   echo ""
   echo "Duration: " & $duration & " seconds"
-  echo "Total tests: " & $totalCount & ", Successes: " & $sucessesCount & ", Failures: " & $failuresCount
+  echo "Total tests: " & $totalCount & ", Successes: " & $successesCount & ", Failures: " & $failuresCount
   quit(1)
 else:
   echo "Duration: " & $duration & " seconds"
