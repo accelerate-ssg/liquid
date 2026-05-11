@@ -1,0 +1,103 @@
+[
+  {
+    "name": "negative float",
+    "template": "{{ -5.4 | ceil }}",
+    "want": "-5",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "negative integer",
+    "template": "{{ -5 | ceil }}",
+    "want": "-5",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "negative string float",
+    "template": "{{ \"-5.1\" | ceil }}",
+    "want": "-5",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "not a string, int or float",
+    "template": "{{ a | ceil }}",
+    "want": "0",
+    "context": {
+      "a": {}
+    },
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive float",
+    "template": "{{ 5.4 | ceil }}",
+    "want": "6",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive integer",
+    "template": "{{ 5 | ceil }}",
+    "want": "5",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive string float",
+    "template": "{{ \"5.1\" | ceil }}",
+    "want": "6",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "string not a number",
+    "template": "{{ \"hello\" | ceil }}",
+    "want": "0",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "undefined left value",
+    "template": "{{ nosuchthing | ceil }}",
+    "want": "0",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "unexpected argument",
+    "template": "{{ -3.1 | ceil: 1 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "zero",
+    "template": "{{ 0 | ceil }}",
+    "want": "0",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  }
+]

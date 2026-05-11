@@ -1,0 +1,11 @@
+[
+  {
+    "name": "from string",
+    "template": "{{ \"_#/.\" | base64_encode }}",
+    "want": "XyMvLg==",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  }
+]

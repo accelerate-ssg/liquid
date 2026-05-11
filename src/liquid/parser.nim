@@ -1,65 +1,93 @@
-import parlexgen
-import std/[options]
+import tables, strutils
 
-import types
+import types, parser/[init, core]
 
-# Generates a 'proc parse(code: string, lexer: LexerProc[Token]): seq[Stmnt]'
-makeParser parse*[Token]:
+let parser = initParser(@[])
 
-  # define all rules with the same lefthand side in one block,
-  # with the resulting type anotated.
-  stmnts[seq[Stmnt]]:
+proc parseOutputSection(p: Parser): Node =
+  result = Node(kind: nkOutput, children: @[p.parseExpression()])
 
-    # List of different rules for this nt
-    # You have access to 's', a tuple of the matched symbols.
-    #  In this first case of type: (seq[Stmnt], Token, Stmnt)
-    # Note: Like in the lexer, the produced code is not a seperate function so returning would return from the whole parsing function
-    (stmnts, SEMI, stmnt): s[0] & s[2]
+proc parseTagSection(p: Parser): Node =
+  let tagName = p.current().value
+  var handler: TagHandler
+  var handlerInfo: TagHandlerInfo
+  var found = false
 
-    stmnt: @[s[0]]
+  # Look for a handler that matches this tag name
+  for info, h in p.tagHandlerLookup:
+    if info.opening_tag == tagName:
+      handler = h
+      handlerInfo = info
+      found = true
+      if info.block_tag:
+        p.handlerStack.add(handler)
+      break
 
-  stmnt[Stmnt]:
-    (IDENT, ASSIGN, mul): Stmnt(kind: stmntAssign, res: s[0].name, exp: s[2])
+  if not found and p.handlerStack.len > 0:
+    # Check if this is a block separator or end tag for the current handler
+    for info, h in p.tagHandlerLookup:
+      if p.handlerStack[^1] == h:
+        # Check if it's a valid block separator
+        if tagName in info.inner_tags:
+          handler = h
+          found = true
+          break
+        # Check if it's a valid end tag (generic "end" or "end" + opening_tag)
+        let isGenericEnd = tagName == "end" or tagName == "end" & info.opening_tag
+        if isGenericEnd:
+          handler = h
+          found = true
+          break
+
+  if not found:
+    raise newException(ValueError, "1 Unsupported tag: " & tagName)
+
+  result = handler(p)
+
+  if result.isNil:
+    raise newException(ValueError, "2 Unsupported tag: " & tagName)
+
+  if result.kind == nkEnd:
+    discard p.handlerStack.pop()
+
+proc parseSection*(section: Section, strict: bool): Node =
+  parser.tokens = section.tokens
+  parser.position = 0
+  parser.strict_mode = strict
+  case section.sectionType
+  of Output: result = parser.parseOutputSection()
+  of Tag: result = parser.parseTagSection()
+  of Text: raise newException(ValueError, "Text sections should not be parsed")
+
+proc parse*(sections: seq[Section], strict: bool = false): seq[Section] =
+  var i = 0
+  while i < sections.len:
+    let section = sections[i]
+    if section.sectionType == Text:
+      inc i
+      continue
     
-    (OUT, IDENT):
-      debugEcho "found out statement"
-      Stmnt(kind: stmntOutput, outVar: s[1].name)
-
-  mul[Exp]:
-    # You can use try/except for error handling.
-    # So the except block gets executed when parsing fails,
-    # and this rule is one of the possible next rules that would be reduced.
-    # Inside this block you have the following vars:
-    #  pos: the position inside your rule (so 0: mul, 1: ASTERIX, 2: add, 3: just behind)
-    #       this var is alway of type range[0..len(rule)]
-    #  token: this is either some(token), the token currently read
-    #         or none if its at EOF
-    # After this block is executed, the function doesnt return automatically.
-    # This is because it could happen that multiple rules could be reduced next,
-    # so all of those error handlers get called, if they exist.
-    # And afterwards a ParsingError is raised.
-    # But you can return yourself from inside the except block if you want
-    try:
-      (mul, ASTERIX, add): Exp(kind: ekOp, op: opMul, left: s[0], right: s[2])
-    except:
-      echo:
-        case pos
-        of 0, 2: "expected number or math expression"
-        of 1:    "invalid math expression"
-        of 3:    "unexpected " & $token & " after math expression"
+    section.ast = parseSection(section, strict)
     
-    add: s[0]
+    # Special handling for raw tags - extract content from rawContent field
+    if section.ast != nil and section.ast.kind == nkTag and section.ast.tagName == "raw":
+      # Check if the section has raw content in the special field
+      if section.rawContent.len > 0:
+        section.ast.parameters = @[Node(kind: nkString, strVal: section.rawContent)]
+      # Legacy handling - check if section content has embedded raw content ("raw <content>")
+      elif section.content.startsWith("raw "):
+        let rawContent = section.content[4..^1]  # Skip "raw " prefix
+        section.ast.parameters = @[Node(kind: nkString, strVal: rawContent)]
+      # Legacy handling - check if next section is text (the raw content)
+      elif i + 1 < sections.len and sections[i + 1].sectionType == Text:
+        let rawContent = sections[i + 1].content
+        section.ast.parameters = @[Node(kind: nkString, strVal: rawContent)]
+        # Skip the text section since we've consumed it
+        inc i
+    
+    inc i
+  return sections
 
-  add[Exp]:
-    # You may also put multiple rules in one try block,
-    # but if you do so you cant use the `pos` var in the except block.
-    try:
-      (add, PLUS, val): Exp(kind: ekOp, op: opAdd, left: s[0], right: s[2])
-      val: s[0]
-    except:
-      echo "parsing additin expression failed"
-
-  val[Exp]:
-    (LPAR, mul, RPAR): s[1]
-    NUM: Exp(kind: ekNum, val: s[0].val)
-    IDENT: Exp(kind: ekVar, name: s[0].name)
+when isMainModule and not defined(release):
+  import unittest
+  include ../../test/parser

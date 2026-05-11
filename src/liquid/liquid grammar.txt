@@ -162,3 +162,62 @@ Statement:
     "url_decode"
     "url_encode"
     "where" identifier | string_literal [, identifier | string_literal]
+
+
+# Block
+{% for %}
+        ^ end pos
+  Maybe text
+  {% if %}
+    Maybe with their own internal structure, like a when in a case.
+  {% endsomething %}
+  Maybe some other text
+{% end %}
+^ start pos
+# block start pos = block start tag end pos.
+# block end pos = block end tag start pos.
+
+
+# ------------------------------------------
+# INLINE # single line
+#   tag_name, line_number, parse_context
+#   ASSIGN
+#   BREAK
+#   CONTINUE
+#   CYCKLE
+#   DECREMENT
+#   ECHO
+#   INCLUDE
+#   INCREMENT
+#   INLINE_COMMENT
+#   RENDER
+#   UNLESS
+
+# BLOCK # block
+#   nodelist
+#   IF
+#   CASE
+#   FOR
+#   TABLE_ROW
+#   COMMENT
+#   RAW
+#   CAPTURE
+
+#   AST:
+#     OUTPUT:
+#       VAR:
+#       FILTERS:
+#         name
+#         args
+#     IF:
+#       condition # Basically a variable expression
+#       body: AST
+#     UNLESS:
+#       condition
+#       body: AST
+#     ELSIF:
+#       condition
+#       body: AST
+#     ELSE:
+#       body: AST
+#     END: # Alias for ENDIF, ENDCASE, ENDFOR, ENDTABLEROW, ENDCOMMENT, ENDCAPTURE,

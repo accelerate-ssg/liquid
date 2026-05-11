@@ -1,5 +1,8 @@
-tests/**/*
-!tests/**/*.nim
-!tests/**/*.nims
+*.*
+!*.nim
+!*.nims
+!*.js
+!*.json
+!*.txt
 
 nimcache/

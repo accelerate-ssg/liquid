@@ -1,0 +1,119 @@
+[
+  {
+    "name": "negative float",
+    "template": "{{ -5.4 | abs }}",
+    "want": "5.4",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "negative integer",
+    "template": "{{ -5 | abs }}",
+    "want": "5",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "negative string float",
+    "template": "{{ '-5.1' | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "negative string integer",
+    "template": "{{ \"-5\" | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "not a string, int or float",
+    "template": "{{ a | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive float",
+    "template": "{{ 5.4 | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive integer",
+    "template": "{{ 5 | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive string float",
+    "template": "{{ '5.1' | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive string integer",
+    "template": "{{ \"5\" | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "string, not a number",
+    "template": "{{ 'hello' | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "undefined lhs",
+    "template": "{{ nosuchthing | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "unexpected argument",
+    "template": "{{ -3 | abs: 1 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "negative integer",
+    "template": "{{ 0 | abs }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  }
+]

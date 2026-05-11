@@ -1,0 +1,110 @@
+[
+  {
+    "name": "left value not a number",
+    "template": "{{ \"abc\" | at_most: -2 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "missing arg",
+    "template": "{{ 5 | at_most }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "negative integer < arg",
+    "template": "{{ -8 | at_most: 5 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive float < arg",
+    "template": "{{ 5.4 | at_most: 8.9 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive float > arg",
+    "template": "{{ 8.4 | at_most: 5.9 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive integer < arg",
+    "template": "{{ 5 | at_most: 8 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive integer == arg",
+    "template": "{{ 5 | at_most: 5 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive integer > arg",
+    "template": "{{ 8 | at_most: 5 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "positive string > arg",
+    "template": "{{ \"9\" | at_most: 8 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "too many args",
+    "template": "{{ 5 | at_most: 1, 2}}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": true,
+    "strict": false
+  },
+  {
+    "name": "undefined argument",
+    "template": "{{ 5 | at_most: nosuchthing }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  },
+  {
+    "name": "undefined left value",
+    "template": "{{ nosuchthing | at_most: 5 }}",
+    "want": "",
+    "context": {},
+    "partials": {},
+    "error": false,
+    "strict": false
+  }
+]
