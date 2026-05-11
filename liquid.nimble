@@ -1,7 +1,7 @@
 # Package
 
-version       = "0.1.0"
-author        = "Jonas Schubert Erlandsson"
+version       = "0.2.0"
+author        = "Jonas Schubert Erlandsson, Claude"
 description   = "Liquid template engine with bytecode compiler and VM"
 license       = "MIT"
 srcDir        = "src"
