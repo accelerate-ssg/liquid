@@ -1,6 +1,7 @@
 import std/[tables, hashes, algorithm, math, sets]
 
 from ../compiler/types import Instruction, VMValue, VMValueKind
+import arena_context_store
 
 type
   # Tag runtime handler (forward declaration for LiquidVM)
@@ -11,15 +12,22 @@ type
     # Execution state
     stack*: seq[VMValue]
     pc*: int                    # Program counter
-    
+
     # The compiled template being executed
     bytecode*: seq[Instruction]
     strings*: seq[string]       # String constants
     constants*: seq[VMValue]    # Other constants
-    
+
     # Runtime data
     variables*: Table[string, VMValue]  # User-provided data
     locals*: Table[string, VMValue]     # Template-created variables
+
+    # Arena-backed context: variable names miss the tables above and then
+    # resolve against this root object. nil arena means no arena context.
+    # Reads through it land in the arena's access log, which is the whole
+    # point: the log is what incremental rebuilds consult.
+    arena*: ptr Arena
+    context_root*: NodeId
     
     # Iteration state
     iterators*: seq[Iterator]   # Stack of active iterators
@@ -125,6 +133,11 @@ proc `==`*(a, b: VMValue): bool =
     return true
   of vmEmpty:
     return true  # All empty values are equal
+  of vmNode:
+    # Same node = same value. Two different nodes may hold equal data,
+    # but callers that care (opEqual and friends) materialize before
+    # comparing, so identity is the only meaning left here.
+    return a.nodeVal == b.nodeVal
 
 # You might also want to add hash for using VMValue in tables
 proc hash*(v: VMValue): Hash =
@@ -157,7 +170,9 @@ proc hash*(v: VMValue): Hash =
       h = h !& hash(v.objectVal[k])
   of vmEmpty:
     discard  # All empty values hash the same
-  
+  of vmNode:
+    h = h !& hash(v.nodeVal)
+
   result = !$h
 
 # Also useful: conversion to bool for truthiness checks
@@ -180,6 +195,10 @@ proc to_bool*(v: VMValue): bool =
     return v.objectVal.len > 0
   of vmEmpty:
     return false  # empty is falsy like null
+  of vmNode:
+    # Emptiness would need arena access to tell; treat lazy containers
+    # as truthy. (This helper currently has no callers.)
+    return true
 
 # Helper constructor functions for cleaner code
 proc vm_null*(): VMValue =
