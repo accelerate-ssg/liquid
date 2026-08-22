@@ -164,7 +164,10 @@ proc liquid_compare(a, b: VMValue): int =
     return cmp(a.floatVal, b.intVal.float64)
   if a.kind == vmString and b.kind == vmString:
     return cmp(a.stringVal, b.stringVal)
-  raise newException(ValueError, "comparison of incompatible types")
+  # Shopify semantics: ordering incompatible types is an error (equality
+  # is merely false). Naming the kinds turns a hunt into a glance.
+  raise newException(ValueError, "comparison of incompatible types: " &
+    $a.kind & " <=> " & $b.kind)
 
 proc escape_html_str(s: string): string =
   result = newStringOfCap(s.len + 10)
