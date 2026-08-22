@@ -59,37 +59,6 @@ template peek(vm: LiquidVM, offset: int = 0): VMValue =
   else:
     VMValue(kind: vmNull)
 
-# ─── Path tracking (shadow stack for dependency tracking) ────────────
-
-template push_path(vm: var LiquidVM, path: string) =
-  if vm.track_access:
-    vm.path_stack.add(path)
-
-template pop_path(vm: var LiquidVM): string =
-  if vm.track_access and vm.path_stack.len > 0:
-    vm.path_stack.pop()
-  else:
-    ""
-
-template record_path(vm: var LiquidVM, path: string) =
-  if vm.track_access and path.len > 0:
-    vm.accessed_paths.incl(path)
-
-template pop_and_record(vm: var LiquidVM) =
-  if vm.track_access:
-    let p = vm.pop_path()
-    if p.len > 0:
-      vm.accessed_paths.incl(p)
-
-# Pop two paths, record both, push empty (for binary ops producing computed values)
-template pop2_record_push0(vm: var LiquidVM) =
-  if vm.track_access:
-    let pb = vm.pop_path()
-    let pa = vm.pop_path()
-    if pa.len > 0: vm.accessed_paths.incl(pa)
-    if pb.len > 0: vm.accessed_paths.incl(pb)
-    vm.path_stack.add("")
-
 # Value operations
 proc is_truthy(v: VMValue): bool =
   ## In Liquid, only nil and false are falsy. Everything else is truthy,
@@ -253,7 +222,6 @@ proc create_sub_vm*(vm: var LiquidVM, bytecode: seq[Instruction],
     result.loop_offsets = vm.loop_offsets
     result.counters = vm.counters
   result.partial_cache = vm.partial_cache
-  result.track_access = vm.track_access
 
 proc propagate_scope*(vm: var LiquidVM, sub: LiquidVM,
                       shared_scope: bool, propagate_control: bool = true) =
@@ -268,10 +236,6 @@ proc propagate_scope*(vm: var LiquidVM, sub: LiquidVM,
       vm.counters = sub.counters
       if sub.pending_break: vm.pending_break = true
       if sub.pending_continue: vm.pending_continue = true
-  # Merge accessed paths from sub-VM (transitive tracking)
-  if vm.track_access:
-    for path in sub.accessed_paths:
-      vm.accessed_paths.incl(path)
 
 proc bind_keyword_args*(sub: var LiquidVM,
                         kwArgs: seq[(string, VMValue)],
@@ -535,7 +499,6 @@ proc execute*(vm: var LiquidVM): string =
       case inst.op
       of opStoreVar:
         discard vm.pop()
-        vm.pop_and_record()
       else:
         discard
       continue
@@ -544,74 +507,50 @@ proc execute*(vm: var LiquidVM): string =
     # Stack operations
     of opPushNull:
       vm.push(VMValue(kind: vmNull))
-      vm.push_path("")
 
     of opPushEmpty:
       vm.push(VMValue(kind: vmEmpty))
-      vm.push_path("")
 
     of opPushTrue:
       vm.push(VMValue(kind: vmBool, boolVal: true))
-      vm.push_path("")
 
     of opPushFalse:
       vm.push(VMValue(kind: vmBool, boolVal: false))
-      vm.push_path("")
 
     of opPushInt:
       vm.push(VMValue(kind: vmInt, intVal: inst.intVal))
-      vm.push_path("")
 
     of opPushFloat:
       vm.push(VMValue(kind: vmFloat, floatVal: inst.floatVal))
-      vm.push_path("")
 
     of opPushString:
       vm.push(VMValue(kind: vmString, stringVal: vm.strings[inst.stringId]))
-      vm.push_path("")
 
     of opPop:
       discard vm.pop()
-      discard vm.pop_path()
 
     of opDup:
       if vm.stack.len > 0:
         vm.push(vm.peek())
-        if vm.track_access and vm.path_stack.len > 0:
-          vm.path_stack.add(vm.path_stack[^1])
-    
+
     # Variable operations
     of opLoadVar:
       let name = vm.strings[inst.stringId]
       vm.push(vm.resolve_var(name))
-      if vm.track_access:
-        # Only context variables get a path; locals/counters/keyword_args don't
-        if name in vm.variables:
-          vm.push_path(name)
-        else:
-          vm.push_path("")
 
     of opDynamicLoadVar:
       # Pop key from stack, use it as a variable name
       let name = vm.pop().to_string()
-      discard vm.pop_path()  # Pop path for the key value
       vm.push(vm.resolve_var(name))
-      if vm.track_access:
-        if name in vm.variables:
-          vm.push_path(name)
-        else:
-          vm.push_path("")
 
     of opStoreVar:
       let var_name = vm.strings[inst.stringId]
       let value = vm.pop()
-      vm.pop_and_record()  # Value consumed into local — still record the dependency
       vm.locals[var_name] = value
-      
+
     # Property access
     of opGetProp:
       let obj = vm.pop()
-      let parent_path = vm.pop_path()
       let prop_name = vm.strings[inst.stringId]
 
       case obj.kind
@@ -661,18 +600,11 @@ proc execute*(vm: var LiquidVM): string =
           vm.push(VMValue(kind: vmNull))
       else:
         vm.push(VMValue(kind: vmNull))
-      # Extend path chain: user → user.name
-      if vm.track_access:
-        if parent_path.len > 0:
-          vm.push_path(parent_path & "." & prop_name)
-        else:
-          vm.push_path("")
-    
+
     # Output operations
     of opOutput:
       # Regular output is for expressions - escape based on setting
       let val = vm.pop()
-      vm.pop_and_record()
       let str = val.to_string()
       
       if vm.is_capturing:
@@ -753,13 +685,11 @@ proc execute*(vm: var LiquidVM): string =
       
     of opJumpIfFalse:
       let cond = vm.pop()
-      vm.pop_and_record()
       if not cond.is_truthy():
         vm.pc += inst.offset
 
     of opJumpIfTrue:
       let cond = vm.pop()
-      vm.pop_and_record()
       if cond.is_truthy():
         vm.pc += inst.offset
     
@@ -771,11 +701,9 @@ proc execute*(vm: var LiquidVM): string =
 
       if inst.hasLimit:
         limit_val = vm.pop().to_int64()
-        vm.pop_and_record()
 
       if inst.hasOffset:
         offset_val = vm.pop().to_int64()
-        vm.pop_and_record()
 
       # Get loop variable name for offset: continue tracking
       let loop_var_name = vm.strings[inst.loopVarIndex]
@@ -792,7 +720,6 @@ proc execute*(vm: var LiquidVM): string =
           offset_val = vm.loop_offsets[loop_var_name].int64
 
       let collection = vm.pop()
-      vm.pop_and_record()  # Collection consumed — record dependency
       var items: seq[VMValue] = @[]
 
       case collection.kind
@@ -856,7 +783,6 @@ proc execute*(vm: var LiquidVM): string =
           var iter = addr vm.iterators[^1]
           if iter.index < iter.items.len:
             vm.push(iter.items[iter.index])
-            vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
             let idx0 = iter.index - 1
             vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
@@ -868,7 +794,6 @@ proc execute*(vm: var LiquidVM): string =
           var iter = addr vm.iterators[^1]
           if iter.index < iter.items.len:
             vm.push(iter.items[iter.index])
-            vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
             let idx0 = iter.index - 1
             vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
@@ -884,43 +809,36 @@ proc execute*(vm: var LiquidVM): string =
     of opEqual:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: liquid_eq(a, b)))
 
     of opNotEqual:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: not liquid_eq(a, b)))
 
     of opLess:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) < 0))
 
     of opLessEqual:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) <= 0))
 
     of opGreater:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) > 0))
 
     of opGreaterEqual:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) >= 0))
     
     of opContains:
       let needle = vm.pop()  # What we're looking for
       let haystack = vm.pop()  # Where we're looking
-      vm.pop2_record_push0()
 
       case haystack.kind
       of vmString:
@@ -945,7 +863,6 @@ proc execute*(vm: var LiquidVM): string =
     of opDivide:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
 
       # Handle division by zero gracefully
       if a.kind == vmInt and b.kind == vmInt:
@@ -968,7 +885,6 @@ proc execute*(vm: var LiquidVM): string =
     of opModulo:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
 
       if a.kind == vmInt and b.kind == vmInt:
         if b.intVal == 0:
@@ -982,7 +898,6 @@ proc execute*(vm: var LiquidVM): string =
     of opAdd:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
 
       # Handle different type combinations (null treated as 0 for arithmetic)
       if a.kind == vmInt and b.kind == vmInt:
@@ -1012,7 +927,6 @@ proc execute*(vm: var LiquidVM): string =
     of opSubtract:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
 
       # Handle different type combinations (null treated as 0 for arithmetic)
       if a.kind == vmInt and b.kind == vmInt:
@@ -1037,7 +951,6 @@ proc execute*(vm: var LiquidVM): string =
     of opMultiply:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
 
       if a.kind == vmInt and b.kind == vmInt:
         vm.push(VMValue(kind: vmInt, intVal: a.intVal * b.intVal))
@@ -1050,8 +963,6 @@ proc execute*(vm: var LiquidVM): string =
 
     of opNegate:
       let v = vm.pop()
-      vm.pop_and_record()
-      vm.push_path("")
       if v.kind == vmInt:
         vm.push(VMValue(kind: vmInt, intVal: -v.intVal))
       elif v.kind == vmFloat:
@@ -1061,9 +972,7 @@ proc execute*(vm: var LiquidVM): string =
 
     of opGetIndex:
       let index = vm.pop()
-      let idx_path = vm.pop_path()
       let arr = vm.pop()
-      let arr_path = vm.pop_path()
 
       case arr.kind
       of vmArray:
@@ -1078,12 +987,6 @@ proc execute*(vm: var LiquidVM): string =
             vm.push(VMValue(kind: vmNull))
         else:
           vm.push(VMValue(kind: vmNull))
-        # Track: items[0] or items[-1]
-        if vm.track_access:
-          if arr_path.len > 0 and index.kind == vmInt:
-            vm.push_path(arr_path & "[" & $index.intVal & "]")
-          else:
-            vm.push_path("")
       of vmObject:
         # For objects, convert index to string key
         let key = index.to_string()
@@ -1091,18 +994,8 @@ proc execute*(vm: var LiquidVM): string =
           vm.push(arr.objectVal[key])
         else:
           vm.push(VMValue(kind: vmNull))
-        # Track: obj["key"] → obj.key
-        if vm.track_access:
-          if arr_path.len > 0:
-            vm.push_path(arr_path & "." & key)
-          else:
-            vm.push_path("")
       else:
         vm.push(VMValue(kind: vmNull))
-        vm.push_path("")
-      # Record index path if it came from context
-      if vm.track_access and idx_path.len > 0:
-        vm.accessed_paths.incl(idx_path)
 
     # Filters
     of opCallFilter:
@@ -1112,20 +1005,17 @@ proc execute*(vm: var LiquidVM): string =
       var args: seq[VMValue] = @[]
       for i in uint8(0)..<inst.argCount:
         args.add(vm.pop())
-        vm.pop_and_record()  # Record each arg's path
 
       # Arguments are popped in reverse order, so reverse them back
       args.reverse()
 
       # Pop the value to filter
       let value = vm.pop()
-      vm.pop_and_record()  # Record the value's path
 
       # Apply filter using the filters module
       try:
         let filter_result = apply_filter(value, filter_name, args)
         vm.push(filter_result)
-        vm.push_path("")  # Filter result is computed, not direct context
       except Exception as e:
         echo "Filter error: ", e.msg
         raise e  # Re-throw the exception so tests can catch it
@@ -1134,7 +1024,6 @@ proc execute*(vm: var LiquidVM): string =
       # Create a range from start..end (lenient: bad values become 0)
       let end_int = vm.pop().to_int64(strict = false)
       let start_int = vm.pop().to_int64(strict = false)
-      vm.pop2_record_push0()
 
       # Create array with range values (empty if start > end)
       var range_array: seq[VMValue] = @[]
@@ -1148,19 +1037,15 @@ proc execute*(vm: var LiquidVM): string =
     of opAnd:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: a.is_truthy() and b.is_truthy()))
 
     of opOr:
       let b = vm.pop()
       let a = vm.pop()
-      vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: a.is_truthy() or b.is_truthy()))
 
     of opNot:
       let v = vm.pop()
-      vm.pop_and_record()
-      vm.push_path("")
       vm.push(VMValue(kind: vmBool, boolVal: not v.is_truthy()))
 
     of opInclude:
@@ -1168,26 +1053,22 @@ proc execute*(vm: var LiquidVM): string =
       var partialName: string
       if inst.includeVarExpr:
         partialName = vm.pop().to_string()
-        vm.pop_and_record()
       else:
         partialName = vm.strings[inst.templateId]
 
       var kwArgs: seq[(string, VMValue)] = @[]
       for i in countdown(inst.includeArgNames.len - 1, 0):
         let val = vm.pop()
-        vm.pop_and_record()
         kwArgs.add((vm.strings[inst.includeArgNames[i]], val))
 
       var withVal = VMValue(kind: vmNull)
       if inst.includeWithVar >= 0:
         withVal = vm.pop()
-        vm.pop_and_record()
 
       var forCollection: seq[VMValue] = @[]
       let hasForLoop = inst.includeForVar >= 0
       if hasForLoop:
         let collVal = vm.pop()
-        vm.pop_and_record()
         if collVal.kind == vmArray:
           forCollection = collVal.arrayVal
 
@@ -1245,23 +1126,6 @@ proc render*(bytecode: seq[Instruction], strings: seq[string],
   ## Render a template with the given data
   var vm = new_liquid_vm(bytecode, strings, constants, data, partials)
   result = vm.execute()
-
-proc render_tracked*(bytecode: seq[Instruction], strings: seq[string],
-                     constants: seq[VMValue], data: Table[string, VMValue],
-                     partials: Table[string, string] = initTable[string, string]()):
-                     tuple[output: string, accessed: HashSet[string]] =
-  ## Render a template and return both the output and the set of
-  ## context variable paths that were actually accessed during execution.
-  ## Paths use dot notation for properties (e.g. "user.name") and
-  ## bracket notation for array indices (e.g. "items[0]").
-  var vm = new_liquid_vm(bytecode, strings, constants, data, partials)
-  vm.track_access = true
-  vm.path_stack = @[]
-  vm.accessed_paths = initHashSet[string]()
-  let output = vm.execute()
-  result = (output, vm.accessed_paths)
-
-
 
 when isMainModule:
   import std/[unittest, sets]
@@ -1971,122 +1835,3 @@ when isMainModule:
       let data = initTable[string, VMValue]()
       check render_template(source, data) == ""
 
-  # Helper for tracked rendering
-  proc render_tracked_template(source: string, data: Table[string, VMValue],
-                                partials: Table[string, string] = initTable[string, string]()):
-                                tuple[output: string, accessed: HashSet[string]] =
-    let sections = lex(source)
-    let compiled = compile(sections, source)
-    result = render_tracked(compiled.bytecode, compiled.strings, compiled.constants, data, partials)
-
-  suite "Access Tracking":
-    test "Simple variable access":
-      let (output, accessed) = render_tracked_template("{{ name }}", {"name": vmString("Alice")}.toTable)
-      check output == "Alice"
-      check "name" in accessed
-
-    test "Property path tracking":
-      var user = initOrderedTable[string, VMValue]()
-      user["name"] = vmString("Bob")
-      let (output, accessed) = render_tracked_template("{{ user.name }}", {"user": vmObject(user)}.toTable)
-      check output == "Bob"
-      check "user.name" in accessed
-
-    test "Deep property path":
-      var city = initOrderedTable[string, VMValue]()
-      city["name"] = vmString("Stockholm")
-      var address = initOrderedTable[string, VMValue]()
-      address["city"] = vmObject(city)
-      var user = initOrderedTable[string, VMValue]()
-      user["address"] = vmObject(address)
-      let (output, accessed) = render_tracked_template("{{ user.address.city.name }}",
-        {"user": vmObject(user)}.toTable)
-      check output == "Stockholm"
-      check "user.address.city.name" in accessed
-
-    test "Array index tracking":
-      let items = vmArray(@[vmString("a"), vmString("b"), vmString("c")])
-      let (output, accessed) = render_tracked_template("{{ items[0] }}", {"items": items}.toTable)
-      check output == "a"
-      check "items[0]" in accessed
-
-    test "Multiple variables":
-      let data = {"a": vmString("1"), "b": vmString("2"), "c": vmString("3")}.toTable
-      let (output, accessed) = render_tracked_template("{{ a }}{{ b }}", data)
-      check output == "12"
-      check "a" in accessed
-      check "b" in accessed
-      check "c" notin accessed  # Unused context var not tracked
-
-    test "Local variable not tracked":
-      let data = initTable[string, VMValue]()
-      let (output, accessed) = render_tracked_template("{% assign x = 1 %}{{ x }}", data)
-      check output == "1"
-      check accessed.len == 0  # Locals are not context dependencies
-
-    test "Filter with context arg":
-      let data = {"name": vmString("hello"), "suffix": vmString("!")}.toTable
-      let (output, accessed) = render_tracked_template("{{ name | append: suffix }}", data)
-      check output == "hello!"
-      check "name" in accessed
-      check "suffix" in accessed
-
-    test "Conditional branch - false path not reached":
-      let data = {"show": vmBool(false), "name": vmString("Alice")}.toTable
-      let (output, accessed) = render_tracked_template("{% if show %}{{ name }}{% endif %}", data)
-      check output == ""
-      check "show" in accessed    # Condition was evaluated
-      check "name" notin accessed  # Body not reached
-
-    test "Conditional branch - true path reached":
-      let data = {"show": vmBool(true), "name": vmString("Alice")}.toTable
-      let (output, accessed) = render_tracked_template("{% if show %}{{ name }}{% endif %}", data)
-      check output == "Alice"
-      check "show" in accessed
-      check "name" in accessed
-
-    test "For loop tracks collection":
-      let items = vmArray(@[vmInt(1), vmInt(2), vmInt(3)])
-      let (output, accessed) = render_tracked_template(
-        "{% for item in items %}{{ item }}{% endfor %}",
-        {"items": items}.toTable)
-      check output == "123"
-      check "items" in accessed  # Collection dependency tracked
-
-    test "Include transitive tracking":
-      let data = {"title": vmString("Hello")}.toTable
-      let partials = {"header": "{{ title }}"}.toTable
-      let (output, accessed) = render_tracked_template(
-        "{% include 'header' %}", data, partials)
-      check output == "Hello"
-      check "title" in accessed  # Transitive through partial
-
-    test "Render transitive tracking":
-      let data = {"greeting": vmString("Hi")}.toTable
-      let partials = {"widget": "{{ greeting }}"}.toTable
-      let (output, accessed) = render_tracked_template(
-        "{% render 'widget' %}", data, partials)
-      # render has isolated scope, so greeting should NOT be accessed from parent context
-      check output == ""
-      check "greeting" notin accessed
-
-    test "Comparison tracks both operands":
-      let data = {"a": vmInt(1), "b": vmInt(2)}.toTable
-      let (output, accessed) = render_tracked_template("{% if a == b %}yes{% endif %}", data)
-      check output == ""
-      check "a" in accessed
-      check "b" in accessed
-
-    test "Assign from context then use":
-      let data = {"original": vmString("value")}.toTable
-      let (output, accessed) = render_tracked_template(
-        "{% assign copy = original %}{{ copy }}", data)
-      check output == "value"
-      # original was read from context to create the local
-      check "original" in accessed
-
-    test "Size property tracking":
-      let items = vmArray(@[vmInt(1), vmInt(2)])
-      let (output, accessed) = render_tracked_template("{{ items.size }}", {"items": items}.toTable)
-      check output == "2"
-      check "items.size" in accessed

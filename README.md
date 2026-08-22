@@ -85,31 +85,6 @@ echo tmpl.render(%*{"name": "Alice"})  # => Hello, Alice!
 echo tmpl.render(%*{"name": "Bob"})    # => Hello, Bob!
 ```
 
-### Tracking which context paths were read
-
-`render_tracked` returns the rendered string plus the set of context
-variable paths that were accessed. Useful for dependency tracking and
-incremental rebuilds.
-
-```nim
-import json
-import liquid_lib
-
-let ctx = %*{"a": 1, "b": 2, "c": 3}
-let (output, accessed) = render_tracked("{{ a }}{{ b }}", ctx)
-
-echo output            # => 12
-echo "a" in accessed   # => true
-echo "c" in accessed   # => false
-```
-
-The compiled-template form has the same overload:
-
-```nim
-let tmpl = compile_template("{{ a }}{{ b }}")
-let (output, accessed) = tmpl.render_tracked(ctx)
-```
-
 ## C library
 
 A C-callable shared library is also available. Build it from a checkout

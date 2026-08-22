@@ -25,19 +25,6 @@ proc render*(template_source: string, context: JsonNode,
   result = vm.render(compiled.bytecode, compiled.strings, compiled.constants,
                      data, partials)
 
-proc render_tracked*(template_source: string, context: JsonNode,
-                     partials: Table[string, string] = initTable[string, string]()):
-                     tuple[output: string, accessed: HashSet[string]] =
-  ## Compile and render a Liquid template, also returning the set of
-  ## context variable paths that were accessed during rendering.
-  ##
-  ## Useful for dependency tracking / incremental rebuilds.
-  let sections = lex(template_source)
-  let compiled = compile(sections, template_source)
-  let data = json_to_vm_table(context)
-  result = vm.render_tracked(compiled.bytecode, compiled.strings, compiled.constants,
-                             data, partials)
-
 type
   CompiledTemplate* = object
     ## A pre-compiled template that can be rendered multiple times
@@ -62,15 +49,6 @@ proc render*(compiled: CompiledTemplate, context: JsonNode,
   let data = json_to_vm_table(context)
   result = vm.render(compiled.bytecode, compiled.strings, compiled.constants,
                      data, partials)
-
-proc render_tracked*(compiled: CompiledTemplate, context: JsonNode,
-                     partials: Table[string, string] = initTable[string, string]()):
-                     tuple[output: string, accessed: HashSet[string]] =
-  ## Render a pre-compiled template with access tracking.
-  let data = json_to_vm_table(context)
-  result = vm.render_tracked(compiled.bytecode, compiled.strings, compiled.constants,
-                             data, partials)
-
 
 when isMainModule:
   import std/unittest
@@ -106,14 +84,6 @@ when isMainModule:
       let compiled = compile_template("Hello, {{ name }}!")
       check compiled.render(%*{"name": "Alice"}) == "Hello, Alice!"
       check compiled.render(%*{"name": "Bob"}) == "Hello, Bob!"
-
-    test "render_tracked returns accessed paths":
-      let ctx = %*{"a": 1, "b": 2, "c": 3}
-      let (output, accessed) = render_tracked("{{ a }}{{ b }}", ctx)
-      check output == "12"
-      check "a" in accessed
-      check "b" in accessed
-      check "c" notin accessed
 
     test "json_to_vmvalue null":
       let v = json_to_vmvalue(newJNull())
