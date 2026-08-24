@@ -18,16 +18,27 @@ type
     opDup                # Duplicate top of stack
 
     # Variable Operations
-    opLoadVar            # Load variable: [stringId]
+    opResolveName        # Resolve name: context-stack walk, then the flat
+                         # scope chain (keyword_args/locals/variables/counters).
+                         # With an empty context stack this is a plain
+                         # variable load: [stringId]
     opDynamicLoadVar     # Pop string from stack, use as variable name to load
     opStoreVar           # Store to variable: [stringId]
+
+    # Context stack (scoped name resolution for Mustache-family languages)
+    opPushCtx            # Pop value, push it onto the context stack
+    opPopCtx             # Pop the context stack
+    opSetCtx             # Pop value, replace top of the context stack
+    opNormalizeSection   # Pop value, push its section item list:
+                         # falsy -> [], array -> as-is, other -> [value]
 
     # Property/Index Access
     opGetProp            # Get property: [stringId]
     opGetIndex           # Get array/object index (key on stack)
 
     # Output Operations
-    opOutput             # Output top of stack
+    opOutput             # Output top of stack (escaped iff vm.escape_html)
+    opOutputEscaped      # Output top of stack, always HTML-escaped
     opBatchOutput        # Output multiple constants: [count, id1, id2, ...]
     opBeginCapture       # Start capturing output: [captureId]
     opEndCapture         # End capture and store: [varId]
@@ -88,7 +99,7 @@ type
       intVal*: int64
     of opPushFloat:
       floatVal*: float64
-    of opPushString, opLoadVar, opStoreVar, opGetProp:
+    of opPushString, opResolveName, opStoreVar, opGetProp:
       stringId*: uint32
     of opJump, opJumpIfFalse, opJumpIfTrue:
       offset*: int32
@@ -108,6 +119,8 @@ type
       includeWithVar*: int32     # String ID for 'with' variable (-1 = none)
       includeAlias*: int32       # String ID for 'as' alias (-1 = none)
       includeForVar*: int32      # String ID for 'for' loop variable (-1 = none)
+      includeHasIndent*: bool    # Mustache: indent each output line (standalone partials)
+      includeIndentId*: uint32   # String ID of the indent whitespace
     of opBeginLoop:
       loopVarIndex*: uint16
       hasLimit*: bool

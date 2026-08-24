@@ -171,7 +171,7 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
     if name notin c.local_vars:
       c.required_vars.incl(name)
     let stringId = c.intern_string(name)
-    c.emit(Instruction(op: opLoadVar, stringId: stringId))
+    c.emit(Instruction(op: opResolveName, stringId: stringId))
     inc pos
     
   of tkNumber:
@@ -463,7 +463,7 @@ proc compile_output(c: var Compiler, section: Section) =
     if var_name notin c.local_vars:
       c.required_vars.incl(var_name)
     let stringId = c.intern_string(var_name)
-    c.emit(Instruction(op: opLoadVar, stringId: stringId))
+    c.emit(Instruction(op: opResolveName, stringId: stringId))
     c.emit(Instruction(op: opOutput))
     return
 
@@ -485,7 +485,7 @@ proc compile_output(c: var Compiler, section: Section) =
     let objId = c.intern_string(objName)
     let propId = c.intern_string(prop_name)
     
-    c.emit(Instruction(op: opLoadVar, stringId: objId))
+    c.emit(Instruction(op: opResolveName, stringId: objId))
     c.emit(Instruction(op: opGetProp, stringId: propId))
     c.emit(Instruction(op: opOutput))
     return
@@ -1488,7 +1488,7 @@ when isMainModule:
       
       # Should have: LoadVar, Output
       check result.bytecode.len == 2
-      check result.bytecode[0].op == opLoadVar
+      check result.bytecode[0].op == opResolveName
       check result.bytecode[1].op == opOutput
       
       # Should track required variable
@@ -1501,7 +1501,7 @@ when isMainModule:
       
       # Should have: LoadVar, GetProp, Output
       check result.bytecode.len == 3
-      check result.bytecode[0].op == opLoadVar
+      check result.bytecode[0].op == opResolveName
       check result.bytecode[1].op == opGetProp
       check result.bytecode[2].op == opOutput
       
@@ -1526,7 +1526,7 @@ when isMainModule:
       let result = compileTemplate(source)
       
       # Should have: LoadVar, JumpIfFalse, Text output, (jump target)
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       check result.hasInstruction(opJumpIfFalse)
       check "show" in result.variables.required
 
@@ -1548,7 +1548,7 @@ when isMainModule:
       let result = compileTemplate(source)
       
       # Should have comparison operator
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       check result.hasInstruction(opPushInt)
       check result.hasInstruction(opGreater)
       check result.hasInstruction(opJumpIfFalse)
@@ -1560,7 +1560,7 @@ when isMainModule:
       let result = compileTemplate(source)
       
       # Should have loop instructions
-      check result.hasInstruction(opLoadVar)  # Load items
+      check result.hasInstruction(opResolveName)  # Load items
       check result.hasInstruction(opBeginLoop)
       check result.hasInstruction(opIterNext)
       check result.hasInstruction(opStoreVar)  # Store to item
@@ -1600,7 +1600,7 @@ when isMainModule:
       # Should push 5, store to x, then load x and output
       check result.hasInstruction(opPushInt)
       check result.hasInstruction(opStoreVar)
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       
       check "x" in result.variables.locals
       check "x" notin result.variables.required  # It's local, not required
@@ -1609,7 +1609,7 @@ when isMainModule:
       let source = "{% assign copy = original %}{{ copy }}"
       let result = compileTemplate(source)
       
-      check result.hasInstruction(opLoadVar)   # Load original
+      check result.hasInstruction(opResolveName)   # Load original
       check result.hasInstruction(opStoreVar)  # Store to copy
       
       check "original" in result.variables.required
@@ -1619,7 +1619,7 @@ when isMainModule:
       let source = "{% assign fullname = first.name %}{{ fullname }}"
       let result = compileTemplate(source)
       
-      check result.hasInstruction(opLoadVar)   # Load first
+      check result.hasInstruction(opResolveName)   # Load first
       check result.hasInstruction(opGetProp)   # Get .name
       check result.hasInstruction(opStoreVar)  # Store to fullname
       
@@ -1699,7 +1699,7 @@ when isMainModule:
       let result = compileTemplate(source)
       
       # Should have: LoadVar, CallFilter, Output
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       check result.hasInstruction(opCallFilter)
       check result.hasInstruction(opOutput)
       
@@ -1710,7 +1710,7 @@ when isMainModule:
       let source = "{{ price | round: 2 }}"
       let result = compileTemplate(source)
       
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       check result.hasInstruction(opPushInt)  # Argument
       check result.hasInstruction(opCallFilter)
       
@@ -1756,7 +1756,7 @@ when isMainModule:
       let result = compileTemplate(source)
       
       # Should have all the components
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       check result.hasInstruction(opJumpIfFalse)
       check result.hasInstruction(opBeginLoop)
       check result.hasInstruction(opGetProp)
@@ -1807,7 +1807,7 @@ when isMainModule:
       let source = "{% if condition %}{% endif %}"
       let result = compileTemplate(source)
       
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opResolveName)
       check result.hasInstruction(opJumpIfFalse)
       check "condition" in result.variables.required
 
@@ -1862,7 +1862,7 @@ when isMainModule:
       let result = compileTemplate(source)
       
       for inst in result.bytecode:
-        if inst.op in [opPushString, opLoadVar, opStoreVar, opGetProp]:
+        if inst.op in [opPushString, opResolveName, opStoreVar, opGetProp]:
           # String ID should be valid
           check inst.stringId < result.strings.len.uint32
 
@@ -1887,7 +1887,7 @@ when isMainModule:
       
       # Should be minimal: just LoadVar + Output
       check result.bytecode.len == 2
-      check result.bytecode[0].op == opLoadVar
+      check result.bytecode[0].op == opResolveName
       check result.bytecode[1].op == opOutput
 
     test "Fast path for property access":
@@ -1896,7 +1896,7 @@ when isMainModule:
       
       # Should be minimal: LoadVar + GetProp + Output
       check result.bytecode.len == 3
-      check result.bytecode[0].op == opLoadVar
+      check result.bytecode[0].op == opResolveName
       check result.bytecode[1].op == opGetProp
       check result.bytecode[2].op == opOutput
 

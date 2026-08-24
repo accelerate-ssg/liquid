@@ -218,25 +218,45 @@ proc finish_iterator*(vm: var VM, iter_index: int = -1) =
   else:
     vm.locals.del("forloop")
 
+proc indent_lines(s, indent: string): string =
+  ## Prepend indent to every line of s (Mustache standalone-partial
+  ## indentation, applied to the partial's source before compilation so
+  ## multi-line interpolated values stay unindented, per spec).
+  ## A trailing newline does not produce a dangling indent.
+  if indent.len == 0 or s.len == 0:
+    return s
+  result = newStringOfCap(s.len + indent.len * 4)
+  var at_line_start = true
+  for ch in s:
+    if at_line_start:
+      result.add(indent)
+      at_line_start = false
+    result.add(ch)
+    if ch == '\n':
+      at_line_start = true
+
 # ─── Partial Execution Helpers ───────────────────────────────────────
 
-proc compile_partial*(vm: var VM, name: string):
+proc compile_partial*(vm: var VM, name: string, indent: string = ""):
     tuple[bytecode: seq[Instruction], strings: seq[string],
           constants: seq[VMValue], found: bool] =
   ## Look up partial source, compile on first use, cache result.
   ## Compilation goes through vm.partial_compiler so partials are compiled
   ## in the same template language as the including template.
+  ## A non-empty indent (Mustache standalone partials) is applied to the
+  ## partial's source lines before compilation, and is part of the cache key.
   ## Returns found=false if partial doesn't exist.
   if name notin vm.partials:
     result.found = false
     return
-  if name notin vm.partial_cache:
+  let cache_key = name & '\31' & indent
+  if cache_key notin vm.partial_cache:
     if vm.partial_compiler == nil:
       raise newException(CatchableError,
         "Cannot compile partial '" & name & "': no partial_compiler set on VM")
-    let compiled = vm.partial_compiler(vm.partials[name])
-    vm.partial_cache[name] = (compiled.bytecode, compiled.strings, compiled.constants)
-  let cached = vm.partial_cache[name]
+    let compiled = vm.partial_compiler(indent_lines(vm.partials[name], indent))
+    vm.partial_cache[cache_key] = (compiled.bytecode, compiled.strings, compiled.constants)
+  let cached = vm.partial_cache[cache_key]
   result = (cached.bytecode, cached.strings, cached.constants, true)
 
 proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
@@ -252,6 +272,7 @@ proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
     result.locals = vm.locals
     result.loop_offsets = vm.loop_offsets
     result.counters = vm.counters
+    result.ctx_stack = vm.ctx_stack
   result.partial_cache = vm.partial_cache
   result.partial_compiler = vm.partial_compiler
   result.tag_handlers = vm.tag_handlers
@@ -351,15 +372,76 @@ proc execute*(vm: var VM): string =
           vm.path_stack.add(vm.path_stack[^1])
     
     # Variable operations
-    of opLoadVar:
+    of opResolveName:
+      # Scoped resolution: walk the context stack top-down for an object
+      # frame containing the name, then fall back to the flat scope chain
+      # (keyword_args → locals → variables → counters). With an empty
+      # context stack (Liquid) this is a plain variable load.
       let name = vm.strings[inst.stringId]
-      vm.push(vm.resolve_var(name))
+      var found_in_ctx = false
+      var found_frame = -1
+      if vm.ctx_stack.len > 0:
+        if name == ".":
+          # Implicit iterator: the current context itself
+          vm.push(vm.ctx_stack[^1])
+          found_in_ctx = true
+        else:
+          for i in countdown(vm.ctx_stack.len - 1, 0):
+            let frame = vm.ctx_stack[i]
+            if frame.kind == vmObject and name in frame.objectVal:
+              vm.push(frame.objectVal[name])
+              found_in_ctx = true
+              found_frame = i
+              break
+      if not found_in_ctx:
+        vm.push(vm.resolve_var(name))
       if vm.track_access:
-        # Only context variables get a path; locals/counters/keyword_args don't
-        if name in vm.variables:
+        # Direct context variables get a path: the flat variables table
+        # (Liquid) or the root context frame (Mustache). Inner frames,
+        # locals and counters don't — their absolute path is unknowable.
+        if found_in_ctx:
+          if found_frame == 0:
+            vm.push_path(name)
+          else:
+            vm.push_path("")
+        elif name in vm.variables:
           vm.push_path(name)
         else:
           vm.push_path("")
+
+    of opPushCtx:
+      vm.ctx_stack.add(vm.pop())
+      vm.pop_and_record()
+
+    of opPopCtx:
+      if vm.ctx_stack.len > 0:
+        discard vm.ctx_stack.pop()
+
+    of opSetCtx:
+      let val = vm.pop()
+      vm.pop_and_record()
+      if vm.ctx_stack.len > 0:
+        vm.ctx_stack[^1] = val
+
+    of opNormalizeSection:
+      # Mustache section semantics: normalize the section value to the list
+      # of contexts the body renders once per. Falsy (null/false) -> empty,
+      # a list -> its items, anything else (objects, scalars, true) -> [value].
+      let val = vm.pop()
+      vm.pop_and_record()
+      var items: seq[VMValue] = @[]
+      case val.kind
+      of vmNull, vmEmpty:
+        discard
+      of vmBool:
+        if val.boolVal:
+          items.add(val)
+      of vmArray:
+        items = val.arrayVal
+      else:
+        items.add(val)
+      vm.push(VMValue(kind: vmArray, arrayVal: items))
+      vm.push_path("")
 
     of opDynamicLoadVar:
       # Pop key from stack, use it as a variable name
@@ -455,7 +537,14 @@ proc execute*(vm: var VM): string =
         else:
           str
         vm.output.add(output_str)
-      
+
+    of opOutputEscaped:
+      # Always HTML-escape, regardless of the vm.escape_html default
+      # (Mustache {{ }}; Liquid uses opOutput + the VM-level flag)
+      let val = vm.pop()
+      vm.pop_and_record()
+      vm.emit_output(val.to_string().escape_html_str())
+
     of opBatchOutput:
       # Batch output is ALWAYS literal template text - NEVER escape
       for stringId in inst.stringIds:
@@ -962,7 +1051,8 @@ proc execute*(vm: var VM): string =
           forCollection = collVal.arrayVal
 
       # Compile partial (with caching)
-      let partial = vm.compile_partial(partialName)
+      let indent = if inst.includeHasIndent: vm.strings[inst.includeIndentId] else: ""
+      let partial = vm.compile_partial(partialName, indent)
       if not partial.found:
         discard  # Missing partial outputs nothing
       elif hasForLoop:
