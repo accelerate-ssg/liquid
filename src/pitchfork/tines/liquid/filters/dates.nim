@@ -1,5 +1,5 @@
 import times, strutils
-import ../value_ops
+import ../../../values
 
 proc liquid_date_format(dt: DateTime, format: string): string =
   ## Format a DateTime with Liquid/strftime format directives.

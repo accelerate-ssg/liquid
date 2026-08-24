@@ -1,11 +1,12 @@
 # Liquid Library API
 # ==================
-# Clean public API for the Liquid template engine.
+# Clean public API for the Liquid template engine, built on the
+# Pitchfork engine plus its Liquid tine.
 # Accepts JsonNode context data and returns rendered strings.
 
 import std/[json, tables, sets]
-import liquid/[lexer, compiler, vm, json_bridge]
-import liquid/compiler/types as compiler_types
+import pitchfork/json_bridge
+import pitchfork/tines/liquid/api
 
 export json_bridge
 
@@ -19,11 +20,10 @@ proc render*(template_source: string, context: JsonNode,
   ##   partials: Optional partial templates (name -> source)
   ##
   ## Returns the rendered output string.
-  let sections = lex(template_source)
-  let compiled = compile(sections, template_source)
+  let compiled = compile_source(template_source)
   let data = json_to_vm_table(context)
-  result = vm.render(compiled.bytecode, compiled.strings, compiled.constants,
-                     data, partials)
+  result = api.render(compiled.bytecode, compiled.strings, compiled.constants,
+                      data, partials)
 
 proc render_tracked*(template_source: string, context: JsonNode,
                      partials: Table[string, string] = initTable[string, string]()):
@@ -32,24 +32,22 @@ proc render_tracked*(template_source: string, context: JsonNode,
   ## context variable paths that were accessed during rendering.
   ##
   ## Useful for dependency tracking / incremental rebuilds.
-  let sections = lex(template_source)
-  let compiled = compile(sections, template_source)
+  let compiled = compile_source(template_source)
   let data = json_to_vm_table(context)
-  result = vm.render_tracked(compiled.bytecode, compiled.strings, compiled.constants,
-                             data, partials)
+  result = api.render_tracked(compiled.bytecode, compiled.strings, compiled.constants,
+                              data, partials)
 
 type
   CompiledTemplate* = object
     ## A pre-compiled template that can be rendered multiple times
     ## with different context data.
-    bytecode: seq[compiler_types.Instruction]
+    bytecode: seq[Instruction]
     strings: seq[string]
-    constants: seq[compiler_types.VMValue]
+    constants: seq[VMValue]
 
 proc compile_template*(template_source: string): CompiledTemplate =
   ## Pre-compile a template for repeated rendering.
-  let sections = lex(template_source)
-  let compiled = compile(sections, template_source)
+  let compiled = compile_source(template_source)
   result = CompiledTemplate(
     bytecode: compiled.bytecode,
     strings: compiled.strings,
@@ -60,16 +58,16 @@ proc render*(compiled: CompiledTemplate, context: JsonNode,
              partials: Table[string, string] = initTable[string, string]()): string =
   ## Render a pre-compiled template with JSON context data.
   let data = json_to_vm_table(context)
-  result = vm.render(compiled.bytecode, compiled.strings, compiled.constants,
-                     data, partials)
+  result = api.render(compiled.bytecode, compiled.strings, compiled.constants,
+                      data, partials)
 
 proc render_tracked*(compiled: CompiledTemplate, context: JsonNode,
                      partials: Table[string, string] = initTable[string, string]()):
                      tuple[output: string, accessed: HashSet[string]] =
   ## Render a pre-compiled template with access tracking.
   let data = json_to_vm_table(context)
-  result = vm.render_tracked(compiled.bytecode, compiled.strings, compiled.constants,
-                             data, partials)
+  result = api.render_tracked(compiled.bytecode, compiled.strings, compiled.constants,
+                              data, partials)
 
 
 when isMainModule:

@@ -1,6 +1,6 @@
 import tables, std/macros, sequtils, strutils
-import compiler/types
-export types
+import bytecode
+export bytecode
 
 type
   Filter* = proc(value: VMValue, args: varargs[VMValue]): VMValue

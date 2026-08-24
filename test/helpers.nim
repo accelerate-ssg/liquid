@@ -1,7 +1,7 @@
 import json, unittest, tables, terminal
 
-import ../src/liquid/compiler/[types, context_functions]
-import ../src/liquid/[types, lexer, compiler, vm]
+import ../src/pitchfork/[bytecode, context_functions]
+import ../src/pitchfork/tines/liquid/[types, api]
 
 type
   TestFailure* = ref object
@@ -15,7 +15,7 @@ type
 let
   formatter* = CustomFormatter(failures: @[])
 
-export Node, Token, TokenKind, SectionKind, Section, Parser, unittest, json
+export Token, TokenKind, SectionKind, Section, unittest, json
 
 method testEnded*(formatter: CustomFormatter, testResult: TestResult) =
   if testResult.status == TestStatus.FAILED:
@@ -55,8 +55,7 @@ proc renderCase*(
   partials: Table[string, string] = initTable[string, string](),
   strict: bool = false
 ): string =
-  let sections = lex(source)
-  let compiled = compile(sections, source, strict)
+  let compiled = compile_source(source, strict)
   result = render(compiled.bytecode, compiled.strings, compiled.constants, context, partials)
 
 proc testCase*(

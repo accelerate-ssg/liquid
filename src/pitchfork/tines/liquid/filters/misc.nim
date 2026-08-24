@@ -1,5 +1,5 @@
 import strutils, tables, sequtils
-import ../value_ops
+import ../../../values
 
 # Returns the default value if the input is null, false, or empty
 create_filter:
