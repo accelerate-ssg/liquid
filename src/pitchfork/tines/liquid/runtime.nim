@@ -43,7 +43,7 @@ proc tag_cycle(vm: var VM, inst: Instruction) =
   var group_key: string
   if group_id >= 0:
     if group_is_var:
-      group_key = vm.resolve_var(vm.strings[group_id.uint32]).to_string()
+      group_key = vm.materialize(vm.resolve_var(vm.strings[group_id.uint32])).to_string()
     else:
       group_key = vm.strings[group_id.uint32]
   else:
@@ -53,7 +53,7 @@ proc tag_cycle(vm: var VM, inst: Instruction) =
   let iteration = vm.cycle_counters.getOrDefault(group_key, 0)
   if arg_count > 0:
     if iteration < arg_count:
-      vm.emit_output(values[iteration].to_string())
+      vm.emit_output(vm.materialize(values[iteration]).to_string())
     var next = iteration + 1
     if next >= arg_count:
       next = 0
@@ -130,6 +130,19 @@ proc tag_tablerow_begin(vm: var VM, inst: Instruction) =
     for key, val in collection.objectVal:
       items.add(VMValue(kind: vmArray, arrayVal: @[
         VMValue(kind: vmString, stringVal: key), val]))
+  of vmNode:
+    # Lazy arena container: expand to wrapped elements, same as opBeginLoop.
+    let arena = vm.arena
+    let id = NodeId(collection.nodeVal)
+    case arena[].kind(id)
+    of nkArray:
+      for child in arrItems(arena[], id):
+        items.add(vm.wrap_node(child))
+    of nkObject:
+      for key, child in objPairs(arena[], id):
+        items.add(VMValue(kind: vmArray, arrayVal: @[
+          VMValue(kind: vmString, stringVal: key), vm.wrap_node(child)]))
+    else: discard
   else: discard
 
   # Apply offset

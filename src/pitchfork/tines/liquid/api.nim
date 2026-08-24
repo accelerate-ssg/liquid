@@ -52,6 +52,23 @@ proc render*(bytecode: seq[Instruction], strings: seq[string],
                          unsafeAddr data, unsafeAddr partials)
   result = vm.execute()
 
+proc render*(bytecode: seq[Instruction], strings: seq[string],
+            constants: seq[VMValue], arena: ptr Arena, context_root: NodeId,
+            overlays: Table[string, VMValue] = initTable[string, VMValue](),
+            partials: Table[string, string] = initTable[string, string]()): string =
+  ## Render compiled Liquid bytecode against an arena-backed context.
+  ## Top-level variables resolve lazily from the root object, container
+  ## values stay lazy until consumed, and every context access lands in
+  ## the arena's access log under whichever consumer the caller has
+  ## pushed. Overlays shadow the context root, for per-page values like
+  ## item and items.
+  var vm = new_vm(bytecode, strings, constants,
+                  unsafeAddr overlays, unsafeAddr partials,
+                  arena, context_root)
+  vm.register_liquid_runtime()
+  vm.partial_compiler = liquid_partial_compiler
+  result = vm.execute()
+
 proc render_tracked*(bytecode: seq[Instruction], strings: seq[string],
                      constants: seq[VMValue], data: Table[string, VMValue],
                      partials: Table[string, string] = initTable[string, string]()):

@@ -70,3 +70,8 @@ proc vmvalue_to_json*(val: VMValue): JsonNode =
     for key, v in val.objectVal:
       obj[key] = vmvalue_to_json(v)
     return obj
+  of vmNode:
+    # Lazy arena values need the arena to resolve; the VM materializes
+    # them before they can reach a conversion boundary.
+    raise newException(ValueError,
+      "cannot convert a lazy arena value to JSON without its arena")

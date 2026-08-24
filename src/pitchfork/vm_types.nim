@@ -1,6 +1,9 @@
 import std/[tables, hashes, algorithm, math, sets]
+import arena_context_store
 
 from bytecode import Instruction, VMValue, VMValueKind, TemplateCompiler
+
+export arena_context_store
 
 type
   # Tag runtime handler (forward declaration for VM)
@@ -30,6 +33,13 @@ type
     # caller satisfies that — a VM lives entirely inside one render call,
     # and a sub-VM inside its parent's. nil when no context was given.
     context*: ptr Table[string, VMValue]
+    # Arena-backed lazy context, borrowed on the same terms as context.
+    # Top-level names resolve from context_root when the table probes
+    # miss; containers travel as vmNode ids and every access lands in
+    # the arena's access log. nil / InvalidNodeId when not rendering
+    # against an arena.
+    arena*: ptr Arena
+    context_root*: NodeId
     variables*: Table[string, VMValue]  # VM-owned scope (e.g. a {% render %}-bound forloop)
     # Template-created variables, shared by reference with every
     # shared-scope sub-VM: an include used to copy the whole table in and
@@ -171,6 +181,11 @@ proc `==`*(a, b: VMValue): bool =
     return true
   of vmEmpty:
     return true  # All empty values are equal
+  of vmNode:
+    # Same node = same value. Two different nodes may hold equal data,
+    # but callers that care (opEqual and friends) materialize before
+    # comparing, so identity is the only meaning left here.
+    return a.nodeVal == b.nodeVal
 
 # You might also want to add hash for using VMValue in tables
 proc hash*(v: VMValue): Hash =
@@ -203,7 +218,9 @@ proc hash*(v: VMValue): Hash =
       h = h !& hash(v.objectVal[k])
   of vmEmpty:
     discard  # All empty values hash the same
-  
+  of vmNode:
+    h = h !& hash(v.nodeVal)
+
   result = !$h
 
 # Also useful: conversion to bool for truthiness checks
@@ -226,6 +243,10 @@ proc to_bool*(v: VMValue): bool =
     return v.objectVal.len > 0
   of vmEmpty:
     return false  # empty is falsy like null
+  of vmNode:
+    # Emptiness would need arena access to tell; treat lazy containers
+    # as truthy, like the eager container kinds.
+    return true
 
 # Helper constructor functions for cleaner code
 proc vm_null*(): VMValue =

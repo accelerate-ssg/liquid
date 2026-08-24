@@ -25,11 +25,13 @@ when defined(opcode_coverage):
 # Create VM with data
 proc new_vm*(bytecode: seq[Instruction], strings: seq[string],
              constants: seq[VMValue], context: ptr Table[string, VMValue],
-             partials: ptr Table[string, string] = nil): VM =
-  ## The context and partials are borrowed, not copied: the VM never writes
-  ## through either pointer, and both must outlive the VM. Every caller
-  ## here satisfies that — a VM lives entirely inside one render call, and
-  ## a sub-VM inside its parent's.
+             partials: ptr Table[string, string] = nil,
+             arena: ptr Arena = nil,
+             context_root: NodeId = InvalidNodeId): VM =
+  ## The context, partials, and arena are borrowed, not copied: the VM
+  ## never writes through the table pointers, and all must outlive the
+  ## VM. Every caller here satisfies that — a VM lives entirely inside
+  ## one render call, and a sub-VM inside its parent's.
   # Remaining fields rely on Nim's usable zero values (empty tables/seqs)
   # to keep per-render VM construction cheap.
   result = VM(
@@ -38,6 +40,8 @@ proc new_vm*(bytecode: seq[Instruction], strings: seq[string],
     strings: strings,
     constants: constants,
     context: context,
+    arena: arena,
+    context_root: context_root,
     partials: partials,
   )
   # `new` rather than newTable: the shared tables need a cell to share,
@@ -94,6 +98,60 @@ template pop2_record_push0(vm: var VM) =
     if pa.len > 0: vm.accessed_paths.incl(pa)
     if pb.len > 0: vm.accessed_paths.incl(pb)
     vm.path_stack.add("")
+
+# ─── Arena-backed lazy values ────────────────────────────────────────
+# Container nodes travel through the VM as vmNode — just a NodeId — and
+# resolve against the arena on access, so an alias like
+# {% assign s = site %} costs nothing and s.title records the same
+# precise edge read site.title would. Scalars are always wrapped
+# eagerly, so every numeric, string, bool and null code path in the VM
+# behaves identically whether a value came from the arena or not.
+
+proc wrap_arena_node*(arena: Arena, id: NodeId): VMValue =
+  ## Scalars come back eager; containers stay lazy. A missing node is
+  ## null, matching Liquid's undefined semantics.
+  if id == InvalidNodeId:
+    return VMValue(kind: vmNull)
+  case arena.kind(id)
+  of nkNull: VMValue(kind: vmNull)
+  of nkBool: VMValue(kind: vmBool, boolVal: arena.getBool(id))
+  of nkInt: VMValue(kind: vmInt, intVal: arena.getInt(id))
+  of nkFloat: VMValue(kind: vmFloat, floatVal: arena.getFloat(id))
+  of nkString: VMValue(kind: vmString, stringVal: arena.getStr(id))
+  of nkArray, nkObject: VMValue(kind: vmNode, nodeVal: uint32(id))
+
+proc wrap_node*(vm: VM, id: NodeId): VMValue =
+  wrap_arena_node(vm.arena[], id)
+
+proc materialize_node*(vm: VM, id: NodeId): VMValue =
+  ## Deep-convert an arena subtree into an eager value. Records reads of
+  ## everything it touches — honest, because the caller consumes the
+  ## whole value (filters, comparisons, stringification).
+  let arena = vm.arena
+  case arena[].kind(id)
+  of nkNull: VMValue(kind: vmNull)
+  of nkBool: VMValue(kind: vmBool, boolVal: arena[].getBool(id))
+  of nkInt: VMValue(kind: vmInt, intVal: arena[].getInt(id))
+  of nkFloat: VMValue(kind: vmFloat, floatVal: arena[].getFloat(id))
+  of nkString: VMValue(kind: vmString, stringVal: arena[].getStr(id))
+  of nkArray:
+    var v = VMValue(kind: vmArray)
+    for child in arrItems(arena[], id):
+      v.arrayVal.add(vm.materialize_node(child))
+    v
+  of nkObject:
+    var v = VMValue(kind: vmObject)
+    for key, child in objPairs(arena[], id):
+      v.objectVal[key] = vm.materialize_node(child)
+    v
+
+proc materialize*(vm: VM, v: VMValue): VMValue =
+  ## Resolve a lazy value into an eager one at the boundaries that
+  ## consume values wholesale; anything already eager passes through.
+  if v.kind == vmNode:
+    vm.materialize_node(NodeId(v.nodeVal))
+  else:
+    v
 
 # Value operations
 proc is_truthy(v: VMValue): bool =
@@ -258,6 +316,10 @@ proc resolve_var*(vm: var VM, name: string): VMValue =
       return found[]
   vm.variables.withValue(name, found):
     return found[]
+  if vm.arena != nil and vm.context_root != InvalidNodeId:
+    let child = vm.arena[].objGet(vm.context_root, name)
+    if child != InvalidNodeId:
+      return vm.wrap_node(child)
   vm.counters.withValue(name, found):
     return VMValue(kind: vmInt, intVal: found[])
   VMValue(kind: vmNull)
@@ -358,6 +420,10 @@ proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
     result.loop_offsets = vm.loop_offsets
     result.counters = vm.counters
     result.ctx_stack = vm.ctx_stack
+    # The arena context is part of the shared scope: reads inside the
+    # partial record like the parent's own, so tracking stays transitive.
+    result.arena = vm.arena
+    result.context_root = vm.context_root
   result.partial_cache = vm.partial_cache
   result.partial_compiler = vm.partial_compiler
   result.tag_handlers = vm.tag_handlers
@@ -524,8 +590,9 @@ proc execute*(vm: var VM): string =
         vm.ctx_stack[^1] = val
 
     of opDynamicLoadVar:
-      # Pop key from stack, use it as a variable name
-      let name = vm.pop().to_string()
+      # Pop key from stack, use it as a variable name. A lazy key
+      # materializes: stringification consumes the value.
+      let name = vm.materialize(vm.pop()).to_string()
       discard vm.pop_path()  # Pop path for the key value
       vm.push(vm.resolve_var(name))
       if vm.track_access:
@@ -606,6 +673,43 @@ proc execute*(vm: var VM): string =
           vm.push(VMValue(kind: vmInt, intVal: obj.stringVal.len.int64))
         else:
           vm.push(VMValue(kind: vmNull))
+      of vmNode:
+        # Lazy container: resolve one edge in the arena, mirroring the
+        # eager branches above, including the virtual properties.
+        let arena = vm.arena
+        let id = NodeId(obj.nodeVal)
+        case arena[].kind(id)
+        of nkObject:
+          let child = arena[].objGet(id, prop_name)
+          if child != InvalidNodeId:
+            vm.push(vm.wrap_node(child))
+          else:
+            case prop_name
+            of "size", "length":
+              vm.push(VMValue(kind: vmInt, intVal: arena[].objLen(id).int64))
+            of "first":
+              if arena[].objLen(id) > 0:
+                vm.push(VMValue(kind: vmArray, arrayVal: @[
+                  VMValue(kind: vmString, stringVal: arena[].objGetKey(id, 0)),
+                  vm.wrap_node(arena[].objGetVal(id, 0))]))
+              else:
+                vm.push(VMValue(kind: vmNull))
+            else:
+              vm.push(VMValue(kind: vmNull))
+        of nkArray:
+          case prop_name
+          of "size", "length":
+            vm.push(VMValue(kind: vmInt, intVal: arena[].arrLen(id).int64))
+          of "first":
+            vm.push(vm.wrap_node(arena[].arrGetOrMiss(id, 0)))
+          of "last":
+            let length = arena[].arrLen(id)
+            if length > 0: vm.push(vm.wrap_node(arena[].arrGet(id, length - 1)))
+            else: vm.push(VMValue(kind: vmNull))
+          else:
+            vm.push(VMValue(kind: vmNull))
+        else:
+          vm.push(VMValue(kind: vmNull))
       else:
         vm.push(VMValue(kind: vmNull))
       # Extend path chain: user → user.name
@@ -622,8 +726,11 @@ proc execute*(vm: var VM): string =
       # and again to append it; an integer allocated a string just to be
       # thrown away. Only escaping still needs an intermediate, and it is
       # off by default.
-      let val = vm.pop()
+      var val = vm.pop()
       vm.pop_and_record()
+      # Lazy values materialize here: stringification consumes the value.
+      if val.kind == vmNode:
+        val = vm.materialize_node(NodeId(val.nodeVal))
 
       if vm.is_capturing:
         # When capturing, store raw (escaping happens on final output)
@@ -636,7 +743,7 @@ proc execute*(vm: var VM): string =
     of opOutputEscaped:
       # Always HTML-escape, regardless of the vm.escape_html default
       # (Mustache {{ }}; Liquid uses opOutput + the VM-level flag)
-      let val = vm.pop()
+      let val = vm.materialize(vm.pop())
       vm.pop_and_record()
       vm.emit_output(val.to_string().escape_html_str())
 
@@ -773,6 +880,22 @@ proc execute*(vm: var VM): string =
         # Iterate string as single item
         if collection.stringVal.len > 0:
           items = @[collection]
+      of vmNode:
+        # Lazy container: expand to wrapped elements. The iteration is
+        # recorded in the arena, and each element stays lazy until used.
+        let arena = vm.arena
+        let id = NodeId(collection.nodeVal)
+        case arena[].kind(id)
+        of nkArray:
+          for child in arrItems(arena[], id):
+            items.add(vm.wrap_node(child))
+        of nkObject:
+          for key, child in objPairs(arena[], id):
+            items.add(VMValue(kind: vmArray, arrayVal: @[
+              VMValue(kind: vmString, stringVal: key),
+              vm.wrap_node(child)]))
+        else:
+          discard
       else:
         discard  # Empty items for non-iterable
 
@@ -860,14 +983,15 @@ proc execute*(vm: var VM): string =
     
     # Comparison
     of opEqual:
-      let b = vm.pop()
-      let a = vm.pop()
+      # Equality consumes both values wholesale, so lazy ones materialize.
+      let b = vm.materialize(vm.pop())
+      let a = vm.materialize(vm.pop())
       vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: liquid_eq(a, b)))
 
     of opNotEqual:
-      let b = vm.pop()
-      let a = vm.pop()
+      let b = vm.materialize(vm.pop())
+      let a = vm.materialize(vm.pop())
       vm.pop2_record_push0()
       vm.push(VMValue(kind: vmBool, boolVal: not liquid_eq(a, b)))
 
@@ -896,8 +1020,8 @@ proc execute*(vm: var VM): string =
       vm.push(VMValue(kind: vmBool, boolVal: liquid_compare(a, b) >= 0))
     
     of opContains:
-      let needle = vm.pop()  # What we're looking for
-      let haystack = vm.pop()  # Where we're looking
+      let needle = vm.materialize(vm.pop())  # What we are looking for
+      let haystack = vm.materialize(vm.pop())  # Where we are looking
       vm.pop2_record_push0()
 
       case haystack.kind
@@ -958,8 +1082,10 @@ proc execute*(vm: var VM): string =
         vm.push(VMValue(kind: vmNull))
 
     of opAdd:
-      let b = vm.pop()
-      let a = vm.pop()
+      # Materialize so the string-concatenation path stringifies lazy
+      # containers the same way it always stringified eager ones.
+      let b = vm.materialize(vm.pop())
+      let a = vm.materialize(vm.pop())
       vm.pop2_record_push0()
 
       # Handle different type combinations (null treated as 0 for arithmetic)
@@ -1075,6 +1201,25 @@ proc execute*(vm: var VM): string =
             vm.push_path(arr_path & "." & key)
           else:
             vm.push_path("")
+      of vmNode:
+        let arena = vm.arena
+        let id = NodeId(arr.nodeVal)
+        case arena[].kind(id)
+        of nkArray:
+          if index.kind == vmInt:
+            var idx = int(index.intVal)
+            if idx < 0:
+              # Negative indexing depends on the length, and the arena
+              # records that dependency through arrLen.
+              idx += arena[].arrLen(id)
+            vm.push(vm.wrap_node(arena[].arrGetOrMiss(id, idx)))
+          else:
+            vm.push(VMValue(kind: vmNull))
+        of nkObject:
+          vm.push(vm.wrap_node(arena[].objGet(id, index.to_string())))
+        else:
+          vm.push(VMValue(kind: vmNull))
+        vm.push_path("")
       else:
         vm.push(VMValue(kind: vmNull))
         vm.push_path("")
@@ -1093,9 +1238,16 @@ proc execute*(vm: var VM): string =
       # Arguments are popped in reverse order, so reverse them back
       args.reverse()
 
-      # Pop the value to filter
-      let value = vm.pop()
+      # Pop the value to filter. Filters have no arena access, so lazy
+      # values (and lazy arguments) materialize at this boundary — the
+      # filter consumes them wholesale either way.
+      var value = vm.pop()
       vm.pop_and_record()  # Record the value's path
+      if value.kind == vmNode:
+        value = vm.materialize_node(NodeId(value.nodeVal))
+      for i in 0 ..< args.len:
+        if args[i].kind == vmNode:
+          args[i] = vm.materialize_node(NodeId(args[i].nodeVal))
 
       # A filter error propagates to the caller as-is; a library must not
       # echo to the host program's console on the way out.
@@ -1139,7 +1291,7 @@ proc execute*(vm: var VM): string =
       # Pop stack arguments
       var partialName: string
       if inst.includeVarExpr:
-        partialName = vm.pop().to_string()
+        partialName = vm.materialize(vm.pop()).to_string()
         vm.pop_and_record()
       else:
         partialName = vm.strings[inst.templateId]

@@ -148,7 +148,8 @@ type
       discard
 
   VMValueKind* = enum
-    vmNull, vmBool, vmInt, vmFloat, vmString, vmArray, vmObject, vmEmpty
+    vmNull, vmBool, vmInt, vmFloat, vmString, vmArray, vmObject, vmEmpty,
+    vmNode
 
   # Values in the VM. Reference semantics: pushing, binding as context, or
   # storing a value shares it instead of deep-copying the subtree. Values
@@ -172,6 +173,14 @@ type
       arrayVal*: seq[VMValue]
     of vmObject:
       objectVal*: OrderedTable[string, VMValue]
+    of vmNode:
+      ## A lazy container backed by an arena context store node: the raw
+      ## NodeId of an object or array. Scalars are always wrapped eagerly,
+      ## so a vmNode is never null, bool, number or string — truthiness,
+      ## numeric coercion and ordering treat it exactly like the eager
+      ## container kinds. The VM holds the arena; this module stays free
+      ## of the dependency by carrying the id as a plain uint32.
+      nodeVal*: uint32
 
   VariableRequirements* = object
     required*: seq[string]      # Variables that MUST be provided
