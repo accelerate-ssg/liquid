@@ -24,6 +24,9 @@ type
     
     # Iteration state
     iterators*: seq[Iterator]   # Stack of active iterators
+
+    # Context stack (Mustache-family scoped name resolution; empty for Liquid)
+    ctx_stack*: seq[VMValue]
     
     # Output
     output*: string

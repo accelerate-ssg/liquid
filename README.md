@@ -3,8 +3,10 @@
 A multi-language template engine for Nim: several parser frontends
 ("tines") uniting into one common bytecode VM (the handle).
 
-Liquid is the first supported template language; Mustache and Handlebars
-frontends are planned. The original Liquid API (`liquid_lib`) is unchanged.
+Two template languages are supported so far — Liquid and Mustache (fully
+conformant with the required modules of the official
+[mustache/spec](https://github.com/mustache/spec) suite). A Handlebars
+frontend is planned. The original Liquid API (`liquid_lib`) is unchanged.
 
 ## Architecture
 
@@ -20,13 +22,45 @@ src/pitchfork/tines/liquid/ the Liquid frontend
   runtime.nim               runtime tag handlers (cycle, tablerow, ...)
   filters/                  built-in Liquid filters
   api.nim                   wires it all onto a VM
-src/liquid_lib.nim          stable JsonNode-based public API
+src/pitchfork/tines/mustache/ the Mustache frontend
+  lexer.nim                 tokens, delimiters, standalone-line handling
+  compiler.nim              tokens -> bytecode (context-stack semantics)
+  api.nim                   wires the VM (partials compile as Mustache)
+src/liquid_lib.nim          stable JsonNode-based public API (Liquid)
+src/mustache_lib.nim        JsonNode-based public API (Mustache)
 ```
 
 A tine compiles its language to the shared bytecode; the VM knows nothing
 about any particular template language — language specifics reach it through
 registered tag handlers, the filter registry, and a `partial_compiler`
-callback so partials compile in the including template's language.
+callback so partials compile in the including template's language. Mustache's
+scoped lookup rides on the same resolution opcode Liquid uses (`opResolveName`
+walks the context stack, then the flat scope chain — for Liquid the context
+stack is simply empty), and its sections reuse the standard loop machinery.
+
+Mustache lambdas are intentionally unsupported for now; the plan is a
+registered script-runner hook rather than callables in the data.
+
+## Usage (Mustache)
+
+```nim
+import json, tables
+import mustache_lib
+
+echo render("Hello, {{name}}!", %*{"name": "World"})
+# => Hello, World!
+
+echo render("{{#items}}({{.}}){{/items}}", %*{"items": ["a", "b"]})
+# => (a)(b)
+
+let partials = {"user": "<li>{{name}}</li>"}.toTable
+echo render("<ul>{{#users}}{{>user}}{{/users}}</ul>",
+            %*{"users": [{"name": "A"}, {"name": "B"}]}, partials)
+# => <ul><li>A</li><li>B</li></ul>
+```
+
+`render_tracked`, `compile_template`, and pre-compiled `render` mirror the
+Liquid API below.
 
 ## Installation
 
