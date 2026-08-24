@@ -239,16 +239,19 @@ proc build_tablerowloop*(idx, total, cols: int): VMValue =
     "row": vm_int(((idx div effective_cols) + 1).int64),
   }.toOrderedTable)
 
-proc current_tablerowloop(vm: var LiquidVM): VMValue =
+proc current_tablerowloop_ref(vm: var LiquidVM): ptr VMValue =
   ## The innermost active tablerow's cell metadata, cached per cell.
   let state = addr vm.tablerow_iters[^1]
   if not state.tablerowloop_valid:
     state.tablerowloop_cache =
       build_tablerowloop(state.index, state.items.len, state.cols)
     state.tablerowloop_valid = true
-  state.tablerowloop_cache
+  addr state.tablerowloop_cache
 
-proc current_forloop(vm: var LiquidVM): VMValue =
+proc current_tablerowloop(vm: var LiquidVM): VMValue =
+  vm.current_tablerowloop_ref()[]
+
+proc current_forloop_ref(vm: var LiquidVM): ptr VMValue =
   ## The innermost active loop's metadata, built on first ask and cached
   ## until the iteration advances. Most loop bodies never mention forloop,
   ## and building the object cost more than the rest of an iteration, so
@@ -258,7 +261,10 @@ proc current_forloop(vm: var LiquidVM): VMValue =
     iter.forloop_cache = build_forloop(iter.index - 1, iter.items.len,
                                        iter.loop_name, iter.saved_forloop)
     iter.forloop_valid = true
-  iter.forloop_cache
+  addr iter.forloop_cache
+
+proc current_forloop(vm: var LiquidVM): VMValue =
+  vm.current_forloop_ref()[]
 
 proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
   ## Resolve a variable name through the scope chain:
@@ -296,12 +302,16 @@ proc resolve_var_ref(vm: var LiquidVM, name: string): ptr VMValue =
   ## a value use this to avoid copying the whole of it; on nil they fall
   ## back to resolve_var.
   ##
-  ## The order matches resolve_var exactly, and the two synthesizing cases
-  ## return nil rather than falling through, so they still shadow the
-  ## scopes below them.
+  ## The order matches resolve_var exactly. Loop metadata is cached on the
+  ## iterator, so it has a slot to point at too.
+  ##
+  ## The pointer is only valid until the next write to whichever scope it
+  ## came from, so callers must read through it immediately.
   vm.keyword_args.withValue(name, found): return found
-  if vm.iterators.len > 0 and name == "forloop": return nil
-  if vm.tablerow_iters.len > 0 and name == "tablerowloop": return nil
+  if vm.iterators.len > 0 and name == "forloop":
+    return vm.current_forloop_ref()
+  if vm.tablerow_iters.len > 0 and name == "tablerowloop":
+    return vm.current_tablerowloop_ref()
   vm.locals[].withValue(name, found): return found
   if vm.context != nil:
     vm.context[].withValue(name, found): return found
