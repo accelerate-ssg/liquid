@@ -135,6 +135,10 @@ type
       loopNameId*: int32        # String ID for forloop.name (-1 = none)
       objectAsValues*: bool     # Iterate objects as values with keys tracked
                                 # (Handlebars #each); default: [key, value] pairs
+      buildsForloop*: bool      # Build the forloop object each iteration.
+                                # Tines whose loops never expose forloop/@data
+                                # (Mustache) leave this off to skip the
+                                # per-iteration allocation.
     of opIterNext:
       endOffset*: int32       # Jump offset when iteration is exhausted
       elseOffset*: int32      # Jump offset when collection is empty (for else block)
@@ -153,8 +157,11 @@ type
   VMValueKind* = enum
     vmNull, vmBool, vmInt, vmFloat, vmString, vmArray, vmObject, vmEmpty
 
-  # Values in the VM
-  VMValue* = object
+  # Values in the VM. Reference semantics: pushing, binding as context, or
+  # storing a value shares it instead of deep-copying the subtree. Values
+  # are treated as immutable once constructed — filters and tag handlers
+  # must build new values, never mutate arrayVal/objectVal in place.
+  VMValue* = ref object
     case kind*: VMValueKind
     of vmNull:
       discard

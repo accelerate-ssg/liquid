@@ -443,7 +443,7 @@ proc compile_loop_block(c: var Compiler, value: Expr, normalizer: string,
   let loop_var = "__ctx_" & $c.ctx_depth
   inc c.ctx_depth
   inc c.scope_depth
-  c.emit(Instruction(op: opBeginLoop,
+  c.emit(Instruction(op: opBeginLoop, buildsForloop: true,
     loopVarIndex: c.intern_string(loop_var).uint16,
     hasLimit: false, hasOffset: false, hasOffsetContinue: false,
     isReversed: false, loopNameId: -1, objectAsValues: object_as_values))

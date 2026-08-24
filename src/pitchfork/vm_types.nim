@@ -88,6 +88,7 @@ type
     items*: seq[VMValue]
     keys*: seq[string]   # Object-key per item when iterating an object as
                          # values (Handlebars #each); empty otherwise
+    builds_forloop*: bool  # Build the forloop object each iteration
     index*: int
     var_name*: string
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
@@ -99,7 +100,9 @@ type
 
 
 proc `==`*(a, b: VMValue): bool =
-  ## Compare two VMValues for equality
+  ## Compare two VMValues for structural equality
+  if a.isNil or b.isNil:
+    return a.isNil and b.isNil
   # First check if kinds match
   if a.kind != b.kind:
     return false

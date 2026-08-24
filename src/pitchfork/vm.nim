@@ -12,31 +12,29 @@ import filters
 
 export vm_types
 
+when defined(opcode_coverage):
+  import std/exitprocs
+  var opcode_seen: set[OpCode]
+  addExitProc(proc() =
+    var missed: seq[string] = @[]
+    for op in OpCode:
+      if op notin opcode_seen: missed.add($op)
+    echo "OPCOV executed=", card(opcode_seen), "/", ord(high(OpCode)) + 1,
+         " missed=", missed.join(","))
+
 # Create VM with data
 proc new_vm*(bytecode: seq[Instruction], strings: seq[string],
              constants: seq[VMValue], data: Table[string, VMValue],
              partials: Table[string, string] = initTable[string, string]()): VM =
+  # Remaining fields rely on Nim's usable zero values (empty tables/seqs)
+  # to keep per-render VM construction cheap.
   result = VM(
     stack: newSeqOfCap[VMValue](32),
-    pc: 0,
     bytecode: bytecode,
     strings: strings,
     constants: constants,
     variables: data,
-    locals: initTable[string, VMValue](),
-    iterators: @[],
-    output: "",
-    escape_html: false,
-    capture_stack: @[],
-    is_capturing: false,
-    loop_offsets: initTable[string, int](),
     partials: partials,
-    partial_cache: initTable[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]](),
-    pending_break: false,
-    pending_continue: false,
-    tag_handlers: initTable[string, TagRuntimeHandler](),
-    instruction_count: 0,
-    max_stack_size: 0
   )
 
 # Stack operations
@@ -320,9 +318,11 @@ proc execute*(vm: var VM): string =
   ## Execute the bytecode and return the output
   
   while vm.pc < vm.bytecode.len:
-    let inst = vm.bytecode[vm.pc]
+    let inst {.cursor.} = vm.bytecode[vm.pc]
     inc vm.pc
     inc vm.instruction_count
+    when defined(opcode_coverage):
+      opcode_seen.incl(inst.op)
 
     # When pending break/continue is active, skip all instructions except
     # opIterNext (which handles the break/continue) and opStoreVar (to pop stack)
@@ -712,6 +712,7 @@ proc execute*(vm: var VM): string =
       vm.iterators.add(Iterator(
         items: items,
         keys: obj_keys,
+        builds_forloop: inst.buildsForloop,
         index: 0,
         var_name: loop_var_name,
         original_offset: offset_val.int,
@@ -734,9 +735,10 @@ proc execute*(vm: var VM): string =
             vm.push(iter.items[iter.index])
             vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
-            let idx0 = iter.index - 1
-            let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
-            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
+            if iter.builds_forloop:
+              let idx0 = iter.index - 1
+              let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
+              vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
           else:
             vm.finish_iterator()
             vm.pc += inst.endOffset
@@ -747,9 +749,10 @@ proc execute*(vm: var VM): string =
             vm.push(iter.items[iter.index])
             vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
-            let idx0 = iter.index - 1
-            let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
-            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
+            if iter.builds_forloop:
+              let idx0 = iter.index - 1
+              let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
+              vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
           else:
             let wasEmpty = iter.index == 0
             vm.finish_iterator()
