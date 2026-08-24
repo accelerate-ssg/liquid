@@ -135,6 +135,12 @@ proc workloads(): seq[Workload] =
   result.add wl("include-partial", """
 {% for p in products %}{% include "card" %}{% endfor %}""", 500, partials)
 
+  # The same includes with a large local in scope. An include that shares
+  # the caller's scope must not pay in proportion to what that scope holds.
+  result.add wl("include-big-locals", """
+{% assign all = products %}{% for p in products %}{% include "card" %}{% endfor %}""",
+    100, partials)
+
   # Range iteration and arithmetic.
   result.add wl("range-loop", "{% for i in (1..200) %}{{ i }},{% endfor %}", 2000)
 

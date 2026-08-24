@@ -37,7 +37,13 @@ type
     # collection writes here, to expose forloop without letting loops
     # inside the partial pick it up as their parentloop.
     variables*: Table[string, VMValue]
-    locals*: Table[string, VMValue]     # Template-created variables
+    # Template-created variables ({% assign %}, {% capture %}, loop
+    # bindings). Held by reference so an {% include %}, which shares the
+    # caller's scope by definition, does not pay in proportion to what that
+    # scope happens to hold: copying it in and back out again made an
+    # include after `{% assign all = products %}` cost fifteen times what
+    # the same include cost without it.
+    locals*: TableRef[string, VMValue]
 
     # Arena-backed context: variable names miss the tables above and then
     # resolve against this root object. nil arena means no arena context.
@@ -61,7 +67,10 @@ type
     # Filters are now handled by the filters module
 
     # Loop continuation tracking (for offset: continue)
-    loop_offsets*: Table[string, int]  # var_name -> last consumed index
+    # var_name -> last consumed index. Shared with sub-VMs on the same
+    # terms as locals, so `offset: continue` resumes correctly across an
+    # include without copying the table both ways.
+    loop_offsets*: TableRef[string, int]
 
     # Template partials (for include/render tags)
     # Partial sources, borrowed on the same terms as context: read-only for

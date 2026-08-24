@@ -45,12 +45,17 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     capture_stack: @[],
     is_capturing: false,
     partials: partials,
-    partial_cache: newTable[string, CompiledPartial](),
     pending_break: false,
     pending_continue: false,
     instruction_count: 0,
     max_stack_size: 0
   )
+  # `new` rather than newTable: the shared tables need a cell to share, but
+  # not the 32 slots newTable would allocate up front. The table inside
+  # fills itself on first insert, and most of these stay empty.
+  new(result.locals)
+  new(result.loop_offsets)
+  new(result.partial_cache)
   result.register_liquid_tag_handlers()
 
 # Stack operations
@@ -273,7 +278,7 @@ proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
     return vm.current_forloop()
   if vm.tablerow_iters.len > 0 and name == "tablerowloop":
     return vm.current_tablerowloop()
-  vm.locals.withValue(name, found): return found[]
+  vm.locals[].withValue(name, found): return found[]
   if vm.context != nil:
     vm.context[].withValue(name, found): return found[]
   vm.variables.withValue(name, found): return found[]
@@ -339,8 +344,16 @@ proc create_sub_vm*(vm: var LiquidVM, bytecode: seq[Instruction],
   ## shared_scope=true (include): shares context, locals, loop_offsets, counters
   ## shared_scope=false (render): isolated empty scope
   ##
-  ## The shared case borrows the parent's context pointer rather than
-  ## copying the table, so an include costs nothing per top-level variable.
+  ## The shared case borrows the parent's context pointer and shares its
+  ## locals by reference rather than copying either, so an include costs
+  ## nothing per variable already in scope.
+  ##
+  ## counters is the exception and is deliberately still copied: the
+  ## {% include 'x' for collection %} path calls propagate_scope with
+  ## propagate_control = false to discard the partial's counters on every
+  ## iteration, so sharing them would make {% increment %} inside such a
+  ## partial persist across iterations. The table is small and holds no
+  ## nested data.
   result = new_liquid_vm(bytecode, strings, constants,
     if shared_scope: vm.context else: nil,
     vm.partials)
@@ -365,8 +378,8 @@ proc propagate_scope*(vm: var LiquidVM, sub: LiquidVM,
   ## The partial cache needs no write-back: parent and sub-VM share one
   ## table, so anything the partial compiled is already visible here.
   if shared_scope:
-    vm.locals = sub.locals
-    vm.loop_offsets = sub.loop_offsets
+    # locals and loop_offsets need no write-back — they are the parent's
+    # own tables, which the sub-VM has been writing through all along.
     if propagate_control:
       vm.counters = sub.counters
       if sub.pending_break: vm.pending_break = true
