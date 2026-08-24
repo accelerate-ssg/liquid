@@ -123,13 +123,12 @@ suite "Engine stack discipline and error paths":
   test "unknown tag handler raises":
     expect CatchableError:
       discard run(@[
-        Instruction(op: opCallTag, tagId: 0, tagArgCount: 0, tagData: @[])],
+        Instruction(op: opCallTag, tagId: 0, tagData: @[])],
         @["no_such_tag"])
 
   test "missing partial compiler raises only when a partial is present":
     var machine = new_vm(@[
-      Instruction(op: opInclude, templateId: 0, withContext: true,
-                  includeArgCount: 0, includeArgNames: @[],
+      Instruction(op: opInclude, templateId: 0, withContext: true, includeArgNames: @[],
                   includeVarExpr: false, includeWithVar: -1,
                   includeAlias: -1, includeForVar: -1)],
       @["p"], @[], initTable[string, VMValue](),

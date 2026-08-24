@@ -41,8 +41,8 @@ type
     # Output Operations
     opOutput             # Output top of stack (escaped iff vm.escape_html)
     opOutputEscaped      # Output top of stack, always HTML-escaped
-    opBatchOutput        # Output multiple constants: [count, id1, id2, ...]
-    opBeginCapture       # Start capturing output: [captureId]
+    opBatchOutput        # Output literal template text: [stringId]
+    opBeginCapture       # Start capturing output
     opEndCapture         # End capture and store: [varId]
 
     # Control Flow
@@ -74,8 +74,8 @@ type
     opNegate             # Unary -
 
     # Logic
-    opAnd                # Logical AND (short-circuit)
-    opOr                 # Logical OR (short-circuit)
+    opAnd                # Logical AND (eager: both operands evaluated)
+    opOr                 # Logical OR (eager: both operands evaluated)
     opNot                # Logical NOT
 
     # Filters
@@ -101,7 +101,7 @@ type
       intVal*: int64
     of opPushFloat:
       floatVal*: float64
-    of opPushString, opStoreVar, opGetProp:
+    of opPushString, opStoreVar, opGetProp, opBatchOutput:
       stringId*: uint32
     of opResolveName:
       nameId*: uint32
@@ -113,12 +113,10 @@ type
       argCount*: uint8
     of opCallTag:
       tagId*: uint32          # String ID of tag name (for runtime dispatch)
-      tagArgCount*: uint8     # Number of arguments on stack
       tagData*: seq[int32]    # Tag-specific data (jump offsets, flags, etc.)
     of opInclude:
       templateId*: uint32        # String ID of the partial name
       withContext*: bool          # true = include (shared scope), false = render (isolated scope)
-      includeArgCount*: uint8    # Number of keyword arguments
       includeArgNames*: seq[uint32]  # String IDs for keyword argument names
       includeVarExpr*: bool      # true = template name is a variable (on stack), false = string literal
       includeWithVar*: int32     # String ID for 'with' variable (-1 = none)
@@ -144,11 +142,6 @@ type
       elseOffset*: int32      # Jump offset when collection is empty (for else block)
     of opBreak, opContinue:
       levels*: uint8
-    of opBatchOutput:
-      batchCount*: uint8
-      stringIds*: seq[uint32]
-    of opBeginCapture:
-      captureId*: uint32
     of opEndCapture:
       varId*: uint32
     else:

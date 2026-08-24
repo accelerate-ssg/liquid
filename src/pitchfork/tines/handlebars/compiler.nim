@@ -534,7 +534,6 @@ proc compile_partial(c: var Compiler, tok: HToken) =
   c.emit(Instruction(op: opInclude,
     templateId: c.intern_string(name),
     withContext: true,
-    includeArgCount: uint8(arg_names.len),
     includeArgNames: arg_names,
     includeVarExpr: false,
     includeWithVar: -1,
@@ -551,8 +550,7 @@ proc compile_until(c: var Compiler, close: string): bool =
     inc c.pos
     case tok.kind
     of hText:
-      c.emit(Instruction(op: opBatchOutput, batchCount: 1,
-                         stringIds: @[c.intern_string(tok.text)]))
+      c.emit(Instruction(op: opBatchOutput, stringId: c.intern_string(tok.text)))
     of hExpr:
       c.emit_output_tag(tok.content, escaped = true)
     of hExprRaw:

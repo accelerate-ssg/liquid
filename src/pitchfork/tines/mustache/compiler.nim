@@ -64,8 +64,7 @@ proc compile_tokens(c: var Compiler, until_close: seq[string] = @[]) =
     inc c.pos
     case tok.kind
     of mText:
-      c.emit(Instruction(op: opBatchOutput, batchCount: 1,
-                         stringIds: @[c.intern_string(tok.text)]))
+      c.emit(Instruction(op: opBatchOutput, stringId: c.intern_string(tok.text)))
 
     of mVariable:
       c.emit_resolve(tok.name)
@@ -125,7 +124,6 @@ proc compile_tokens(c: var Compiler, until_close: seq[string] = @[]) =
       c.emit(Instruction(op: opInclude,
         templateId: c.intern_string(tok.partial_name),
         withContext: true,
-        includeArgCount: 0,
         includeArgNames: @[],
         includeVarExpr: false,
         includeWithVar: -1,

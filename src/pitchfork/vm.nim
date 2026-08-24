@@ -560,8 +560,7 @@ proc execute*(vm: var VM): string =
 
     of opBatchOutput:
       # Batch output is ALWAYS literal template text - NEVER escape
-      for stringId in inst.stringIds:
-        vm.emit_output(vm.strings[stringId])
+      vm.emit_output(vm.strings[inst.stringId])
     
     of opBeginCapture:
       # Start capturing output
