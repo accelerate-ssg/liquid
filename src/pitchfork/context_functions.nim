@@ -1,5 +1,5 @@
 import std/[json, tables]
-import types
+import bytecode
 
 # Convert JsonNode to VMValue
 proc json_to_vm_value*(node: JsonNode): VMValue =

@@ -1,13 +1,14 @@
 import std/[tables, hashes, algorithm, math, sets]
 
-from ../compiler/types import Instruction, VMValue, VMValueKind
+from bytecode import Instruction, VMValue, VMValueKind, TemplateCompiler
 
 type
-  # Tag runtime handler (forward declaration for LiquidVM)
-  TagRuntimeHandler* = proc(vm: var LiquidVM, inst: Instruction) {.nimcall.}
+  # Tag runtime handler (forward declaration for VM)
+  TagRuntimeHandler* = proc(vm: var VM, inst: Instruction) {.nimcall.}
 
-  # Runtime VM for executing templates
-  LiquidVM* = object
+  # Runtime VM for executing templates. Language-agnostic: template-language
+  # specifics arrive via tag_handlers, the filter registry, and partial_compiler.
+  VM* = object
     # Execution state
     stack*: seq[VMValue]
     pc*: int                    # Program counter
@@ -41,6 +42,10 @@ type
     # Template partials (for include/render tags)
     partials*: Table[string, string]  # partial name -> source
     partial_cache*: Table[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]]
+    partial_compiler*: TemplateCompiler  # Compiles partial source in the template's language
+
+    # Tag runtime handlers (for externalized tag implementations)
+    tag_handlers*: Table[string, TagRuntimeHandler]
 
     # Break/continue propagation (for include tag)
     pending_break*: bool
@@ -49,23 +54,16 @@ type
     # Keyword arguments (for include tag) - read-only overlay on locals
     keyword_args*: Table[string, VMValue]
 
-    # Cycle tag counters
-    cycle_counters*: Table[string, int]  # group_key -> current index
-
-    # Increment/decrement counters (separate namespace from assign/capture)
-    counters*: Table[string, int64]  # counter_name -> current value
-
-    # Tablerow state
-    tablerow_iters*: seq[TablerowState]  # Stack of active tablerow iterators
-
-    # Ifchanged state
-    ifchanged_last*: string  # Last output from ifchanged block
-
     # Blank check state (for whitespace-only block suppression)
     blank_check_stack*: seq[int]  # Stack of output positions to check
 
-    # Tag runtime handlers (for externalized tag implementations)
-    tag_handlers*: Table[string, TagRuntimeHandler]
+    # ── State owned by the Liquid tine's runtime tag handlers ──
+    # TODO: generalize into per-handler extension state once a second
+    # tine exercises the boundary.
+    cycle_counters*: Table[string, int]  # {% cycle %}: group_key -> current index
+    counters*: Table[string, int64]      # {% increment/decrement %}: counter_name -> value
+    tablerow_iters*: seq[TablerowState]  # Stack of active tablerow iterators
+    ifchanged_last*: string              # Last output from ifchanged block
 
     # Dependency tracking
     track_access*: bool                    # Enable/disable tracking (default false = zero overhead)
@@ -90,6 +88,8 @@ type
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
     saved_forloop*: VMValue  # Saved forloop value from before this loop started (for nesting)
     loop_name*: string       # forloop.name value (e.g., "tag-product.tags")
+
+  LiquidVM* {.deprecated: "renamed to VM".} = VM
     
 
 

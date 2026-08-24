@@ -1,5 +1,5 @@
 import math, strutils
-import ../value_ops
+import ../../../values
 
 # Helper to get numeric value
 proc to_numeric(v: VMValue): float =

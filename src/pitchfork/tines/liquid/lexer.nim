@@ -4,7 +4,7 @@
 #
 import std/[times, monotimes, tables]
 
-import types, profiling, lexer/[classify_identifier, matches_at, parse_token, scan_identifier, scan_text, scan_end_tag]
+import types, ../../profiling, lexer/[classify_identifier, matches_at, parse_token, scan_identifier, scan_text, scan_end_tag]
 
 const
   IdentFirstTable2 = 0x07fffffe87fffffe'u64

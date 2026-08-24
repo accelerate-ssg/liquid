@@ -1,5 +1,5 @@
 import sequtils, algorithm, strutils, tables
-import ../value_ops
+import ../../../values
 
 
 # Returns the first element of an array or first key-value pair of an object

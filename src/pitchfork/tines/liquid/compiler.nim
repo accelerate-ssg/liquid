@@ -1,7 +1,36 @@
 import std/[tables, sets, strutils, sequtils]
 
 import types
-import compiler/[types]  # The VM types from previous artifact
+import ../../bytecode
+import ../../emitter
+
+export emitter
+
+type
+  # Compiler state: the generic Pitchfork emitter plus the Liquid
+  # frontend's own parse state.
+  Compiler* = object of Emitter
+    # Input
+    sections*: seq[Section]
+    input*: string
+    current_section*: int
+
+    # Compilation options
+    strict*: bool  # Strict mode for Ruby Liquid compatibility
+
+    # Tag registration
+    tag_registry*: Table[string, TagRegistration]  ## Registered tag compilers
+
+  TagCompileProc* = proc(c: var Compiler, tokens: openArray[Token]) {.nimcall.}
+    ## A tag compilation function that emits bytecode for a tag.
+    ## Block tags (if, for, etc.) handle their own section advancement.
+    ## Inline tags (assign, increment, etc.) do NOT — the dispatcher advances.
+
+  TagRegistration* = object
+    name*: string           ## Tag name (e.g., "if", "for", "increment")
+    compile*: TagCompileProc
+    is_block*: bool         ## Block tags handle their own section advancement
+    token_kind*: TokenKind  ## Lexer keyword token kind (tkIdentifier for non-keyword tags)
 
 # Forward declarations
 proc compile_section(c: var Compiler, section: Section)
@@ -24,47 +53,8 @@ proc compile_tablerow(c: var Compiler, tokens: openArray[Token])
 #proc peekNextTag(c: Compiler): TokenKind
 #proc skipToTag(c: var Compiler, tag: TokenKind)
 
-# Basic utility functions (no dependencies)
-proc intern_string(c: var Compiler, s: string): uint32 =
-  if s in c.string_map:
-    return c.string_map[s]
-  result = c.strings.len.uint32
-  c.strings.add(s)
-  c.string_map[s] = result
-
-proc emit(c: var Compiler, inst: Instruction) =
-  c.instructions.add(inst)
-
-proc emit_jump(c: var Compiler, op: OpCode): int =
-  ## Emit jump with placeholder offset, return position for patching
-  let inst = case op
-    of opJump:
-      Instruction(op: opJump, offset: 0'i32)
-    of opJumpIfFalse:
-      Instruction(op: opJumpIfFalse, offset: 0'i32)
-    of opJumpIfTrue:
-      Instruction(op: opJumpIfTrue, offset: 0'i32)
-    else:
-      raise newException(ValueError, "Invalid jump opcode: " & $op)
-  
-  c.emit(inst)
-  result = c.instructions.len - 1
-
-proc patch_jump(c: var Compiler, pos: int) =
-  ## Patch jump at pos to jump to current position
-  let offset = c.instructions.len - pos - 1
-  
-  case c.instructions[pos].op
-  of opJump:
-    c.instructions[pos] = Instruction(op: opJump, offset: offset.int32)
-  of opJumpIfFalse:
-    c.instructions[pos] = Instruction(op: opJumpIfFalse, offset: offset.int32)
-  of opJumpIfTrue:
-    c.instructions[pos] = Instruction(op: opJumpIfTrue, offset: offset.int32)
-  of opIterNext:
-    c.instructions[pos] = Instruction(op: opIterNext, endOffset: offset.int32)
-  else:
-    raise newException(ValueError, "Attempting to patch non-jump instruction")
+# Emission utilities (intern_string, emit, emit_jump, patch_jump) come from
+# the shared Pitchfork emitter.
 
 # Helper functions (depend on basic utils)
 # proc peekNextTag(c: Compiler): TokenKind =
@@ -1400,32 +1390,19 @@ proc compile*(sections: seq[Section], input: string, strict: bool = false): Comp
     input: input,
     current_section: 0,
     strict: strict,
-    instructions: newSeqOfCap[Instruction](sections.len * 10),
-    strings: @[],
-    string_map: initTable[string, uint32](),
-    constants: @[],
-    required_vars: initHashSet[string](),
-    optional_vars: initHashSet[string](),
-    local_vars: initHashSet[string](),
-    scope_depth: 0,
-    loop_depth: 0,
     tag_registry: initTable[string, TagRegistration](),
   )
+  compiler.init_emitter(sections.len * 10)
   compiler.register_liquid_tags()
-  
+
   while compiler.current_section < sections.len:
     let old_section = compiler.current_section
     compiler.compile_section(sections[compiler.current_section])
     # Only increment if the section didn't change (i.e., it wasn't a control flow tag)
     if compiler.current_section == old_section:
       compiler.current_section += 1
-  
-  result.bytecode = compiler.instructions
-  result.strings = compiler.strings
-  result.constants = compiler.constants
-  result.variables.required = toSeq(compiler.required_vars)
-  result.variables.optional = toSeq(compiler.optional_vars)
-  result.variables.locals = toSeq(compiler.local_vars)
+
+  result = compiler.to_compile_result()
 
 
 

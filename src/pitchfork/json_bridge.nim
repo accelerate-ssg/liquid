@@ -5,8 +5,8 @@
 # and read structured results back.
 
 import std/[json, tables]
-import compiler/types
-import vm/types
+import bytecode
+import vm_types
 
 proc json_to_vmvalue*(node: JsonNode): VMValue =
   ## Convert a JsonNode tree into a VMValue tree.
