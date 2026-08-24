@@ -7,6 +7,12 @@ type
   # Tag runtime handler (forward declaration for LiquidVM)
   TagRuntimeHandler* = proc(vm: var LiquidVM, inst: Instruction) {.nimcall.}
 
+  CompiledPartial* = object
+    ## A partial compiled once and reused by every include that names it.
+    bytecode*: seq[Instruction]
+    strings*: seq[string]
+    constants*: seq[VMValue]
+
   # Runtime VM for executing templates
   LiquidVM* = object
     # Execution state
@@ -61,7 +67,12 @@ type
     # Partial sources, borrowed on the same terms as context: read-only for
     # the VM's lifetime, shared with every sub-VM. nil when none were given.
     partials*: ptr Table[string, string]
-    partial_cache*: Table[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]]
+    # Compiled partials, memoised by name and shared by reference with
+    # every sub-VM. Copying it per include meant deep-copying the bytecode
+    # of every partial already compiled — including ones this include does
+    # not render — in and back out again. Nothing about a name-keyed memo
+    # is observable through aliasing.
+    partial_cache*: TableRef[string, CompiledPartial]
 
     # Break/continue propagation (for include tag)
     pending_break*: bool

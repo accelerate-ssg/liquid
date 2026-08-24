@@ -25,6 +25,11 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
   ## through either pointer, and both must outlive the VM. Every caller here
   ## satisfies that — a VM lives entirely inside one render call, and a
   ## sub-VM inside its parent's.
+  ## The tables are left to default-initialise. initTable eagerly allocates
+  ## 32 slots each, which was most of the cost of building a VM, and most
+  ## of them stay empty for a whole render — a template with no {% assign %}
+  ## never writes a local. Nim allocates them on first insert instead, and
+  ## reads of an empty table just miss.
   result = LiquidVM(
     stack: newSeqOfCap[VMValue](32),
     pc: 0,
@@ -32,8 +37,6 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     strings: strings,
     constants: constants,
     context: context,
-    variables: initTable[string, VMValue](),
-    locals: initTable[string, VMValue](),
     arena: arena,
     context_root: context_root,
     iterators: @[],
@@ -41,12 +44,10 @@ proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
     escape_html: false,
     capture_stack: @[],
     is_capturing: false,
-    loop_offsets: initTable[string, int](),
     partials: partials,
-    partial_cache: initTable[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]](),
+    partial_cache: newTable[string, CompiledPartial](),
     pending_break: false,
     pending_continue: false,
-    tag_handlers: initTable[string, TagRuntimeHandler](),
     instruction_count: 0,
     max_stack_size: 0
   )
@@ -326,7 +327,8 @@ proc compile_partial*(vm: var LiquidVM, name: string):
     let source = vm.partials[][name]
     let sections = lex(source)
     let compiled = compile(sections, source, false)
-    vm.partial_cache[name] = (compiled.bytecode, compiled.strings, compiled.constants)
+    vm.partial_cache[name] = CompiledPartial(bytecode: compiled.bytecode,
+      strings: compiled.strings, constants: compiled.constants)
   let cached = vm.partial_cache[name]
   result = (cached.bytecode, cached.strings, cached.constants, true)
 
@@ -359,7 +361,9 @@ proc propagate_scope*(vm: var LiquidVM, sub: LiquidVM,
   ## Propagate state from sub-VM back to parent.
   ## Only propagates for include (shared_scope=true).
   ## propagate_control=true also copies counters and break/continue flags.
-  vm.partial_cache = sub.partial_cache
+  ##
+  ## The partial cache needs no write-back: parent and sub-VM share one
+  ## table, so anything the partial compiled is already visible here.
   if shared_scope:
     vm.locals = sub.locals
     vm.loop_offsets = sub.loop_offsets
