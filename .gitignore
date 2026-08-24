@@ -8,6 +8,26 @@
 !README.md
 
 nimcache/
+
+# Compiled test binaries
 test/golden_liquid
-test/bench_vm
-test/bench_compare
+test/engine
+test/vm
+test/mustache_spec
+test/handlebars
+test/test_nav
+
+# Compiled bench binaries
+bench/liquid_xbench
+bench/liquid_xbench_prebuilt
+bench/mustache_bench
+bench/bench_vm
+bench/bench_compare
+
+# Compiled library binaries (defensive)
+# (src/pitchfork deliberately absent: that name is the engine's source
+# directory, and an ignore rule for it would swallow new engine files)
+src/liquid_lib
+src/mustache_lib
+src/handlebars_lib
+src/liquid_c

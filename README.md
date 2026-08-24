@@ -185,6 +185,51 @@ echo tmpl.render(%*{"name": "Alice"})  # => Hello, Alice!
 echo tmpl.render(%*{"name": "Bob"})    # => Hello, Bob!
 ```
 
+### Tracking which context paths were read
+
+`render_tracked` returns the rendered string plus the set of context
+variable paths that were accessed. Useful for dependency tracking and
+incremental rebuilds.
+
+```nim
+import json
+import liquid_lib
+
+let ctx = %*{"a": 1, "b": 2, "c": 3}
+let (output, accessed) = render_tracked("{{ a }}{{ b }}", ctx)
+
+echo output            # => 12
+echo "a" in accessed   # => true
+echo "c" in accessed   # => false
+```
+
+The compiled-template form has the same overload:
+
+```nim
+let tmpl = compile_template("{{ a }}{{ b }}")
+let (output, accessed) = tmpl.render_tracked(ctx)
+```
+
+### Arena-backed rendering
+
+For large contexts the data can live in an `arena_context_store` arena
+instead of a `JsonNode`. Both the one-shot and the pre-compiled `render`
+have overloads taking the arena and the `NodeId` of the context root:
+
+```nim
+render(template_source, arena, context_root, overlays, partials)
+compiled.render(arena, context_root, overlays, partials)
+```
+
+Variables resolve lazily against the arena — containers stay lazy until
+consumed, so an alias like `{% assign s = site %}` keeps `s.title` as
+precise in the access log as `site.title` — and every node access is
+recorded exactly, which is what makes incremental rebuilds cheap: a
+rebuild only re-renders the templates whose accessed nodes changed.
+`overlays` shadow the root for per-page values like `item`; build them
+with `wrap_arena_node`. This API requires a sibling checkout of
+`arena_context_store` (see `nim.cfg`).
+
 ## C library
 
 A C-callable shared library is also available. Build it from a checkout
