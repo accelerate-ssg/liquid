@@ -17,17 +17,22 @@ proc register_liquid_tag_handlers*(vm: var LiquidVM)
 
 # Create VM with data
 proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
-                  constants: seq[VMValue], data: Table[string, VMValue],
-                  partials: Table[string, string] = initTable[string, string](),
+                  constants: seq[VMValue], context: ptr Table[string, VMValue],
+                  partials: ptr Table[string, string] = nil,
                   arena: ptr Arena = nil,
                   context_root: NodeId = InvalidNodeId): LiquidVM =
+  ## The context and partials are borrowed, not copied: the VM never writes
+  ## through either pointer, and both must outlive the VM. Every caller here
+  ## satisfies that — a VM lives entirely inside one render call, and a
+  ## sub-VM inside its parent's.
   result = LiquidVM(
     stack: newSeqOfCap[VMValue](32),
     pc: 0,
     bytecode: bytecode,
     strings: strings,
     constants: constants,
-    variables: data,
+    context: context,
+    variables: initTable[string, VMValue](),
     locals: initTable[string, VMValue](),
     arena: arena,
     context_root: context_root,
@@ -199,6 +204,8 @@ proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
   ## it, so getOrDefault is not an option — presence is what we test.
   vm.keyword_args.withValue(name, found): return found[]
   vm.locals.withValue(name, found): return found[]
+  if vm.context != nil:
+    vm.context[].withValue(name, found): return found[]
   vm.variables.withValue(name, found): return found[]
   if vm.arena != nil and vm.context_root != InvalidNodeId:
     let child = vm.arena[].objGet(vm.context_root, name)
@@ -264,11 +271,11 @@ proc compile_partial*(vm: var LiquidVM, name: string):
           constants: seq[VMValue], found: bool] =
   ## Look up partial source, compile on first use, cache result.
   ## Returns found=false if partial doesn't exist.
-  if name notin vm.partials:
+  if vm.partials == nil or name notin vm.partials[]:
     result.found = false
     return
   if name notin vm.partial_cache:
-    let source = vm.partials[name]
+    let source = vm.partials[][name]
     let sections = lex(source)
     let compiled = compile(sections, source, false)
     vm.partial_cache[name] = (compiled.bytecode, compiled.strings, compiled.constants)
@@ -279,12 +286,17 @@ proc create_sub_vm*(vm: var LiquidVM, bytecode: seq[Instruction],
                     strings: seq[string], constants: seq[VMValue],
                     shared_scope: bool): LiquidVM =
   ## Create a sub-VM for partial execution.
-  ## shared_scope=true (include): shares variables, locals, loop_offsets, counters
+  ## shared_scope=true (include): shares context, locals, loop_offsets, counters
   ## shared_scope=false (render): isolated empty scope
+  ##
+  ## The shared case borrows the parent's context pointer rather than
+  ## copying the table, so an include costs nothing per top-level variable.
   result = new_liquid_vm(bytecode, strings, constants,
-    if shared_scope: vm.variables else: initTable[string, VMValue](),
+    if shared_scope: vm.context else: nil,
     vm.partials)
   if shared_scope:
+    # Carries a {% render %} forloop down through a nested include.
+    result.variables = vm.variables
     result.locals = vm.locals
     result.loop_offsets = vm.loop_offsets
     result.counters = vm.counters
@@ -1289,8 +1301,13 @@ proc execute*(vm: var LiquidVM): string =
 proc render*(bytecode: seq[Instruction], strings: seq[string],
             constants: seq[VMValue], data: Table[string, VMValue],
             partials: Table[string, string] = initTable[string, string]()): string =
-  ## Render a template with the given data
-  var vm = new_liquid_vm(bytecode, strings, constants, data, partials)
+  ## Render a template with the given data.
+  ##
+  ## The VM borrows data and partials for the duration of the call rather
+  ## than copying them, which is why it takes their addresses here: both
+  ## parameters outlive the VM, which dies when this proc returns.
+  var vm = new_liquid_vm(bytecode, strings, constants,
+                         unsafeAddr data, unsafeAddr partials)
   result = vm.execute()
 
 proc render*(bytecode: seq[Instruction], strings: seq[string],
@@ -1302,7 +1319,8 @@ proc render*(bytecode: seq[Instruction], strings: seq[string],
   ## lazy until consumed, and every context access lands in the arena's
   ## access log under whichever consumer the caller has pushed. Overlays
   ## shadow the context root, for per-page values like item and items.
-  var vm = new_liquid_vm(bytecode, strings, constants, overlays, partials,
+  var vm = new_liquid_vm(bytecode, strings, constants,
+                         unsafeAddr overlays, unsafeAddr partials,
                          arena, context_root)
   result = vm.execute()
 
@@ -1594,7 +1612,7 @@ when isMainModule:
       # Render with HTML escaping disabled
       let sections = lex(source)
       let compiled = compile(sections, source)
-      var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)
+      var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, addr data)
       vm.escape_html = false  # Disable HTML escaping
       let output = vm.execute()
       
@@ -1751,7 +1769,7 @@ when isMainModule:
       # Create VM with HTML escaping enabled (not default in Liquid, but available)
       let sections = lex(source)
       let compiled = compile(sections, source)
-      var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)
+      var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, addr data)
       vm.escape_html = true
       let output = vm.execute()
       

@@ -19,7 +19,18 @@ type
     constants*: seq[VMValue]    # Other constants
 
     # Runtime data
-    variables*: Table[string, VMValue]  # User-provided data
+    #
+    # The caller's context, borrowed rather than owned. The VM only ever
+    # reads through it, so a sub-VM for {% include %} shares the parent's
+    # pointer instead of duplicating a table that can hold an entire site's
+    # data. nil when there is no eager context (the arena path, or no data).
+    # It is only valid for the render call it was passed to — a VM must
+    # never outlive the data it borrows.
+    context*: ptr Table[string, VMValue]
+    # Lowest-priority scope the VM owns. Only {% render %} over a
+    # collection writes here, to expose forloop without letting loops
+    # inside the partial pick it up as their parentloop.
+    variables*: Table[string, VMValue]
     locals*: Table[string, VMValue]     # Template-created variables
 
     # Arena-backed context: variable names miss the tables above and then
@@ -47,7 +58,9 @@ type
     loop_offsets*: Table[string, int]  # var_name -> last consumed index
 
     # Template partials (for include/render tags)
-    partials*: Table[string, string]  # partial name -> source
+    # Partial sources, borrowed on the same terms as context: read-only for
+    # the VM's lifetime, shared with every sub-VM. nil when none were given.
+    partials*: ptr Table[string, string]
     partial_cache*: Table[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]]
 
     # Break/continue propagation (for include tag)
