@@ -181,9 +181,20 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
     if name notin c.local_vars:
       c.required_vars.incl(name)
     let stringId = c.intern_string(name)
-    c.emit(Instruction(op: opLoadVar, stringId: stringId))
-    inc pos
-    
+    # Look ahead for `.property` and emit the fused load, which reads the
+    # property without copying the container. Decided here rather than by
+    # rewriting an already-emitted opLoadVar, so the instruction count
+    # never changes under a recorded jump position.
+    if pos + 2 < stop and tokens[pos + 1].kind == tkDot and
+       tokens[pos + 2].kind == tkIdentifier:
+      let prop_name = c.input[tokens[pos + 2].start..<tokens[pos + 2].stop]
+      c.emit(Instruction(op: opLoadProp, varNameId: stringId,
+                         propNameId: c.intern_string(prop_name)))
+      pos += 3
+    else:
+      c.emit(Instruction(op: opLoadVar, stringId: stringId))
+      inc pos
+
   of tkNumber:
     let num_str = c.input[token.start..<token.stop]
     if '.' in num_str:
@@ -494,9 +505,8 @@ proc compile_output(c: var Compiler, section: Section) =
     
     let objId = c.intern_string(objName)
     let propId = c.intern_string(prop_name)
-    
-    c.emit(Instruction(op: opLoadVar, stringId: objId))
-    c.emit(Instruction(op: opGetProp, stringId: propId))
+
+    c.emit(Instruction(op: opLoadProp, varNameId: objId, propNameId: propId))
     c.emit(Instruction(op: opOutput))
     return
   
@@ -1521,12 +1531,11 @@ when isMainModule:
       let source = "{{ user.name }}"
       let result = compileTemplate(source)
       
-      # Should have: LoadVar, GetProp, Output
-      check result.bytecode.len == 3
-      check result.bytecode[0].op == opLoadVar
-      check result.bytecode[1].op == opGetProp
-      check result.bytecode[2].op == opOutput
-      
+      # Variable and property fuse into one instruction
+      check result.bytecode.len == 2
+      check result.bytecode[0].op == opLoadProp
+      check result.bytecode[1].op == opOutput
+
       # Should track required variable
       check "user" in result.variables.required
       check "name" in result.strings
@@ -1641,8 +1650,7 @@ when isMainModule:
       let source = "{% assign fullname = first.name %}{{ fullname }}"
       let result = compileTemplate(source)
       
-      check result.hasInstruction(opLoadVar)   # Load first
-      check result.hasInstruction(opGetProp)   # Get .name
+      check result.hasInstruction(opLoadProp)  # Load first.name
       check result.hasInstruction(opStoreVar)  # Store to fullname
       
       check "first" in result.variables.required
@@ -1778,11 +1786,13 @@ when isMainModule:
       let result = compileTemplate(source)
       
       # Should have all the components
-      check result.hasInstruction(opLoadVar)
+      check result.hasInstruction(opLoadVar)   # items, with no property
+      check result.hasInstruction(opLoadProp)  # item.name, item.price
       check result.hasInstruction(opJumpIfFalse)
       check result.hasInstruction(opBeginLoop)
-      check result.hasInstruction(opGetProp)
-      
+      # Both property reads here fuse, so no bare opGetProp is left
+      check not result.hasInstruction(opGetProp)
+
       check "title" in result.variables.required
       check "items" in result.variables.required
       check "item" in result.variables.locals
@@ -1916,11 +1926,36 @@ when isMainModule:
       let source = "{{ obj.prop }}"
       let result = compileTemplate(source)
       
-      # Should be minimal: LoadVar + GetProp + Output
-      check result.bytecode.len == 3
-      check result.bytecode[0].op == opLoadVar
-      check result.bytecode[1].op == opGetProp
-      check result.bytecode[2].op == opOutput
+      # Should be minimal: the fused load carries both names
+      check result.bytecode.len == 2
+      check result.bytecode[0].op == opLoadProp
+      check result.bytecode[0].varNameId == result.strings.find("obj").uint32
+      check result.bytecode[0].propNameId == result.strings.find("prop").uint32
+      check result.bytecode[1].op == opOutput
+
+    test "Property access inside an expression also fuses":
+      # Not the {{ obj.prop }} fast path — this goes through the general
+      # expression compiler, which looks ahead for the dot.
+      let result = compileTemplate("{% if user.age > 18 %}x{% endif %}")
+      check result.hasInstruction(opLoadProp)
+      check not result.hasInstruction(opGetProp)
+      check "user" in result.variables.required
+
+    test "A property chain fuses only its first step":
+      # a.b.c is one fused load followed by an ordinary property read
+      let result = compileTemplate("{{ a.b.c }}")
+      check result.countInstructions(opLoadProp) == 1
+      check result.countInstructions(opGetProp) == 1
+
+    test "A bare variable still loads without fusing":
+      let result = compileTemplate("{{ name }}")
+      check result.hasInstruction(opLoadVar)
+      check not result.hasInstruction(opLoadProp)
+
+    test "Bracket access does not fuse":
+      let result = compileTemplate("{{ items[0] }}")
+      check not result.hasInstruction(opLoadProp)
+      check result.hasInstruction(opGetIndex)
 
     test "Batch output for consecutive text":
       # When we have multiple text sections, they might be batched

@@ -289,6 +289,112 @@ proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
   vm.counters.withValue(name, found): return VMValue(kind: vmInt, intVal: found[])
   VMValue(kind: vmNull)
 
+proc resolve_var_ref(vm: var LiquidVM, name: string): ptr VMValue =
+  ## A pointer to the variable's own slot, or nil when the name resolves to
+  ## a value that has to be built (loop metadata, a counter, an arena node)
+  ## and so has no slot to point at. Callers that only need to read part of
+  ## a value use this to avoid copying the whole of it; on nil they fall
+  ## back to resolve_var.
+  ##
+  ## The order matches resolve_var exactly, and the two synthesizing cases
+  ## return nil rather than falling through, so they still shadow the
+  ## scopes below them.
+  vm.keyword_args.withValue(name, found): return found
+  if vm.iterators.len > 0 and name == "forloop": return nil
+  if vm.tablerow_iters.len > 0 and name == "tablerowloop": return nil
+  vm.locals[].withValue(name, found): return found
+  if vm.context != nil:
+    vm.context[].withValue(name, found): return found
+  vm.variables.withValue(name, found): return found
+  nil
+
+proc get_property*(vm: LiquidVM, obj: VMValue, prop_name: string): VMValue =
+  ## Read one property off a value: a real member where there is one, then
+  ## the virtual properties Liquid exposes on containers and strings.
+  ## Takes the container by read-only reference, so nothing is copied but
+  ## the property itself.
+  case obj.kind
+  of vmObject:
+    # Check for actual property first
+    if prop_name in obj.objectVal:
+      return obj.objectVal[prop_name]
+    # Fall back to special/virtual properties
+    case prop_name
+    of "size", "length":
+      VMValue(kind: vmInt, intVal: obj.objectVal.len.int64)
+    of "first":
+      # Return first key-value pair as [key, value] array
+      if obj.objectVal.len > 0:
+        var pair = VMValue(kind: vmNull)
+        for k, v in obj.objectVal:
+          pair = VMValue(kind: vmArray, arrayVal: @[
+            VMValue(kind: vmString, stringVal: k), v])
+          break
+        pair
+      else:
+        VMValue(kind: vmNull)
+    else:
+      VMValue(kind: vmNull)
+  of vmArray:
+    # Special array properties
+    case prop_name
+    of "size", "length":
+      VMValue(kind: vmInt, intVal: obj.arrayVal.len.int64)
+    of "first":
+      if obj.arrayVal.len > 0: obj.arrayVal[0]
+      else: VMValue(kind: vmNull)
+    of "last":
+      if obj.arrayVal.len > 0: obj.arrayVal[^1]
+      else: VMValue(kind: vmNull)
+    else:
+      VMValue(kind: vmNull)
+  of vmString:
+    # Special string properties
+    case prop_name
+    of "size", "length":
+      VMValue(kind: vmInt, intVal: obj.stringVal.len.int64)
+    else:
+      VMValue(kind: vmNull)
+  of vmNode:
+    # Lazy container: resolve one edge in the arena, mirroring the
+    # eager branches above, including the virtual properties.
+    let arena = vm.arena
+    let id = NodeId(obj.nodeVal)
+    case arena[].kind(id)
+    of nkObject:
+      let child = arena[].objGet(id, prop_name)
+      if child != InvalidNodeId:
+        vm.wrap_node(child)
+      else:
+        case prop_name
+        of "size", "length":
+          VMValue(kind: vmInt, intVal: arena[].objLen(id).int64)
+        of "first":
+          if arena[].objLen(id) > 0:
+            VMValue(kind: vmArray, arrayVal: @[
+              VMValue(kind: vmString, stringVal: arena[].objGetKey(id, 0)),
+              vm.wrap_node(arena[].objGetVal(id, 0))])
+          else:
+            VMValue(kind: vmNull)
+        else:
+          VMValue(kind: vmNull)
+    of nkArray:
+      case prop_name
+      of "size", "length":
+        VMValue(kind: vmInt, intVal: arena[].arrLen(id).int64)
+      of "first":
+        vm.wrap_node(arena[].arrGetOrMiss(id, 0))
+      of "last":
+        let length = arena[].arrLen(id)
+        if length > 0: vm.wrap_node(arena[].arrGet(id, length - 1))
+        else: VMValue(kind: vmNull)
+      else:
+        VMValue(kind: vmNull)
+    else:
+      VMValue(kind: vmNull)
+  else:
+    VMValue(kind: vmNull)
+
 proc to_int64*(v: VMValue, strict: bool = true): int64 =
   ## Convert a VMValue to int64.
   ## In strict mode (default), raises on incompatible types.
@@ -673,94 +779,22 @@ proc execute*(vm: var LiquidVM): string =
     # Property access
     of opGetProp:
       let obj = vm.pop()
-      let prop_name = vm.strings[inst.stringId]
+      vm.push(vm.get_property(obj, vm.strings[inst.stringId]))
 
-      case obj.kind
-      of vmObject:
-        # Check for actual property first
-        if prop_name in obj.objectVal:
-          vm.push(obj.objectVal[prop_name])
-        else:
-          # Fall back to special/virtual properties
-          case prop_name
-          of "size", "length":
-            vm.push(VMValue(kind: vmInt, intVal: obj.objectVal.len.int64))
-          of "first":
-            # Return first key-value pair as [key, value] array
-            if obj.objectVal.len > 0:
-              for k, v in obj.objectVal:
-                vm.push(VMValue(kind: vmArray, arrayVal: @[
-                  VMValue(kind: vmString, stringVal: k), v]))
-                break
-            else:
-              vm.push(VMValue(kind: vmNull))
-          else:
-            vm.push(VMValue(kind: vmNull))
-      of vmArray:
-        # Special array properties
-        case prop_name
-        of "size", "length":
-          vm.push(VMValue(kind: vmInt, intVal: obj.arrayVal.len.int64))
-        of "first":
-          if obj.arrayVal.len > 0:
-            vm.push(obj.arrayVal[0])
-          else:
-            vm.push(VMValue(kind: vmNull))
-        of "last":
-          if obj.arrayVal.len > 0:
-            vm.push(obj.arrayVal[^1])
-          else:
-            vm.push(VMValue(kind: vmNull))
-        else:
-          vm.push(VMValue(kind: vmNull))
-      of vmString:
-        # Special string properties
-        case prop_name
-        of "size", "length":
-          vm.push(VMValue(kind: vmInt, intVal: obj.stringVal.len.int64))
-        else:
-          vm.push(VMValue(kind: vmNull))
-      of vmNode:
-        # Lazy container: resolve one edge in the arena, mirroring the
-        # eager branches above, including the virtual properties.
-        let arena = vm.arena
-        let id = NodeId(obj.nodeVal)
-        case arena[].kind(id)
-        of nkObject:
-          let child = arena[].objGet(id, prop_name)
-          if child != InvalidNodeId:
-            vm.push(vm.wrap_node(child))
-          else:
-            case prop_name
-            of "size", "length":
-              vm.push(VMValue(kind: vmInt, intVal: arena[].objLen(id).int64))
-            of "first":
-              if arena[].objLen(id) > 0:
-                vm.push(VMValue(kind: vmArray, arrayVal: @[
-                  VMValue(kind: vmString, stringVal: arena[].objGetKey(id, 0)),
-                  vm.wrap_node(arena[].objGetVal(id, 0))]))
-              else:
-                vm.push(VMValue(kind: vmNull))
-            else:
-              vm.push(VMValue(kind: vmNull))
-        of nkArray:
-          case prop_name
-          of "size", "length":
-            vm.push(VMValue(kind: vmInt, intVal: arena[].arrLen(id).int64))
-          of "first":
-            vm.push(vm.wrap_node(arena[].arrGetOrMiss(id, 0)))
-          of "last":
-            let length = arena[].arrLen(id)
-            if length > 0:
-              vm.push(vm.wrap_node(arena[].arrGet(id, length - 1)))
-            else:
-              vm.push(VMValue(kind: vmNull))
-          else:
-            vm.push(VMValue(kind: vmNull))
-        else:
-          vm.push(VMValue(kind: vmNull))
+    of opLoadProp:
+      # Fused variable-then-property read. Resolving to the variable's slot
+      # lets the property come out of the container in place; loading the
+      # variable onto the stack first would copy the whole container just
+      # to read one field out of it and throw the rest away.
+      let name = vm.strings[inst.varNameId]
+      let prop_name = vm.strings[inst.propNameId]
+      let slot = vm.resolve_var_ref(name)
+      if slot != nil:
+        vm.push(vm.get_property(slot[], prop_name))
       else:
-        vm.push(VMValue(kind: vmNull))
+        # Synthesized or arena-resolved: no stable slot to point at.
+        let obj = vm.resolve_var(name)
+        vm.push(vm.get_property(obj, prop_name))
 
     # Output operations
     of opOutput:

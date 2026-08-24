@@ -23,6 +23,11 @@ type
 
     # Property/Index Access
     opGetProp            # Get property: [stringId]
+    opLoadProp           # Load variable's property: [varNameId, propNameId]
+                         # Fuses opLoadVar + opGetProp, the commonest shape
+                         # in a template. Reads the property out of the
+                         # variable in place rather than copying the whole
+                         # container onto the stack to read one field.
     opGetIndex           # Get array/object index (key on stack)
 
     # Output Operations
@@ -89,6 +94,9 @@ type
       floatVal*: float64
     of opPushString, opLoadVar, opStoreVar, opGetProp, opBatchOutput:
       stringId*: uint32
+    of opLoadProp:
+      varNameId*: uint32
+      propNameId*: uint32
     of opJump, opJumpIfFalse, opJumpIfTrue:
       offset*: int32
     of opCallFilter:
