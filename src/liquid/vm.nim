@@ -212,6 +212,36 @@ proc build_forloop*(idx0, length: int, name: string, parent: VMValue): VMValue =
     obj["parentloop"] = vm_null()
   vm_object(obj)
 
+proc build_tablerowloop*(idx, total, cols: int): VMValue =
+  ## Build a tablerowloop helper object for Liquid {% tablerow %} tags.
+  ## An exhausted or empty tablerow still has to describe a cell without
+  ## dividing by zero, hence the floor of one column.
+  let effective_cols = if cols > 0: cols elif total > 0: total else: 1
+  let col0 = idx mod effective_cols
+  vm_object({
+    "col": vm_int((col0 + 1).int64),
+    "col0": vm_int(col0.int64),
+    "col_first": vm_bool(col0 == 0),
+    "col_last": vm_bool(col0 == effective_cols - 1 or idx == total - 1),
+    "first": vm_bool(idx == 0),
+    "index": vm_int((idx + 1).int64),
+    "index0": vm_int(idx.int64),
+    "last": vm_bool(idx == total - 1),
+    "length": vm_int(total.int64),
+    "rindex": vm_int((total - idx).int64),
+    "rindex0": vm_int((total - idx - 1).int64),
+    "row": vm_int(((idx div effective_cols) + 1).int64),
+  }.toOrderedTable)
+
+proc current_tablerowloop(vm: var LiquidVM): VMValue =
+  ## The innermost active tablerow's cell metadata, cached per cell.
+  let state = addr vm.tablerow_iters[^1]
+  if not state.tablerowloop_valid:
+    state.tablerowloop_cache =
+      build_tablerowloop(state.index, state.items.len, state.cols)
+    state.tablerowloop_valid = true
+  state.tablerowloop_cache
+
 proc current_forloop(vm: var LiquidVM): VMValue =
   ## The innermost active loop's metadata, built on first ask and cached
   ## until the iteration advances. Most loop bodies never mention forloop,
@@ -240,6 +270,8 @@ proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
   vm.keyword_args.withValue(name, found): return found[]
   if vm.iterators.len > 0 and name == "forloop":
     return vm.current_forloop()
+  if vm.tablerow_iters.len > 0 and name == "tablerowloop":
+    return vm.current_tablerowloop()
   vm.locals.withValue(name, found): return found[]
   if vm.context != nil:
     vm.context[].withValue(name, found): return found[]
@@ -495,35 +527,14 @@ proc tag_tablerow_begin(vm: var LiquidVM, inst: Instruction) =
     items = items[0..<limit_val]
 
   if items.len == 0:
-    let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
     vm.tablerow_iters.add(TablerowState(
       items: @[], index: 0, cols: cols_val,
-      var_name: vm.strings[var_index],
-      saved_tablerowloop: saved_trl))
+      var_name: vm.strings[var_index]))
   else:
-    let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
     let var_name = vm.strings[var_index]
     vm.tablerow_iters.add(TablerowState(
-      items: items, index: 0, cols: cols_val,
-      var_name: var_name, saved_tablerowloop: saved_trl))
+      items: items, index: 0, cols: cols_val, var_name: var_name))
     vm.locals[var_name] = items[0]
-
-    let total = items.len
-    let effective_cols = if cols_val > 0: cols_val else: total
-    var trl = initOrderedTable[string, VMValue]()
-    trl["col"] = vm_int(1)
-    trl["col0"] = vm_int(0)
-    trl["col_first"] = vm_bool(true)
-    trl["col_last"] = vm_bool(0 == effective_cols - 1 or 0 == total - 1)
-    trl["first"] = vm_bool(true)
-    trl["index"] = vm_int(1)
-    trl["index0"] = vm_int(0)
-    trl["last"] = vm_bool(total == 1)
-    trl["length"] = vm_int(total.int64)
-    trl["rindex"] = vm_int(total.int64)
-    trl["rindex0"] = vm_int((total - 1).int64)
-    trl["row"] = vm_int(1)
-    vm.locals["tablerowloop"] = vm_object(trl)
     vm.emit_output("<tr class=\"row1\">\n<td class=\"col1\">")
 
 proc tag_tablerow_iter(vm: var LiquidVM, inst: Instruction) =
@@ -537,22 +548,15 @@ proc tag_tablerow_iter(vm: var LiquidVM, inst: Instruction) =
   else:
     let state = addr vm.tablerow_iters[^1]
     if state.items.len == 0:
-      if state.saved_tablerowloop.kind != vm_null:
-        vm.locals["tablerowloop"] = state.saved_tablerowloop
-      else:
-        vm.locals.del("tablerowloop")
       vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
       vm.pc += end_offset
     else:
       vm.emit_output("</td>")
       state.index += 1
+      state.tablerowloop_valid = false
       if state.index >= state.items.len:
         vm.emit_output("</tr>\n")
         vm.locals.del(state.var_name)
-        if state.saved_tablerowloop.kind != vm_null:
-          vm.locals["tablerowloop"] = state.saved_tablerowloop
-        else:
-          vm.locals.del("tablerowloop")
         vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
         vm.pc += end_offset
       else:
@@ -568,20 +572,6 @@ proc tag_tablerow_iter(vm: var LiquidVM, inst: Instruction) =
         html.add("<td class=\"col" & $col & "\">")
         vm.emit_output(html)
         vm.locals[state.var_name] = state.items[idx]
-        var trl = initOrderedTable[string, VMValue]()
-        trl["col"] = vm_int(col.int64)
-        trl["col0"] = vm_int(col0.int64)
-        trl["col_first"] = vm_bool(col0 == 0)
-        trl["col_last"] = vm_bool(col0 == effective_cols - 1 or idx == total - 1)
-        trl["first"] = vm_bool(idx == 0)
-        trl["index"] = vm_int((idx + 1).int64)
-        trl["index0"] = vm_int(idx.int64)
-        trl["last"] = vm_bool(idx == total - 1)
-        trl["length"] = vm_int(total.int64)
-        trl["rindex"] = vm_int((total - idx).int64)
-        trl["rindex0"] = vm_int((total - idx - 1).int64)
-        trl["row"] = vm_int(row.int64)
-        vm.locals["tablerowloop"] = vm_object(trl)
         vm.pc += body_offset
 
 proc register_liquid_tag_handlers*(vm: var LiquidVM) =

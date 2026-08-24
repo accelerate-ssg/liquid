@@ -98,7 +98,10 @@ type
     index*: int          # Current item index (0-based)
     cols*: int           # Number of columns (0 = unlimited)
     var_name*: string    # Loop variable name
-    saved_tablerowloop*: VMValue  # Saved tablerowloop from before this tablerow
+    # Built on demand like forloop, and for the same reason: a tablerow
+    # body that never mentions tablerowloop should not pay to describe it.
+    tablerowloop_cache*: VMValue
+    tablerowloop_valid*: bool
 
   Iterator* = object
     items*: seq[VMValue]
