@@ -9,3 +9,5 @@
 
 nimcache/
 test/golden_liquid
+test/bench_vm
+test/bench_compare
