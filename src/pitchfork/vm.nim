@@ -130,7 +130,8 @@ proc liquid_compare(a, b: VMValue): int =
     return cmp(a.floatVal, b.intVal.float64)
   if a.kind == vmString and b.kind == vmString:
     return cmp(a.stringVal, b.stringVal)
-  raise newException(ValueError, "comparison of incompatible types")
+  raise newException(ValueError,
+    "comparison of incompatible types: " & $a.kind & " <=> " & $b.kind)
 
 proc escape_html_str(s: string): string =
   result = newStringOfCap(s.len + 10)
@@ -152,19 +153,22 @@ template emit_output*(vm: var VM, str: string) =
   else:
     vm.output.add(str)
 
-proc resolve_var*(vm: VM, name: string): VMValue =
+proc resolve_var*(vm: var VM, name: string): VMValue =
   ## Resolve a variable name through the scope chain:
   ## keyword_args → locals → variables → counters → null
-  if name in vm.keyword_args:
-    vm.keyword_args[name]
-  elif name in vm.locals:
-    vm.locals[name]
-  elif name in vm.variables:
-    vm.variables[name]
-  elif name in vm.counters:
-    VMValue(kind: vmInt, intVal: vm.counters[name])
-  else:
-    VMValue(kind: vmNull)
+  ##
+  ## One probe per scope level: `in` followed by `[]` hashed the name and
+  ## walked each table twice. Order is preserved — presence decides, so a
+  ## level holding an explicit null still shadows the levels below it.
+  vm.keyword_args.withValue(name, found):
+    return found[]
+  vm.locals.withValue(name, found):
+    return found[]
+  vm.variables.withValue(name, found):
+    return found[]
+  vm.counters.withValue(name, found):
+    return VMValue(kind: vmInt, intVal: found[])
+  VMValue(kind: vmNull)
 
 proc to_int64*(v: VMValue, strict: bool = true): int64 =
   ## Convert a VMValue to int64.
@@ -579,12 +583,16 @@ proc execute*(vm: var VM): string =
           vm.escape_html = vm.capture_escape_stack.pop()
     
     of opCallTag:
-      # Runtime dispatch to registered tag handler
-      let tag_name = vm.strings[inst.tagId]
-      if tag_name in vm.tag_handlers:
-        vm.tag_handlers[tag_name](vm, inst)
-      else:
-        raise newException(CatchableError, "Unknown tag handler: " & tag_name)
+      # Runtime dispatch to registered tag handler. One probe of the
+      # registry, not two — and the name is read out of the string pool
+      # only on the error path.
+      var handler: TagRuntimeHandler = nil
+      vm.tag_handlers.withValue(vm.strings[inst.tagId], found):
+        handler = found[]
+      if handler.isNil:
+        raise newException(CatchableError,
+          "Unknown tag handler: " & vm.strings[inst.tagId])
+      handler(vm, inst)
 
     of opBeginBlankCheck:
       # Record current output position for blank detection
@@ -987,8 +995,6 @@ proc execute*(vm: var VM): string =
 
     # Filters
     of opCallFilter:
-      let filter_name = vm.strings[inst.filterId]
-
       # Pop arguments (they were pushed in order during compilation)
       var args: seq[VMValue] = @[]
       for i in uint8(0)..<inst.argCount:
@@ -1002,14 +1008,10 @@ proc execute*(vm: var VM): string =
       let value = vm.pop()
       vm.pop_and_record()  # Record the value's path
 
-      # Apply filter using the filters module
-      try:
-        let filter_result = apply_filter(value, filter_name, args)
-        vm.push(filter_result)
-        vm.push_path("")  # Filter result is computed, not direct context
-      except Exception as e:
-        echo "Filter error: ", e.msg
-        raise e  # Re-throw the exception so tests can catch it
+      # A filter error propagates to the caller as-is; a library must not
+      # echo to the host program's console on the way out.
+      vm.push(apply_filter(value, vm.strings[inst.filterId], args))
+      vm.push_path("")  # Filter result is computed, not direct context
     
     of opRange:
       # Create a range from start..end (lenient: bad values become 0)
