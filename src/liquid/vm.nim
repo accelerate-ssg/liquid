@@ -189,22 +189,23 @@ template emit_output(vm: var LiquidVM, str: string) =
   else:
     vm.output.add(str)
 
-proc resolve_var*(vm: LiquidVM, name: string): VMValue =
+proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
   ## Resolve a variable name through the scope chain:
   ## keyword_args → locals → variables → arena context → counters → null
-  if name in vm.keyword_args:
-    vm.keyword_args[name]
-  elif name in vm.locals:
-    vm.locals[name]
-  elif name in vm.variables:
-    vm.variables[name]
-  elif vm.arena != nil and vm.context_root != InvalidNodeId and
-       (let child = vm.arena[].objGet(vm.context_root, name); child != InvalidNodeId):
-    vm.wrap_node(child)
-  elif name in vm.counters:
-    VMValue(kind: vmInt, intVal: vm.counters[name])
-  else:
-    VMValue(kind: vmNull)
+  ##
+  ## Each level uses withValue rather than `in` followed by `[]`: the pair
+  ## hashes the name and probes the table twice for every level that hits.
+  ## A level that holds an explicit null must still shadow the levels below
+  ## it, so getOrDefault is not an option — presence is what we test.
+  vm.keyword_args.withValue(name, found): return found[]
+  vm.locals.withValue(name, found): return found[]
+  vm.variables.withValue(name, found): return found[]
+  if vm.arena != nil and vm.context_root != InvalidNodeId:
+    let child = vm.arena[].objGet(vm.context_root, name)
+    if child != InvalidNodeId:
+      return vm.wrap_node(child)
+  vm.counters.withValue(name, found): return VMValue(kind: vmInt, intVal: found[])
+  VMValue(kind: vmNull)
 
 proc to_int64*(v: VMValue, strict: bool = true): int64 =
   ## Convert a VMValue to int64.
