@@ -6,6 +6,12 @@ type
   # Tag runtime handler (forward declaration for VM)
   TagRuntimeHandler* = proc(vm: var VM, inst: Instruction) {.nimcall.}
 
+  CompiledPartial* = object
+    ## A partial compiled once and reused by every include that names it.
+    bytecode*: seq[Instruction]
+    strings*: seq[string]
+    constants*: seq[VMValue]
+
   # Runtime VM for executing templates. Language-agnostic: template-language
   # specifics arrive via tag_handlers, the filter registry, and partial_compiler.
   VM* = object
@@ -25,7 +31,10 @@ type
     # and a sub-VM inside its parent's. nil when no context was given.
     context*: ptr Table[string, VMValue]
     variables*: Table[string, VMValue]  # VM-owned scope (e.g. a {% render %}-bound forloop)
-    locals*: Table[string, VMValue]     # Template-created variables
+    # Template-created variables, shared by reference with every
+    # shared-scope sub-VM: an include used to copy the whole table in and
+    # back out again, so its cost scaled with the caller's scope.
+    locals*: TableRef[string, VMValue]
     
     # Iteration state
     iterators*: seq[Iterator]   # Stack of active iterators
@@ -44,14 +53,21 @@ type
     
     # Filters are now handled by the filters module
 
-    # Loop continuation tracking (for offset: continue)
-    loop_offsets*: Table[string, int]  # var_name -> last consumed index
+    # Loop continuation tracking (for offset: continue), shared with
+    # sub-VMs on the same terms as locals.
+    loop_offsets*: TableRef[string, int]  # var_name -> last consumed index
 
     # Partial sources, borrowed on the same terms as context: read-only
     # for the VM's lifetime, shared with every sub-VM. nil when none were
     # given.
     partials*: ptr Table[string, string]  # partial name -> source
-    partial_cache*: Table[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]]
+    # Compiled partials, memoised by name (and indent) and shared by
+    # reference with every sub-VM. Copying it per include meant
+    # deep-copying the bytecode of every partial already compiled —
+    # including ones this include does not render — in and back out
+    # again. Nothing about a name-keyed memo is observable through
+    # aliasing.
+    partial_cache*: TableRef[string, CompiledPartial]
     partial_compiler*: TemplateCompiler  # Compiles partial source in the template's language
 
     # Tag runtime handlers (for externalized tag implementations)

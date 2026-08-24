@@ -40,6 +40,12 @@ proc new_vm*(bytecode: seq[Instruction], strings: seq[string],
     context: context,
     partials: partials,
   )
+  # `new` rather than newTable: the shared tables need a cell to share,
+  # but not the 32 slots newTable would allocate up front. The table
+  # inside fills itself on first insert, and most of these stay empty.
+  new(result.locals)
+  new(result.loop_offsets)
+  new(result.partial_cache)
 
 # Stack operations
 template push*(vm: var VM, val: VMValue) =
@@ -166,7 +172,7 @@ proc resolve_var*(vm: var VM, name: string): VMValue =
   ## level holding an explicit null still shadows the levels below it.
   vm.keyword_args.withValue(name, found):
     return found[]
-  vm.locals.withValue(name, found):
+  vm.locals[].withValue(name, found):
     return found[]
   if vm.context != nil:
     vm.context[].withValue(name, found):
@@ -269,7 +275,8 @@ proc compile_partial*(vm: var VM, name: string, indent: string = ""):
       raise newException(CatchableError,
         "Cannot compile partial '" & name & "': no partial_compiler set on VM")
     let compiled = vm.partial_compiler(indent_lines(vm.partials[][name], indent))
-    vm.partial_cache[cache_key] = (compiled.bytecode, compiled.strings, compiled.constants)
+    vm.partial_cache[cache_key] = CompiledPartial(bytecode: compiled.bytecode,
+      strings: compiled.strings, constants: compiled.constants)
   let cached = vm.partial_cache[cache_key]
   result = (cached.bytecode, cached.strings, cached.constants, true)
 
@@ -288,6 +295,11 @@ proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
     vm.partials)
   if shared_scope:
     # Carries a {% render %} forloop down through a nested include.
+    # locals and loop_offsets share by reference; counters is
+    # deliberately still copied: the {% include 'x' for collection %}
+    # path discards the partial's counters per iteration, so sharing
+    # them would make {% increment %} inside such a partial persist
+    # across iterations.
     result.variables = vm.variables
     result.locals = vm.locals
     result.loop_offsets = vm.loop_offsets
@@ -303,10 +315,11 @@ proc propagate_scope*(vm: var VM, sub: VM,
   ## Propagate state from sub-VM back to parent.
   ## Only propagates for include (shared_scope=true).
   ## propagate_control=true also copies counters and break/continue flags.
-  vm.partial_cache = sub.partial_cache
+  ##
+  ## The partial cache, locals, and loop_offsets need no write-back:
+  ## parent and sub-VM share those tables, so anything the partial wrote
+  ## is already visible here.
   if shared_scope:
-    vm.locals = sub.locals
-    vm.loop_offsets = sub.loop_offsets
     if propagate_control:
       vm.counters = sub.counters
       if sub.pending_break: vm.pending_break = true
