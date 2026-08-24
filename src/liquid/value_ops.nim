@@ -20,20 +20,32 @@ proc float_to_string*(f: float64): string =
     dec i
   if i > 0 and result[i] == '.':
     inc i  # Keep at least "X.0"
-  result = result[0..i]
+  # Truncating in place; slicing would allocate a second string and copy
+  # the kept prefix into it.
+  result.setLen(i + 1)
+
+proc add_to_string*(dest: var string, v: VMValue) =
+  ## Append a value's rendering to dest. This is the primitive; to_string
+  ## is the same walk into a fresh buffer. Rendering straight into the
+  ## destination is what lets output avoid an intermediate string per
+  ## value — and, for an array, one per element on top of that.
+  case v.kind
+  of vmNull: discard
+  of vmBool: dest.add(if v.boolVal: "true" else: "false")
+  of vmInt: dest.addInt(v.intVal)
+  of vmFloat: dest.add(float_to_string(v.floatVal))
+  of vmString: dest.add(v.stringVal)
+  of vmArray:
+    for item in v.arrayVal:
+      dest.add_to_string(item)
+  of vmObject: dest.add("{}")
+  else: discard
 
 proc to_string*(v: VMValue): string =
-  case v.kind
-  of vmNull: ""
-  of vmBool:
-    if v.boolVal: "true" else: "false"
-  of vmInt: $v.intVal
-  of vmFloat: float_to_string(v.floatVal)
-  of vmString: v.stringVal
-  of vmArray:
-    v.arrayVal.map(to_string).join("")
-  of vmObject: "{}"
-  else: ""
+  if v.kind == vmString:
+    result = v.stringVal
+  else:
+    result.add_to_string(v)
 
 # Enhanced macro that registers the filter and adds argument validation
 macro create_filter*(body: untyped): untyped =

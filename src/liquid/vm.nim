@@ -747,21 +747,23 @@ proc execute*(vm: var LiquidVM): string =
 
     # Output operations
     of opOutput:
-      # Regular output is for expressions - escape based on setting.
+      # Values render straight into the target buffer. Going through
+      # to_string first copied the value's text once to build the string
+      # and again to append it; an integer allocated a string just to be
+      # thrown away. Only escaping still needs an intermediate, and it is
+      # off by default.
+      var val = vm.pop()
       # Lazy values materialize here: stringification consumes the value.
-      let val = vm.materialize(vm.pop())
-      let str = val.to_string()
-      
+      if val.kind == vmNode:
+        val = vm.materialize_node(NodeId(val.nodeVal))
+
       if vm.is_capturing:
         # When capturing, store raw (escaping happens on final output)
-        vm.capture_stack[^1].add(str)
+        vm.capture_stack[^1].add_to_string(val)
+      elif vm.escape_html:
+        vm.output.add(val.to_string().escape_html_str())
       else:
-        # Escape if enabled (default true for safety)
-        let output_str = if vm.escape_html:
-          str.escape_html_str()
-        else:
-          str
-        vm.output.add(output_str)
+        vm.output.add_to_string(val)
       
     of opBatchOutput:
       # Literal template text - NEVER escape
@@ -1311,7 +1313,10 @@ proc execute*(vm: var LiquidVM): string =
       raise newException(CatchableError,
         "Unimplemented opcode: " & $inst.op)
 
-  result = vm.output
+  # Hand the buffer over rather than copying the whole rendered page: the
+  # VM takes a var parameter, so ARC cannot infer the move on its own, and
+  # no caller reads output after execute returns.
+  result = move(vm.output)
 
 # Public API
 proc render*(bytecode: seq[Instruction], strings: seq[string],
