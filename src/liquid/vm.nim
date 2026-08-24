@@ -806,12 +806,16 @@ proc execute*(vm: var LiquidVM): string =
           vm.escape_html = vm.capture_escape_stack.pop()
     
     of opCallTag:
-      # Runtime dispatch to registered tag handler
-      let tag_name = vm.strings[inst.tagId]
-      if tag_name in vm.tag_handlers:
-        vm.tag_handlers[tag_name](vm, inst)
+      # Runtime dispatch to registered tag handler. One probe, and the name
+      # is only copied out of the pool on the error path.
+      var handler: TagRuntimeHandler = nil
+      vm.tag_handlers.withValue(vm.strings[inst.tagId], found):
+        handler = found[]
+      if handler != nil:
+        handler(vm, inst)
       else:
-        raise newException(CatchableError, "Unknown tag handler: " & tag_name)
+        raise newException(CatchableError,
+          "Unknown tag handler: " & vm.strings[inst.tagId])
 
     of opBeginBlankCheck:
       # Record current output position for blank detection
@@ -1208,8 +1212,6 @@ proc execute*(vm: var LiquidVM): string =
 
     # Filters
     of opCallFilter:
-      let filter_name = vm.strings[inst.filterId]
-
       # Pop arguments (they were pushed in order during compilation)
       var args: seq[VMValue] = @[]
       for i in uint8(0)..<inst.argCount:
@@ -1220,18 +1222,18 @@ proc execute*(vm: var LiquidVM): string =
 
       # Pop the value to filter. Filters have no arena access, so lazy
       # values (and lazy arguments) materialize at this boundary — the
-      # filter consumes the whole value anyway.
-      let value = vm.materialize(vm.pop())
+      # filter consumes the whole value anyway. Materializing in place
+      # keeps the eager case a move rather than a copy.
+      var value = vm.pop()
+      if value.kind == vmNode:
+        value = vm.materialize_node(NodeId(value.nodeVal))
       for i in 0 ..< args.len:
-        args[i] = vm.materialize(args[i])
+        if args[i].kind == vmNode:
+          args[i] = vm.materialize_node(NodeId(args[i].nodeVal))
 
-      # Apply filter using the filters module
-      try:
-        let filter_result = apply_filter(value, filter_name, args)
-        vm.push(filter_result)
-      except Exception as e:
-        echo "Filter error: ", e.msg
-        raise e  # Re-throw the exception so tests can catch it
+      # The name is read straight out of the pool; binding it to a local
+      # would copy the string on every filter call.
+      vm.push(apply_filter(value, vm.strings[inst.filterId], args))
     
     of opRange:
       # Create a range from start..end (lenient: bad values become 0)

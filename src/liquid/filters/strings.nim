@@ -2,6 +2,12 @@ import strutils, base64, xmltree, sequtils, re
 
 import ../value_ops
 
+# Compiled once. Nim's `re` is a runtime proc with no cache of its own, so
+# a pattern written inline in a filter body is compiled and studied again
+# on every call — which for these two filters cost more than the match.
+let non_handle_chars = re"[^-\w]"
+let html_tag = re"<[^>]*>"
+
 
 # Appends a string to another string
 create_filter:
@@ -89,7 +95,7 @@ create_filter:
       return value
     var str = value.stringVal.toLower()
     str = strutils.replace(str, " ", "-")
-    str = re.replace(str, re"[^-\w]", "")
+    str = re.replace(str, non_handle_chars, "")
     result = VMValue(kind: vmString, stringVal: str)
 
 # Strips all leading and trailing whitespace from a string
@@ -253,7 +259,7 @@ create_filter:
     if value.kind != vmString:
       return value
     # Simple HTML tag removal
-    let stripped = re.replace(value.stringVal, re"<[^>]*>", "")
+    let stripped = re.replace(value.stringVal, html_tag, "")
     result = VMValue(kind: vmString, stringVal: stripped)
 
 # Strips newlines from a string
