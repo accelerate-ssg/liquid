@@ -163,15 +163,94 @@ template emit_output*(vm: var VM, str: string) =
   else:
     vm.output.add(str)
 
+proc build_forloop*(idx0, length: int, name: string, parent: VMValue,
+                    key: VMValue = vm_null()): VMValue =
+  ## Build a forloop helper object for loops ({% for %}, Mustache sections,
+  ## Handlebars #each). key carries the object key when iterating an object
+  ## as values (Handlebars @key).
+  var obj = {
+    "index": vm_int((idx0 + 1).int64),
+    "index0": vm_int(idx0.int64),
+    "first": vm_bool(idx0 == 0),
+    "last": vm_bool(idx0 == length - 1),
+    "length": vm_int(length.int64),
+    "rindex": vm_int((length - idx0).int64),
+    "rindex0": vm_int((length - idx0 - 1).int64),
+    "name": vm_string(name),
+  }.toTable
+  if key.kind != vm_null:
+    obj["key"] = key
+  if parent.kind != vm_null:
+    obj["parentloop"] = parent
+  else:
+    obj["parentloop"] = vm_null()
+  vm_object(obj)
+
+proc build_tablerowloop*(idx, total, cols: int): VMValue =
+  ## Build a tablerowloop helper object for Liquid {% tablerow %} tags.
+  ## An exhausted or empty tablerow still has to describe a cell without
+  ## dividing by zero, hence the floor of one column.
+  let effective_cols = if cols > 0: cols elif total > 0: total else: 1
+  let col0 = idx mod effective_cols
+  vm_object({
+    "col": vm_int((col0 + 1).int64),
+    "col0": vm_int(col0.int64),
+    "col_first": vm_bool(col0 == 0),
+    "col_last": vm_bool(col0 == effective_cols - 1 or idx == total - 1),
+    "first": vm_bool(idx == 0),
+    "index": vm_int((idx + 1).int64),
+    "index0": vm_int(idx.int64),
+    "last": vm_bool(idx == total - 1),
+    "length": vm_int(total.int64),
+    "rindex": vm_int((total - idx).int64),
+    "rindex0": vm_int((total - idx - 1).int64),
+    "row": vm_int(((idx div effective_cols) + 1).int64),
+  }.toOrderedTable)
+
+proc current_tablerowloop(vm: var VM): VMValue =
+  ## The innermost active tablerow's cell metadata, cached per cell.
+  let state = addr vm.tablerow_iters[^1]
+  if not state.tablerowloop_valid:
+    state.tablerowloop_cache =
+      build_tablerowloop(state.index, state.items.len, state.cols)
+    state.tablerowloop_valid = true
+  state.tablerowloop_cache
+
+proc current_forloop(vm: var VM): VMValue =
+  ## The innermost active loop's metadata, built on first ask and cached
+  ## until the iteration advances. Most loop bodies never mention forloop,
+  ## and building the object cost more than the rest of an iteration, so
+  ## the loop itself no longer builds one.
+  let iter = addr vm.iterators[^1]
+  if not iter.forloop_valid:
+    let idx0 = iter.index - 1
+    let key = if idx0 >= 0 and idx0 < iter.keys.len: vm_string(iter.keys[idx0])
+              else: vm_null()
+    iter.forloop_cache = build_forloop(idx0, iter.items.len,
+                                       iter.loop_name, iter.saved_forloop, key)
+    iter.forloop_valid = true
+  iter.forloop_cache
+
 proc resolve_var*(vm: var VM, name: string): VMValue =
   ## Resolve a variable name through the scope chain:
-  ## keyword_args → locals → context → variables → counters → null
+  ## keyword_args → active loop → locals → context → variables →
+  ## counters → null
   ##
   ## One probe per scope level: `in` followed by `[]` hashed the name and
   ## walked each table twice. Order is preserved — presence decides, so a
   ## level holding an explicit null still shadows the levels below it.
+  ##
+  ## An active loop outranks locals because the loop used to overwrite
+  ## locals["forloop"] on every iteration, so it won there too. Gated on
+  ## builds_forloop so a tine whose loops never expose forloop (Mustache)
+  ## keeps resolving a data key literally named "forloop" normally.
   vm.keyword_args.withValue(name, found):
     return found[]
+  if vm.iterators.len > 0 and vm.iterators[^1].builds_forloop and
+     name == "forloop":
+    return vm.current_forloop()
+  if vm.tablerow_iters.len > 0 and name == "tablerowloop":
+    return vm.current_tablerowloop()
   vm.locals[].withValue(name, found):
     return found[]
   if vm.context != nil:
@@ -202,41 +281,15 @@ proc to_int64*(v: VMValue, strict: bool = true): int64 =
       raise newException(ValueError, "expected a number, got " & $v.kind)
     else: 0'i64
 
-proc build_forloop*(idx0, length: int, name: string, parent: VMValue,
-                    key: VMValue = vm_null()): VMValue =
-  ## Build a forloop helper object for loops ({% for %}, Mustache sections,
-  ## Handlebars #each). key carries the object key when iterating an object
-  ## as values (Handlebars @key).
-  var obj = {
-    "index": vm_int((idx0 + 1).int64),
-    "index0": vm_int(idx0.int64),
-    "first": vm_bool(idx0 == 0),
-    "last": vm_bool(idx0 == length - 1),
-    "length": vm_int(length.int64),
-    "rindex": vm_int((length - idx0).int64),
-    "rindex0": vm_int((length - idx0 - 1).int64),
-    "name": vm_string(name),
-  }.toTable
-  if key.kind != vm_null:
-    obj["key"] = key
-  if parent.kind != vm_null:
-    obj["parentloop"] = parent
-  else:
-    obj["parentloop"] = vm_null()
-  vm_object(obj)
-
 proc finish_iterator*(vm: var VM, iter_index: int = -1) =
-  ## Clean up a finished iterator: save offset, remove from stack,
-  ## restore parent forloop, delete loop variable from locals
+  ## Clean up a finished iterator: save offset, remove from stack, delete
+  ## loop variable from locals. The enclosing loop's forloop needs no
+  ## restoring — popping this iterator is what brings it back into view.
   let idx = if iter_index < 0: vm.iterators.len - 1 else: iter_index
   let finished = vm.iterators[idx]
   vm.loop_offsets[finished.var_name] = finished.original_offset + finished.items.len
   vm.iterators.delete(idx)
   vm.locals.del(finished.var_name)
-  if finished.saved_forloop.kind != vm_null:
-    vm.locals["forloop"] = finished.saved_forloop
-  else:
-    vm.locals.del("forloop")
 
 proc indent_lines(s, indent: string): string =
   ## Prepend indent to every line of s (Mustache standalone-partial
@@ -739,8 +792,18 @@ proc execute*(vm: var VM): string =
       if inst.isReversed:
         items.reverse()
 
-      # Save current forloop value in the iterator for nesting restore
-      let saved_fl = if "forloop" in vm.locals: vm.locals["forloop"] else: vm_null()
+      # Snapshot the enclosing loop's forloop as parentloop, once per
+      # loop, not once per iteration: the parent cannot advance while
+      # this loop runs.
+      #
+      # Deliberately not a full resolve_var — a forloop bound by an
+      # enclosing {% render %} lives in variables precisely so that loops
+      # inside the partial do not adopt it as their parentloop.
+      let saved_fl =
+        if vm.iterators.len > 0 and vm.iterators[^1].builds_forloop:
+          vm.current_forloop()
+        else:
+          vm.locals.getOrDefault("forloop", vm_null())
 
       # Get loop name from instruction
       let loop_name = if inst.loopNameId >= 0: vm.strings[inst.loopNameId] else: ""
@@ -771,10 +834,9 @@ proc execute*(vm: var VM): string =
             vm.push(iter.items[iter.index])
             vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
-            if iter.builds_forloop:
-              let idx0 = iter.index - 1
-              let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
-              vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
+            # Metadata is built lazily by the first forloop lookup of the
+            # new iteration.
+            iter.forloop_valid = false
           else:
             vm.finish_iterator()
             vm.pc += inst.endOffset
@@ -785,10 +847,9 @@ proc execute*(vm: var VM): string =
             vm.push(iter.items[iter.index])
             vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
-            if iter.builds_forloop:
-              let idx0 = iter.index - 1
-              let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
-              vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
+            # Metadata is built lazily by the first forloop lookup of the
+            # new iteration.
+            iter.forloop_valid = false
           else:
             let wasEmpty = iter.index == 0
             vm.finish_iterator()

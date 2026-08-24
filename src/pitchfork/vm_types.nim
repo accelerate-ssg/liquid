@@ -105,18 +105,29 @@ type
     index*: int          # Current item index (0-based)
     cols*: int           # Number of columns (0 = unlimited)
     var_name*: string    # Loop variable name
-    saved_tablerowloop*: VMValue  # Saved tablerowloop from before this tablerow
+    # Cell metadata is built on demand, invalidated when the cell
+    # advances — same scheme as Iterator.forloop_cache.
+    tablerowloop_cache*: VMValue
+    tablerowloop_valid*: bool
 
   Iterator* = object
     items*: seq[VMValue]
     keys*: seq[string]   # Object-key per item when iterating an object as
                          # values (Handlebars #each); empty otherwise
-    builds_forloop*: bool  # Build the forloop object each iteration
+    builds_forloop*: bool  # Expose forloop metadata to the loop body.
+                           # Tines whose loops never mention forloop/@data
+                           # (Mustache) leave this off.
     index*: int
     var_name*: string
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
-    saved_forloop*: VMValue  # Saved forloop value from before this loop started (for nesting)
+    saved_forloop*: VMValue  # The enclosing loop's forloop (becomes parentloop)
     loop_name*: string       # forloop.name value (e.g., "tag-product.tags")
+    # forloop metadata is built on demand, not per iteration: most loop
+    # bodies never mention it, and building the object cost more than the
+    # rest of an iteration put together. Invalidated when the iteration
+    # advances, rebuilt at most once per iteration by the first lookup.
+    forloop_cache*: VMValue
+    forloop_valid*: bool
 
   LiquidVM* {.deprecated: "renamed to VM".} = VM
     

@@ -142,36 +142,18 @@ proc tag_tablerow_begin(vm: var VM, inst: Instruction) =
   if limit_val >= 0 and limit_val < items.len.int64:
     items = items[0..<limit_val]
 
+  # Cell metadata (tablerowloop) is built lazily by the first lookup —
+  # resolve_var consults the active tablerow state directly.
   if items.len == 0:
-    let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
     vm.tablerow_iters.add(TablerowState(
       items: @[], index: 0, cols: cols_val,
-      var_name: vm.strings[var_index],
-      saved_tablerowloop: saved_trl))
+      var_name: vm.strings[var_index]))
   else:
-    let saved_trl = if "tablerowloop" in vm.locals: vm.locals["tablerowloop"] else: vm_null()
     let var_name = vm.strings[var_index]
     vm.tablerow_iters.add(TablerowState(
       items: items, index: 0, cols: cols_val,
-      var_name: var_name, saved_tablerowloop: saved_trl))
+      var_name: var_name))
     vm.locals[var_name] = items[0]
-
-    let total = items.len
-    let effective_cols = if cols_val > 0: cols_val else: total
-    var trl = initOrderedTable[string, VMValue]()
-    trl["col"] = vm_int(1)
-    trl["col0"] = vm_int(0)
-    trl["col_first"] = vm_bool(true)
-    trl["col_last"] = vm_bool(0 == effective_cols - 1 or 0 == total - 1)
-    trl["first"] = vm_bool(true)
-    trl["index"] = vm_int(1)
-    trl["index0"] = vm_int(0)
-    trl["last"] = vm_bool(total == 1)
-    trl["length"] = vm_int(total.int64)
-    trl["rindex"] = vm_int(total.int64)
-    trl["rindex0"] = vm_int((total - 1).int64)
-    trl["row"] = vm_int(1)
-    vm.locals["tablerowloop"] = vm_object(trl)
     vm.emit_output("<tr class=\"row1\">\n<td class=\"col1\">")
 
 proc tag_tablerow_iter(vm: var VM, inst: Instruction) =
@@ -185,22 +167,17 @@ proc tag_tablerow_iter(vm: var VM, inst: Instruction) =
   else:
     let state = addr vm.tablerow_iters[^1]
     if state.items.len == 0:
-      if state.saved_tablerowloop.kind != vm_null:
-        vm.locals["tablerowloop"] = state.saved_tablerowloop
-      else:
-        vm.locals.del("tablerowloop")
       vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
       vm.pc += end_offset
     else:
       vm.emit_output("</td>")
       state.index += 1
+      # Metadata is rebuilt lazily by the first tablerowloop lookup of
+      # the new cell.
+      state.tablerowloop_valid = false
       if state.index >= state.items.len:
         vm.emit_output("</tr>\n")
         vm.locals.del(state.var_name)
-        if state.saved_tablerowloop.kind != vm_null:
-          vm.locals["tablerowloop"] = state.saved_tablerowloop
-        else:
-          vm.locals.del("tablerowloop")
         vm.tablerow_iters.setLen(vm.tablerow_iters.len - 1)
         vm.pc += end_offset
       else:
@@ -216,20 +193,6 @@ proc tag_tablerow_iter(vm: var VM, inst: Instruction) =
         html.add("<td class=\"col" & $col & "\">")
         vm.emit_output(html)
         vm.locals[state.var_name] = state.items[idx]
-        var trl = initOrderedTable[string, VMValue]()
-        trl["col"] = vm_int(col.int64)
-        trl["col0"] = vm_int(col0.int64)
-        trl["col_first"] = vm_bool(col0 == 0)
-        trl["col_last"] = vm_bool(col0 == effective_cols - 1 or idx == total - 1)
-        trl["first"] = vm_bool(idx == 0)
-        trl["index"] = vm_int((idx + 1).int64)
-        trl["index0"] = vm_int(idx.int64)
-        trl["last"] = vm_bool(idx == total - 1)
-        trl["length"] = vm_int(total.int64)
-        trl["rindex"] = vm_int((total - idx).int64)
-        trl["rindex0"] = vm_int((total - idx - 1).int64)
-        trl["row"] = vm_int(row.int64)
-        vm.locals["tablerowloop"] = vm_object(trl)
         vm.pc += body_offset
 
 proc register_liquid_runtime*(vm: var VM) =
