@@ -3,10 +3,20 @@
 A multi-language template engine for Nim: several parser frontends
 ("tines") uniting into one common bytecode VM (the handle).
 
-Two template languages are supported so far — Liquid and Mustache (fully
-conformant with the required modules of the official
-[mustache/spec](https://github.com/mustache/spec) suite). A Handlebars
-frontend is planned. The original Liquid API (`liquid_lib`) is unchanged.
+Three template languages are supported so far:
+
+- **Liquid** — the original engine; API (`liquid_lib`) unchanged.
+- **Mustache** — fully conformant with the required modules of the official
+  [mustache/spec](https://github.com/mustache/spec) suite.
+- **Handlebars** — the core feature set: paths (`../`, `this`, segment
+  literals), `#if`/`#unless`/`#each`/`#with` with `{{else}}`, plain and
+  inverted sections, `@index`/`@key`/`@first`/`@last`/`@root`, registered
+  helpers with literal args and subexpressions, partials (context argument,
+  hash arguments, standalone indentation, recursion), both comment styles,
+  raw blocks, and `~` whitespace control. Not yet: custom block helpers,
+  hash arguments on non-partial helpers, dynamic partial names, block
+  params (`as |x|`), lambdas. Name resolution follows Handlebars' `compat`
+  mode (parent scopes are searched automatically).
 
 ## Architecture
 
@@ -26,8 +36,14 @@ src/pitchfork/tines/mustache/ the Mustache frontend
   lexer.nim                 tokens, delimiters, standalone-line handling
   compiler.nim              tokens -> bytecode (context-stack semantics)
   api.nim                   wires the VM (partials compile as Mustache)
+src/pitchfork/tines/handlebars/ the Handlebars frontend
+  lexer.nim                 tags, ~ trimming, raw blocks, standalone lines
+  compiler.nim              expression parser (helpers, subexpressions,
+                            hash args, parent paths) -> bytecode
+  api.nim                   wires the VM; register_helper
 src/liquid_lib.nim          stable JsonNode-based public API (Liquid)
 src/mustache_lib.nim        JsonNode-based public API (Mustache)
+src/handlebars_lib.nim      JsonNode-based public API (Handlebars)
 ```
 
 A tine compiles its language to the shared bytecode; the VM knows nothing
@@ -38,8 +54,32 @@ scoped lookup rides on the same resolution opcode Liquid uses (`opResolveName`
 walks the context stack, then the flat scope chain — for Liquid the context
 stack is simply empty), and its sections reuse the standard loop machinery.
 
-Mustache lambdas are intentionally unsupported for now; the plan is a
-registered script-runner hook rather than callables in the data.
+Each tine also registers its *truthiness policy* as namespaced filters
+(`mustache#section`, `hb#if`, ...) — which values are falsy and what
+iterates is language policy, and it lives in the tine, not the engine.
+Handlebars helpers are shared-registry filters too: `{{helper a b}}` calls
+the filter `helper` with value `a` and args `[b]`, so one registration
+mechanism serves Liquid filters and Handlebars helpers alike.
+
+Mustache/Handlebars lambdas are intentionally unsupported for now; the plan
+is a registered script-runner hook rather than callables in the data.
+
+## Usage (Handlebars)
+
+```nim
+import json, tables
+import handlebars_lib
+
+echo render("{{#each items}}{{@index}}:{{this}} {{/each}}",
+            %*{"items": ["a", "b"]})
+# => 0:a 1:b
+
+import pitchfork/tines/handlebars/api
+register_helper("shout", proc(value: VMValue, args: varargs[VMValue]): VMValue =
+  vm_string(to_string(value) & "!"))
+echo render("{{shout name}}", %*{"name": "hey"})
+# => hey!
+```
 
 ## Usage (Mustache)
 
