@@ -589,7 +589,11 @@ proc execute*(vm: var LiquidVM): string =
   ## Execute the bytecode and return the output
   
   while vm.pc < vm.bytecode.len:
-    let inst = vm.bytecode[vm.pc]
+    # A cursor borrows the instruction instead of copying 48 bytes per
+    # dispatch. Safe only because no branch below moves a seq out of it —
+    # tagData and includeArgNames are read by index, never iterated into a
+    # temporary, and the bytecode is never written during execution.
+    let inst {.cursor.} = vm.bytecode[vm.pc]
     inc vm.pc
     inc vm.instruction_count
 
@@ -760,9 +764,8 @@ proc execute*(vm: var LiquidVM): string =
         vm.output.add(output_str)
       
     of opBatchOutput:
-      # Batch output is ALWAYS literal template text - NEVER escape
-      for stringId in inst.stringIds:
-        vm.emit_output(vm.strings[stringId])
+      # Literal template text - NEVER escape
+      vm.emit_output(vm.strings[inst.stringId])
     
     of opBeginCapture:
       # Start capturing output

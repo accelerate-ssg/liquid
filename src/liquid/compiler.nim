@@ -456,7 +456,7 @@ proc compile_text(c: var Compiler, section: Section) =
 
   # ALWAYS use batch output for text sections (never escaped)
   let stringId = c.intern_string(text)
-  c.emit(Instruction(op: opBatchOutput, stringIds: @[stringId]))
+  c.emit(Instruction(op: opBatchOutput, stringId: stringId))
 
 proc compile_output(c: var Compiler, section: Section) =
   let tokens = section.tokens

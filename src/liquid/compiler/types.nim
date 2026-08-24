@@ -27,7 +27,7 @@ type
 
     # Output Operations
     opOutput             # Output top of stack
-    opBatchOutput        # Output constants from the string pool: [id1, id2, ...]
+    opBatchOutput        # Output literal template text: [stringId]
     opBeginCapture       # Start capturing output
     opEndCapture         # End capture and store: [varId]
 
@@ -87,7 +87,7 @@ type
       intVal*: int64
     of opPushFloat:
       floatVal*: float64
-    of opPushString, opLoadVar, opStoreVar, opGetProp:
+    of opPushString, opLoadVar, opStoreVar, opGetProp, opBatchOutput:
       stringId*: uint32
     of opJump, opJumpIfFalse, opJumpIfTrue:
       offset*: int32
@@ -117,8 +117,6 @@ type
       elseOffset*: int32      # Jump offset when collection is empty (for else block)
     of opBreak, opContinue:
       levels*: uint8
-    of opBatchOutput:
-      stringIds*: seq[uint32]
     of opEndCapture:
       varId*: uint32
     else:
