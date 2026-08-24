@@ -27,8 +27,8 @@ type
 
     # Output Operations
     opOutput             # Output top of stack
-    opBatchOutput        # Output multiple constants: [count, id1, id2, ...]
-    opBeginCapture       # Start capturing output: [captureId]
+    opBatchOutput        # Output constants from the string pool: [id1, id2, ...]
+    opBeginCapture       # Start capturing output
     opEndCapture         # End capture and store: [varId]
 
     # Control Flow
@@ -60,8 +60,8 @@ type
     opNegate             # Unary -
 
     # Logic
-    opAnd                # Logical AND (short-circuit)
-    opOr                 # Logical OR (short-circuit)
+    opAnd                # Logical AND (eager: both operands evaluated)
+    opOr                 # Logical OR (eager: both operands evaluated)
     opNot                # Logical NOT
 
     # Filters
@@ -96,12 +96,10 @@ type
       argCount*: uint8
     of opCallTag:
       tagId*: uint32          # String ID of tag name (for runtime dispatch)
-      tagArgCount*: uint8     # Number of arguments on stack
       tagData*: seq[int32]    # Tag-specific data (jump offsets, flags, etc.)
     of opInclude:
       templateId*: uint32        # String ID of the partial name
       withContext*: bool          # true = include (shared scope), false = render (isolated scope)
-      includeArgCount*: uint8    # Number of keyword arguments
       includeArgNames*: seq[uint32]  # String IDs for keyword argument names
       includeVarExpr*: bool      # true = template name is a variable (on stack), false = string literal
       includeWithVar*: int32     # String ID for 'with' variable (-1 = none)
@@ -120,10 +118,7 @@ type
     of opBreak, opContinue:
       levels*: uint8
     of opBatchOutput:
-      batchCount*: uint8
       stringIds*: seq[uint32]
-    of opBeginCapture:
-      captureId*: uint32
     of opEndCapture:
       varId*: uint32
     else:

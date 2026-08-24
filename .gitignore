@@ -1,9 +1,11 @@
 *.*
 !*.nim
 !*.nims
+!nim.cfg
 !*.js
 !*.json
 !*.txt
 !README.md
 
 nimcache/
+test/golden_liquid
