@@ -771,7 +771,7 @@ proc compile_for(c: var Compiler, tokens: openArray[Token]) =
   let loopNameId = c.intern_string(loopName).int32
 
   # Setup loop
-  c.emit(Instruction(op: opBeginLoop, loopVarIndex: iter_varId.uint16,
+  c.emit(Instruction(op: opBeginLoop, buildsForloop: true, loopVarIndex: iter_varId.uint16,
                      hasLimit: hasLimit, hasOffset: hasOffset,
                      hasOffsetContinue: hasOffsetContinue,
                      isReversed: isReversed, loopNameId: loopNameId))
