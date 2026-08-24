@@ -1,6 +1,32 @@
-# liquid
+# Pitchfork
 
-A Liquid template engine for Nim, implemented as a bytecode compiler and VM.
+A multi-language template engine for Nim: several parser frontends
+("tines") uniting into one common bytecode VM (the handle).
+
+Liquid is the first supported template language; Mustache and Handlebars
+frontends are planned. The original Liquid API (`liquid_lib`) is unchanged.
+
+## Architecture
+
+```
+src/pitchfork/              engine core (language-agnostic)
+  bytecode.nim              instruction set, VMValue, CompileResult
+  emitter.nim               generic bytecode emission (Emitter base object)
+  values.nim                value ops + filter registry
+  vm.nim, vm_types.nim      the stack VM
+  json_bridge.nim           JsonNode <-> VMValue
+src/pitchfork/tines/liquid/ the Liquid frontend
+  lexer.nim, compiler.nim   Liquid source -> bytecode
+  runtime.nim               runtime tag handlers (cycle, tablerow, ...)
+  filters/                  built-in Liquid filters
+  api.nim                   wires it all onto a VM
+src/liquid_lib.nim          stable JsonNode-based public API
+```
+
+A tine compiles its language to the shared bytecode; the VM knows nothing
+about any particular template language — language specifics reach it through
+registered tag handlers, the filter registry, and a `partial_compiler`
+callback so partials compile in the including template's language.
 
 ## Installation
 
@@ -18,9 +44,9 @@ Or, ad-hoc:
 nimble install https://github.com/accelerate-ssg/liquid
 ```
 
-Requires Nim `>= 1.6.12`.
+Requires Nim `>= 2.0.0`.
 
-## Usage
+## Usage (Liquid)
 
 The public API lives in `liquid_lib`. It takes a `JsonNode` for the
 template context and returns the rendered string.
