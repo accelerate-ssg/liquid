@@ -107,6 +107,12 @@ type
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
     saved_forloop*: VMValue  # Saved forloop value from before this loop started (for nesting)
     loop_name*: string       # forloop.name value (e.g., "tag-product.tags")
+    # forloop metadata is built on demand, not per iteration: most loop
+    # bodies never mention it, and building the object cost more than the
+    # rest of an iteration put together. Cleared when the iteration
+    # advances, rebuilt at most once per iteration by the first lookup.
+    forloop_cache*: VMValue
+    forloop_valid*: bool
     
 
 

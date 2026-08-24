@@ -194,15 +194,52 @@ template emit_output(vm: var LiquidVM, str: string) =
   else:
     vm.output.add(str)
 
+proc build_forloop*(idx0, length: int, name: string, parent: VMValue): VMValue =
+  ## Build a forloop helper object for Liquid {% for %} loops
+  var obj = {
+    "index": vm_int((idx0 + 1).int64),
+    "index0": vm_int(idx0.int64),
+    "first": vm_bool(idx0 == 0),
+    "last": vm_bool(idx0 == length - 1),
+    "length": vm_int(length.int64),
+    "rindex": vm_int((length - idx0).int64),
+    "rindex0": vm_int((length - idx0 - 1).int64),
+    "name": vm_string(name),
+  }.toTable
+  if parent.kind != vm_null:
+    obj["parentloop"] = parent
+  else:
+    obj["parentloop"] = vm_null()
+  vm_object(obj)
+
+proc current_forloop(vm: var LiquidVM): VMValue =
+  ## The innermost active loop's metadata, built on first ask and cached
+  ## until the iteration advances. Most loop bodies never mention forloop,
+  ## and building the object cost more than the rest of an iteration, so
+  ## the loop itself no longer builds one.
+  let iter = addr vm.iterators[^1]
+  if not iter.forloop_valid:
+    iter.forloop_cache = build_forloop(iter.index - 1, iter.items.len,
+                                       iter.loop_name, iter.saved_forloop)
+    iter.forloop_valid = true
+  iter.forloop_cache
+
 proc resolve_var*(vm: var LiquidVM, name: string): VMValue =
   ## Resolve a variable name through the scope chain:
-  ## keyword_args → locals → variables → arena context → counters → null
+  ## keyword_args → active loop → locals → context → variables →
+  ## arena context → counters → null
   ##
   ## Each level uses withValue rather than `in` followed by `[]`: the pair
   ## hashes the name and probes the table twice for every level that hits.
   ## A level that holds an explicit null must still shadow the levels below
   ## it, so getOrDefault is not an option — presence is what we test.
+  ##
+  ## An active loop outranks locals because the loop used to overwrite
+  ## locals["forloop"] on every iteration, so it won there too — including
+  ## over a forloop an enclosing {% render %} had bound.
   vm.keyword_args.withValue(name, found): return found[]
+  if vm.iterators.len > 0 and name == "forloop":
+    return vm.current_forloop()
   vm.locals.withValue(name, found): return found[]
   if vm.context != nil:
     vm.context[].withValue(name, found): return found[]
@@ -233,36 +270,15 @@ proc to_int64*(v: VMValue, strict: bool = true): int64 =
       raise newException(ValueError, "expected a number, got " & $v.kind)
     else: 0'i64
 
-proc build_forloop*(idx0, length: int, name: string, parent: VMValue): VMValue =
-  ## Build a forloop helper object for Liquid {% for %} loops
-  var obj = {
-    "index": vm_int((idx0 + 1).int64),
-    "index0": vm_int(idx0.int64),
-    "first": vm_bool(idx0 == 0),
-    "last": vm_bool(idx0 == length - 1),
-    "length": vm_int(length.int64),
-    "rindex": vm_int((length - idx0).int64),
-    "rindex0": vm_int((length - idx0 - 1).int64),
-    "name": vm_string(name),
-  }.toTable
-  if parent.kind != vm_null:
-    obj["parentloop"] = parent
-  else:
-    obj["parentloop"] = vm_null()
-  vm_object(obj)
-
 proc finish_iterator*(vm: var LiquidVM, iter_index: int = -1) =
-  ## Clean up a finished iterator: save offset, remove from stack,
-  ## restore parent forloop, delete loop variable from locals
+  ## Clean up a finished iterator: save offset, remove from stack, delete
+  ## loop variable from locals. The enclosing loop's forloop needs no
+  ## restoring — popping this iterator is what brings it back into view.
   let idx = if iter_index < 0: vm.iterators.len - 1 else: iter_index
   let finished = vm.iterators[idx]
   vm.loop_offsets[finished.var_name] = finished.original_offset + finished.items.len
   vm.iterators.delete(idx)
   vm.locals.del(finished.var_name)
-  if finished.saved_forloop.kind != vm_null:
-    vm.locals["forloop"] = finished.saved_forloop
-  else:
-    vm.locals.del("forloop")
 
 # ─── Partial Execution Helpers ───────────────────────────────────────
 
@@ -907,8 +923,17 @@ proc execute*(vm: var LiquidVM): string =
       if inst.isReversed:
         items.reverse()
 
-      # Save current forloop value in the iterator for nesting restore
-      let saved_fl = if "forloop" in vm.locals: vm.locals["forloop"] else: vm_null()
+      # Snapshot the enclosing forloop as this loop's parentloop. The new
+      # iterator is not on the stack yet, so this reads the parent. Once per
+      # loop, not once per iteration: the parent cannot advance while this
+      # loop runs.
+      #
+      # Deliberately not a full resolve_var — a forloop bound by an
+      # enclosing {% render %} lives in variables precisely so that loops
+      # inside the partial do not adopt it as their parentloop.
+      let saved_fl =
+        if vm.iterators.len > 0: vm.current_forloop()
+        else: vm.locals.getOrDefault("forloop", vm_null())
 
       # Get loop name from instruction
       let loop_name = if inst.loopNameId >= 0: vm.strings[inst.loopNameId] else: ""
@@ -936,8 +961,7 @@ proc execute*(vm: var LiquidVM): string =
           if iter.index < iter.items.len:
             vm.push(iter.items[iter.index])
             iter.index += 1
-            let idx0 = iter.index - 1
-            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
+            iter.forloop_valid = false
           else:
             vm.finish_iterator()
             vm.pc += inst.endOffset
@@ -947,8 +971,7 @@ proc execute*(vm: var LiquidVM): string =
           if iter.index < iter.items.len:
             vm.push(iter.items[iter.index])
             iter.index += 1
-            let idx0 = iter.index - 1
-            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
+            iter.forloop_valid = false
           else:
             let wasEmpty = iter.index == 0
             vm.finish_iterator()
