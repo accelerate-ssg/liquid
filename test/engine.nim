@@ -11,7 +11,7 @@ import ../src/pitchfork/[bytecode, values, vm]
 
 proc run(instructions: seq[Instruction], strings: seq[string] = @[],
          data: Table[string, VMValue] = initTable[string, VMValue]()): string =
-  var machine = new_vm(instructions, strings, @[], data)
+  var machine = new_vm(instructions, strings, @[], unsafeAddr data)
   machine.execute()
 
 proc outputted(v: Instruction): seq[Instruction] =
@@ -78,8 +78,7 @@ suite "Engine control flow":
     var machine = new_vm(@[
       Instruction(op: opContinue, levels: 1),
       Instruction(op: opPushString, stringId: 0),
-      Instruction(op: opOutput)], @["unreachable"], @[],
-      initTable[string, VMValue]())
+      Instruction(op: opOutput)], @["unreachable"], @[], nil)
     check machine.execute() == ""
     check machine.pending_continue == true
 
@@ -87,8 +86,7 @@ suite "Engine control flow":
     var machine = new_vm(@[
       Instruction(op: opBreak, levels: 1),
       Instruction(op: opPushString, stringId: 0),
-      Instruction(op: opOutput)], @["unreachable"], @[],
-      initTable[string, VMValue]())
+      Instruction(op: opOutput)], @["unreachable"], @[], nil)
     check machine.execute() == ""
     check machine.pending_break == true
 
@@ -127,12 +125,12 @@ suite "Engine stack discipline and error paths":
         @["no_such_tag"])
 
   test "missing partial compiler raises only when a partial is present":
+    var partials = {"p": "source"}.toTable
     var machine = new_vm(@[
       Instruction(op: opInclude, templateId: 0, withContext: true, includeArgNames: @[],
                   includeVarExpr: false, includeWithVar: -1,
                   includeAlias: -1, includeForVar: -1)],
-      @["p"], @[], initTable[string, VMValue](),
-      {"p": "source"}.toTable)
+      @["p"], @[], nil, addr partials)
     expect CatchableError:
       discard machine.execute()
 
@@ -150,12 +148,13 @@ suite "Engine stack discipline and error paths":
 
 suite "Engine context stack":
   test "resolve walks frames then falls back to variables":
+    var data = {"a": vm_string("flat"), "b": vm_string("flatb")}.toTable
     var machine = new_vm(@[
       Instruction(op: opResolveName, nameId: 0),
       Instruction(op: opOutput),
       Instruction(op: opResolveName, nameId: 1),
       Instruction(op: opOutput)],
-      @["a", "b"], @[], {"a": vm_string("flat"), "b": vm_string("flatb")}.toTable)
+      @["a", "b"], @[], addr data)
     var frame = initOrderedTable[string, VMValue]()
     frame["a"] = vm_string("framed")
     machine.ctx_stack.add(vm_object(frame))
@@ -165,7 +164,7 @@ suite "Engine context stack":
     var machine = new_vm(@[
       Instruction(op: opResolveName, nameId: 0, ctxHops: 1),
       Instruction(op: opOutput)],
-      @["a"], @[], initTable[string, VMValue]())
+      @["a"], @[], nil)
     var outer = initOrderedTable[string, VMValue]()
     outer["a"] = vm_string("outer")
     var inner = initOrderedTable[string, VMValue]()
@@ -185,5 +184,5 @@ suite "Engine context stack":
       Instruction(op: opResolveName, nameId: 1),
       Instruction(op: opOutput),
       Instruction(op: opPopCtx)],
-      @["first", ".", "second"], @[], initTable[string, VMValue]())
+      @["first", ".", "second"], @[], nil)
     check machine.execute() == "firstsecond"

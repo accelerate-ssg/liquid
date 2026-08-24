@@ -19,7 +19,12 @@ type
     constants*: seq[VMValue]    # Other constants
     
     # Runtime data
-    variables*: Table[string, VMValue]  # User-provided data
+    # The caller's context, borrowed rather than copied: the VM never
+    # writes through this pointer, and it must outlive the VM. Every
+    # caller satisfies that — a VM lives entirely inside one render call,
+    # and a sub-VM inside its parent's. nil when no context was given.
+    context*: ptr Table[string, VMValue]
+    variables*: Table[string, VMValue]  # VM-owned scope (e.g. a {% render %}-bound forloop)
     locals*: Table[string, VMValue]     # Template-created variables
     
     # Iteration state
@@ -42,8 +47,10 @@ type
     # Loop continuation tracking (for offset: continue)
     loop_offsets*: Table[string, int]  # var_name -> last consumed index
 
-    # Template partials (for include/render tags)
-    partials*: Table[string, string]  # partial name -> source
+    # Partial sources, borrowed on the same terms as context: read-only
+    # for the VM's lifetime, shared with every sub-VM. nil when none were
+    # given.
+    partials*: ptr Table[string, string]  # partial name -> source
     partial_cache*: Table[string, tuple[bytecode: seq[Instruction], strings: seq[string], constants: seq[VMValue]]]
     partial_compiler*: TemplateCompiler  # Compiles partial source in the template's language
 

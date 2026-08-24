@@ -287,7 +287,7 @@ suite "VM Capture":
     # Render with HTML escaping disabled
     let sections = lex(source)
     let compiled = compile(sections, source)
-    var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)
+    var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, unsafeAddr data)
     vm.escape_html = false  # Disable HTML escaping
     let output = vm.execute()
     
@@ -444,7 +444,7 @@ suite "VM Edge Cases":
     # Create VM with HTML escaping enabled (not default in Liquid, but available)
     let sections = lex(source)
     let compiled = compile(sections, source)
-    var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, data)
+    var vm = new_liquid_vm(compiled.bytecode, compiled.strings, compiled.constants, unsafeAddr data)
     vm.escape_html = true
     let output = vm.execute()
     

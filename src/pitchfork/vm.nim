@@ -24,8 +24,12 @@ when defined(opcode_coverage):
 
 # Create VM with data
 proc new_vm*(bytecode: seq[Instruction], strings: seq[string],
-             constants: seq[VMValue], data: Table[string, VMValue],
-             partials: Table[string, string] = initTable[string, string]()): VM =
+             constants: seq[VMValue], context: ptr Table[string, VMValue],
+             partials: ptr Table[string, string] = nil): VM =
+  ## The context and partials are borrowed, not copied: the VM never writes
+  ## through either pointer, and both must outlive the VM. Every caller
+  ## here satisfies that — a VM lives entirely inside one render call, and
+  ## a sub-VM inside its parent's.
   # Remaining fields rely on Nim's usable zero values (empty tables/seqs)
   # to keep per-render VM construction cheap.
   result = VM(
@@ -33,7 +37,7 @@ proc new_vm*(bytecode: seq[Instruction], strings: seq[string],
     bytecode: bytecode,
     strings: strings,
     constants: constants,
-    variables: data,
+    context: context,
     partials: partials,
   )
 
@@ -155,7 +159,7 @@ template emit_output*(vm: var VM, str: string) =
 
 proc resolve_var*(vm: var VM, name: string): VMValue =
   ## Resolve a variable name through the scope chain:
-  ## keyword_args → locals → variables → counters → null
+  ## keyword_args → locals → context → variables → counters → null
   ##
   ## One probe per scope level: `in` followed by `[]` hashed the name and
   ## walked each table twice. Order is preserved — presence decides, so a
@@ -164,6 +168,9 @@ proc resolve_var*(vm: var VM, name: string): VMValue =
     return found[]
   vm.locals.withValue(name, found):
     return found[]
+  if vm.context != nil:
+    vm.context[].withValue(name, found):
+      return found[]
   vm.variables.withValue(name, found):
     return found[]
   vm.counters.withValue(name, found):
@@ -253,7 +260,7 @@ proc compile_partial*(vm: var VM, name: string, indent: string = ""):
   ## A non-empty indent (Mustache standalone partials) is applied to the
   ## partial's source lines before compilation, and is part of the cache key.
   ## Returns found=false if partial doesn't exist.
-  if name notin vm.partials:
+  if vm.partials == nil or name notin vm.partials[]:
     result.found = false
     return
   let cache_key = name & '\31' & indent
@@ -261,7 +268,7 @@ proc compile_partial*(vm: var VM, name: string, indent: string = ""):
     if vm.partial_compiler == nil:
       raise newException(CatchableError,
         "Cannot compile partial '" & name & "': no partial_compiler set on VM")
-    let compiled = vm.partial_compiler(indent_lines(vm.partials[name], indent))
+    let compiled = vm.partial_compiler(indent_lines(vm.partials[][name], indent))
     vm.partial_cache[cache_key] = (compiled.bytecode, compiled.strings, compiled.constants)
   let cached = vm.partial_cache[cache_key]
   result = (cached.bytecode, cached.strings, cached.constants, true)
@@ -270,12 +277,18 @@ proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
                     strings: seq[string], constants: seq[VMValue],
                     shared_scope: bool): VM =
   ## Create a sub-VM for partial execution.
-  ## shared_scope=true (include): shares variables, locals, loop_offsets, counters
+  ## shared_scope=true (include): shares context, locals, loop_offsets, counters
   ## shared_scope=false (render): isolated empty scope
+  ##
+  ## The shared case borrows the parent's context pointer rather than
+  ## copying the table, so an include costs nothing per variable already
+  ## in scope.
   result = new_vm(bytecode, strings, constants,
-    if shared_scope: vm.variables else: initTable[string, VMValue](),
+    if shared_scope: vm.context else: nil,
     vm.partials)
   if shared_scope:
+    # Carries a {% render %} forloop down through a nested include.
+    result.variables = vm.variables
     result.locals = vm.locals
     result.loop_offsets = vm.loop_offsets
     result.counters = vm.counters
@@ -423,7 +436,9 @@ proc execute*(vm: var VM): string =
             vm.push_path(name)
           else:
             vm.push_path("")
-        elif inst.ctxHops == 0 and name in vm.variables:
+        elif inst.ctxHops == 0 and
+             ((vm.context != nil and name in vm.context[]) or
+              name in vm.variables):
           vm.push_path(name)
         else:
           vm.push_path("")
@@ -448,7 +463,8 @@ proc execute*(vm: var VM): string =
       discard vm.pop_path()  # Pop path for the key value
       vm.push(vm.resolve_var(name))
       if vm.track_access:
-        if name in vm.variables:
+        if (vm.context != nil and name in vm.context[]) or
+           name in vm.variables:
           vm.push_path(name)
         else:
           vm.push_path("")

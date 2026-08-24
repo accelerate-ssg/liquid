@@ -30,11 +30,13 @@ proc handlebars_partial_compiler(source: string): CompileResult {.nimcall.} =
 
 proc new_handlebars_vm*(bytecode: seq[Instruction], strings: seq[string],
                         constants: seq[VMValue], root: VMValue,
-                        data: Table[string, VMValue],
-                        partials: Table[string, string] = initTable[string, string]()): VM =
+                        context: ptr Table[string, VMValue],
+                        partials: ptr Table[string, string] = nil): VM =
   ## Create a VM wired for Handlebars: partials compile as Handlebars and
-  ## the root data value sits at the bottom of the context stack.
-  result = new_vm(bytecode, strings, constants, data, partials)
+  ## the root data value sits at the bottom of the context stack. The
+  ## context and partials are borrowed — they must outlive the VM (see
+  ## new_vm).
+  result = new_vm(bytecode, strings, constants, context, partials)
   result.partial_compiler = handlebars_partial_compiler
   result.ctx_stack.add(root)
 
@@ -42,7 +44,10 @@ proc render*(bytecode: seq[Instruction], strings: seq[string],
             constants: seq[VMValue], root: VMValue, data: Table[string, VMValue],
             partials: Table[string, string] = initTable[string, string]()): string =
   ## Render compiled Handlebars bytecode with the given data
-  var vm = new_handlebars_vm(bytecode, strings, constants, root, data, partials)
+  # The VM lives entirely inside this call, so borrowing the parameters
+  # is safe.
+  var vm = new_handlebars_vm(bytecode, strings, constants, root,
+                             unsafeAddr data, unsafeAddr partials)
   result = vm.execute()
 
 proc render_tracked*(bytecode: seq[Instruction], strings: seq[string],
@@ -51,7 +56,8 @@ proc render_tracked*(bytecode: seq[Instruction], strings: seq[string],
                      tuple[output: string, accessed: HashSet[string]] =
   ## Render compiled Handlebars bytecode and return both the output and the
   ## set of context variable paths accessed during execution.
-  var vm = new_handlebars_vm(bytecode, strings, constants, root, data, partials)
+  var vm = new_handlebars_vm(bytecode, strings, constants, root,
+                             unsafeAddr data, unsafeAddr partials)
   vm.track_access = true
   vm.path_stack = @[]
   vm.accessed_paths = initHashSet[string]()

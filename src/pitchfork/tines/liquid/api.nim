@@ -32,11 +32,13 @@ proc liquid_partial_compiler(source: string): CompileResult {.nimcall.} =
   compile_source(source, false)
 
 proc new_liquid_vm*(bytecode: seq[Instruction], strings: seq[string],
-                    constants: seq[VMValue], data: Table[string, VMValue],
-                    partials: Table[string, string] = initTable[string, string]()): VM =
+                    constants: seq[VMValue],
+                    context: ptr Table[string, VMValue],
+                    partials: ptr Table[string, string] = nil): VM =
   ## Create a VM wired for Liquid: runtime tag handlers registered and
-  ## partials compiled as Liquid.
-  result = new_vm(bytecode, strings, constants, data, partials)
+  ## partials compiled as Liquid. The context and partials are borrowed —
+  ## they must outlive the VM (see new_vm).
+  result = new_vm(bytecode, strings, constants, context, partials)
   result.register_liquid_runtime()
   result.partial_compiler = liquid_partial_compiler
 
@@ -44,7 +46,10 @@ proc render*(bytecode: seq[Instruction], strings: seq[string],
             constants: seq[VMValue], data: Table[string, VMValue],
             partials: Table[string, string] = initTable[string, string]()): string =
   ## Render compiled Liquid bytecode with the given data
-  var vm = new_liquid_vm(bytecode, strings, constants, data, partials)
+  # The VM lives entirely inside this call, so borrowing the parameters
+  # is safe.
+  var vm = new_liquid_vm(bytecode, strings, constants,
+                         unsafeAddr data, unsafeAddr partials)
   result = vm.execute()
 
 proc render_tracked*(bytecode: seq[Instruction], strings: seq[string],
@@ -55,7 +60,8 @@ proc render_tracked*(bytecode: seq[Instruction], strings: seq[string],
   ## context variable paths that were actually accessed during execution.
   ## Paths use dot notation for properties (e.g. "user.name") and
   ## bracket notation for array indices (e.g. "items[0]").
-  var vm = new_liquid_vm(bytecode, strings, constants, data, partials)
+  var vm = new_liquid_vm(bytecode, strings, constants,
+                         unsafeAddr data, unsafeAddr partials)
   vm.track_access = true
   vm.path_stack = @[]
   vm.accessed_paths = initHashSet[string]()
