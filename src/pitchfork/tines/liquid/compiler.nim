@@ -171,7 +171,7 @@ proc compile_expression(c: var Compiler, tokens: openArray[Token],
     if name notin c.local_vars:
       c.required_vars.incl(name)
     let stringId = c.intern_string(name)
-    c.emit(Instruction(op: opResolveName, stringId: stringId))
+    c.emit(Instruction(op: opResolveName, nameId: stringId))
     inc pos
     
   of tkNumber:
@@ -463,7 +463,7 @@ proc compile_output(c: var Compiler, section: Section) =
     if var_name notin c.local_vars:
       c.required_vars.incl(var_name)
     let stringId = c.intern_string(var_name)
-    c.emit(Instruction(op: opResolveName, stringId: stringId))
+    c.emit(Instruction(op: opResolveName, nameId: stringId))
     c.emit(Instruction(op: opOutput))
     return
 
@@ -485,7 +485,7 @@ proc compile_output(c: var Compiler, section: Section) =
     let objId = c.intern_string(objName)
     let propId = c.intern_string(prop_name)
     
-    c.emit(Instruction(op: opResolveName, stringId: objId))
+    c.emit(Instruction(op: opResolveName, nameId: objId))
     c.emit(Instruction(op: opGetProp, stringId: propId))
     c.emit(Instruction(op: opOutput))
     return
@@ -1862,9 +1862,11 @@ when isMainModule:
       let result = compileTemplate(source)
       
       for inst in result.bytecode:
-        if inst.op in [opPushString, opResolveName, opStoreVar, opGetProp]:
+        if inst.op in [opPushString, opStoreVar, opGetProp]:
           # String ID should be valid
           check inst.stringId < result.strings.len.uint32
+        elif inst.op == opResolveName:
+          check inst.nameId < result.strings.len.uint32
 
     test "All required variables are tracked":
       let source = "{{ a }}{% if b %}{{ c.d }}{% endif %}{% for e in f %}{{ e }}{% endfor %}"

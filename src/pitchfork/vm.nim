@@ -187,8 +187,11 @@ proc to_int64*(v: VMValue, strict: bool = true): int64 =
       raise newException(ValueError, "expected a number, got " & $v.kind)
     else: 0'i64
 
-proc build_forloop*(idx0, length: int, name: string, parent: VMValue): VMValue =
-  ## Build a forloop helper object for Liquid {% for %} loops
+proc build_forloop*(idx0, length: int, name: string, parent: VMValue,
+                    key: VMValue = vm_null()): VMValue =
+  ## Build a forloop helper object for loops ({% for %}, Mustache sections,
+  ## Handlebars #each). key carries the object key when iterating an object
+  ## as values (Handlebars @key).
   var obj = {
     "index": vm_int((idx0 + 1).int64),
     "index0": vm_int(idx0.int64),
@@ -199,6 +202,8 @@ proc build_forloop*(idx0, length: int, name: string, parent: VMValue): VMValue =
     "rindex0": vm_int((length - idx0 - 1).int64),
     "name": vm_string(name),
   }.toTable
+  if key.kind != vm_null:
+    obj["key"] = key
   if parent.kind != vm_null:
     obj["parentloop"] = parent
   else:
@@ -377,16 +382,22 @@ proc execute*(vm: var VM): string =
       # frame containing the name, then fall back to the flat scope chain
       # (keyword_args → locals → variables → counters). With an empty
       # context stack (Liquid) this is a plain variable load.
-      let name = vm.strings[inst.stringId]
+      let name = vm.strings[inst.nameId]
+      # ctxHops skips frames from the top (Handlebars ../ — one hop per
+      # enclosing block that pushed a context frame)
+      let top = vm.ctx_stack.len - 1 - inst.ctxHops.int
       var found_in_ctx = false
       var found_frame = -1
-      if vm.ctx_stack.len > 0:
+      if top >= 0:
         if name == ".":
-          # Implicit iterator: the current context itself
-          vm.push(vm.ctx_stack[^1])
+          # Implicit iterator / `this`: the current context itself
+          vm.push(vm.ctx_stack[top])
+          found_in_ctx = true
+        elif name == "@root":
+          vm.push(vm.ctx_stack[0])
           found_in_ctx = true
         else:
-          for i in countdown(vm.ctx_stack.len - 1, 0):
+          for i in countdown(top, 0):
             let frame = vm.ctx_stack[i]
             if frame.kind == vmObject and name in frame.objectVal:
               vm.push(frame.objectVal[name])
@@ -394,7 +405,11 @@ proc execute*(vm: var VM): string =
               found_frame = i
               break
       if not found_in_ctx:
-        vm.push(vm.resolve_var(name))
+        if inst.ctxHops > 0:
+          # A parent path that walked past the root resolves to nothing
+          vm.push(VMValue(kind: vmNull))
+        else:
+          vm.push(vm.resolve_var(name))
       if vm.track_access:
         # Direct context variables get a path: the flat variables table
         # (Liquid) or the root context frame (Mustache). Inner frames,
@@ -404,7 +419,7 @@ proc execute*(vm: var VM): string =
             vm.push_path(name)
           else:
             vm.push_path("")
-        elif name in vm.variables:
+        elif inst.ctxHops == 0 and name in vm.variables:
           vm.push_path(name)
         else:
           vm.push_path("")
@@ -423,26 +438,6 @@ proc execute*(vm: var VM): string =
       if vm.ctx_stack.len > 0:
         vm.ctx_stack[^1] = val
 
-    of opNormalizeSection:
-      # Mustache section semantics: normalize the section value to the list
-      # of contexts the body renders once per. Falsy (null/false) -> empty,
-      # a list -> its items, anything else (objects, scalars, true) -> [value].
-      let val = vm.pop()
-      vm.pop_and_record()
-      var items: seq[VMValue] = @[]
-      case val.kind
-      of vmNull, vmEmpty:
-        discard
-      of vmBool:
-        if val.boolVal:
-          items.add(val)
-      of vmArray:
-        items = val.arrayVal
-      else:
-        items.add(val)
-      vm.push(VMValue(kind: vmArray, arrayVal: items))
-      vm.push_path("")
-
     of opDynamicLoadVar:
       # Pop key from stack, use it as a variable name
       let name = vm.pop().to_string()
@@ -459,7 +454,7 @@ proc execute*(vm: var VM): string =
       let value = vm.pop()
       vm.pop_and_record()  # Value consumed into local — still record the dependency
       vm.locals[var_name] = value
-      
+
     # Property access
     of opGetProp:
       let obj = vm.pop()
@@ -488,6 +483,20 @@ proc execute*(vm: var VM): string =
           else:
             vm.push(VMValue(kind: vmNull))
       of vmArray:
+        # Numeric property: index access (Handlebars a.[0], Mustache-family
+        # dotted numeric segments)
+        if prop_name.len > 0 and prop_name.allCharsInSet({'0'..'9'}):
+          let idx = try: parseInt(prop_name) except ValueError: -1
+          if idx >= 0 and idx < obj.arrayVal.len:
+            vm.push(obj.arrayVal[idx])
+          else:
+            vm.push(VMValue(kind: vmNull))
+          if vm.track_access:
+            if parent_path.len > 0:
+              vm.push_path(parent_path & "[" & prop_name & "]")
+            else:
+              vm.push_path("")
+          continue
         # Special array properties
         case prop_name
         of "size", "length":
@@ -519,7 +528,7 @@ proc execute*(vm: var VM): string =
           vm.push_path(parent_path & "." & prop_name)
         else:
           vm.push_path("")
-    
+
     # Output operations
     of opOutput:
       # Regular output is for expressions - escape based on setting
@@ -654,16 +663,23 @@ proc execute*(vm: var VM): string =
       vm.pop_and_record()  # Collection consumed — record dependency
       var items: seq[VMValue] = @[]
 
+      var obj_keys: seq[string] = @[]
       case collection.kind
       of vmArray:
         items = collection.arrayVal
       of vmObject:
-        # Convert object to array of key-value pairs
-        for key, val in collection.objectVal:
-          items.add(VMValue(kind: vmArray, arrayVal: @[
-            VMValue(kind: vmString, stringVal: key),
-            val
-          ]))
+        if inst.objectAsValues:
+          # Iterate values, tracking keys (Handlebars #each: @key)
+          for key, val in collection.objectVal:
+            obj_keys.add(key)
+            items.add(val)
+        else:
+          # Convert object to array of key-value pairs (Liquid)
+          for key, val in collection.objectVal:
+            items.add(VMValue(kind: vmArray, arrayVal: @[
+              VMValue(kind: vmString, stringVal: key),
+              val
+            ]))
       of vmString:
         # Iterate string as single item
         if collection.stringVal.len > 0:
@@ -695,6 +711,7 @@ proc execute*(vm: var VM): string =
 
       vm.iterators.add(Iterator(
         items: items,
+        keys: obj_keys,
         index: 0,
         var_name: loop_var_name,
         original_offset: offset_val.int,
@@ -718,7 +735,8 @@ proc execute*(vm: var VM): string =
             vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
             let idx0 = iter.index - 1
-            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
+            let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
+            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
           else:
             vm.finish_iterator()
             vm.pc += inst.endOffset
@@ -730,7 +748,8 @@ proc execute*(vm: var VM): string =
             vm.push_path("")  # Loop items are derived, not direct context
             iter.index += 1
             let idx0 = iter.index - 1
-            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop)
+            let key = if idx0 < iter.keys.len: vm_string(iter.keys[idx0]) else: vm_null()
+            vm.locals["forloop"] = build_forloop(idx0, iter.items.len, iter.loop_name, iter.saved_forloop, key)
           else:
             let wasEmpty = iter.index == 0
             vm.finish_iterator()

@@ -26,11 +26,13 @@ type
     opStoreVar           # Store to variable: [stringId]
 
     # Context stack (scoped name resolution for Mustache-family languages)
+    # Section-value normalization (which values are falsy, what iterates)
+    # is language policy, not engine mechanism: each tine registers it as
+    # a namespaced filter (e.g. "mustache#section") and compiles sections
+    # to a plain opCallFilter on it.
     opPushCtx            # Pop value, push it onto the context stack
     opPopCtx             # Pop the context stack
     opSetCtx             # Pop value, replace top of the context stack
-    opNormalizeSection   # Pop value, push its section item list:
-                         # falsy -> [], array -> as-is, other -> [value]
 
     # Property/Index Access
     opGetProp            # Get property: [stringId]
@@ -99,8 +101,11 @@ type
       intVal*: int64
     of opPushFloat:
       floatVal*: float64
-    of opPushString, opResolveName, opStoreVar, opGetProp:
+    of opPushString, opStoreVar, opGetProp:
       stringId*: uint32
+    of opResolveName:
+      nameId*: uint32
+      ctxHops*: uint8         # Skip N context frames from the top (Handlebars ../)
     of opJump, opJumpIfFalse, opJumpIfTrue:
       offset*: int32
     of opCallFilter:
@@ -128,6 +133,8 @@ type
       hasOffsetContinue*: bool  # offset: continue (resume from last position)
       isReversed*: bool         # reversed keyword
       loopNameId*: int32        # String ID for forloop.name (-1 = none)
+      objectAsValues*: bool     # Iterate objects as values with keys tracked
+                                # (Handlebars #each); default: [key, value] pairs
     of opIterNext:
       endOffset*: int32       # Jump offset when iteration is exhausted
       elseOffset*: int32      # Jump offset when collection is empty (for else block)

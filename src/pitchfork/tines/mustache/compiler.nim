@@ -3,17 +3,43 @@
 # Compiles the Mustache token stream to Pitchfork bytecode. Reuses the
 # engine's existing machinery throughout:
 # - name lookup:      opResolveName (context-stack walk) + opGetProp chains
-# - sections:         opNormalizeSection + the standard opBeginLoop/opIterNext
-#                     loop, with opSetCtx binding each item as current context
-# - inverted:         opNormalizeSection + comparison against `empty`
+# - sections:         the "mustache#section" normalizer (a registered filter
+#                     carrying Mustache's truthiness policy) + the standard
+#                     opBeginLoop/opIterNext loop, with opSetCtx binding each
+#                     item as current context
+# - inverted:         the same normalizer + comparison against `empty`
 # - interpolation:    opOutputEscaped ({{ }}) / opOutput ({{{ }}})
 # - partials:         opInclude with shared scope and optional indent
 
 import std/[tables, sets, strutils]
 
 import ../../bytecode
+import ../../values
 import ../../emitter
 import lexer
+
+const mustache_section_filter* = "mustache#section"
+  ## Registered normalizer carrying Mustache's section semantics: which
+  ## values are falsy and what iterates. Language policy lives in the tine;
+  ## the engine only provides the filter-call mechanism.
+
+proc mustache_section_normalizer(value: VMValue, args: varargs[VMValue]): VMValue =
+  ## Normalize a section value to the list of contexts the body renders
+  ## once per. Falsy (null/false) -> empty; "" and 0 are truthy; lists
+  ## iterate; anything else renders once with the value as context.
+  var items: seq[VMValue] = @[]
+  case value.kind
+  of vmNull, vmEmpty:
+    discard
+  of vmBool:
+    if value.boolVal: items.add(value)
+  of vmArray:
+    items = value.arrayVal
+  else:
+    items.add(value)
+  VMValue(kind: vmArray, arrayVal: items)
+
+register_filter(mustache_section_filter, mustache_section_normalizer)
 
 type
   Compiler* = object of Emitter
@@ -24,7 +50,7 @@ type
 proc emit_resolve(c: var Compiler, name: seq[string]) =
   ## Emit name resolution: first segment through the context stack,
   ## remaining segments as property accesses.
-  c.emit(Instruction(op: opResolveName, stringId: c.intern_string(name[0])))
+  c.emit(Instruction(op: opResolveName, nameId: c.intern_string(name[0])))
   if name[0] != "." and c.scope_depth == 0:
     c.optional_vars.incl(name[0])
   for i in 1 ..< name.len:
@@ -52,7 +78,8 @@ proc compile_tokens(c: var Compiler, until_close: seq[string] = @[]) =
     of mSectionOpen:
       # value -> item list -> loop, binding each item as current context
       c.emit_resolve(tok.name)
-      c.emit(Instruction(op: opNormalizeSection))
+      c.emit(Instruction(op: opCallFilter,
+        filterId: c.intern_string(mustache_section_filter), argCount: 0))
       # Reserve a context frame for the loop body (replaced per iteration)
       c.emit(Instruction(op: opPushNull))
       c.emit(Instruction(op: opPushCtx))
@@ -80,7 +107,8 @@ proc compile_tokens(c: var Compiler, until_close: seq[string] = @[]) =
     of mInvertedOpen:
       # Render the body only when the normalized section list is empty
       c.emit_resolve(tok.name)
-      c.emit(Instruction(op: opNormalizeSection))
+      c.emit(Instruction(op: opCallFilter,
+        filterId: c.intern_string(mustache_section_filter), argCount: 0))
       c.emit(Instruction(op: opPushEmpty))
       c.emit(Instruction(op: opEqual))
       let jmp = c.emit_jump(opJumpIfFalse)

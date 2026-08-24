@@ -86,6 +86,8 @@ type
 
   Iterator* = object
     items*: seq[VMValue]
+    keys*: seq[string]   # Object-key per item when iterating an object as
+                         # values (Handlebars #each); empty otherwise
     index*: int
     var_name*: string
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
