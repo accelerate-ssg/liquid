@@ -231,6 +231,51 @@ suite "VM Loops":
     
     check output == "1 2 | 3 4 | "
 
+  test "Loop variable is scoped to the loop":
+    # Liquid scopes the for variable to its loop: an outer assign of the
+    # same name is visible again after endfor. The loop variable used to
+    # be deleted from locals at loop end, destroying the assign.
+    let source = "{% assign item = page %}" &
+      "{% for item in items %}{{ item }}{% endfor %}" &
+      "after:{{ item.title }}"
+    let data = {
+      "items": to_vm_value(@[1, 2]),
+      "page": make_object(("title", vmString("kept")))
+    }.toTable
+    check render_template(source, data) == "12after:kept"
+
+  test "Loop variable unbinds after the loop when nothing shadowed":
+    let source = "{% for x in items %}{{ x }}{% endfor %}after:[{{ x }}]"
+    let data = {
+      "items": to_vm_value(@[1, 2])
+    }.toTable
+    check render_template(source, data) == "12after:[]"
+
+  test "Loop inside a shared-scope include does not destroy the caller's assign":
+    # {% include %} shares locals with the caller, so a loop in the
+    # partial reaches the same table the caller assigned into.
+    let source = "{% assign item = page %}" &
+      "{% include 'looper' %}" &
+      "after:{{ item.title }}"
+    let partials = {
+      "looper": "{% for item in items %}{{ item }}{% endfor %}"
+    }.toTable
+    let data = {
+      "items": to_vm_value(@[7, 8]),
+      "page": make_object(("title", vmString("survives")))
+    }.toTable
+    check render_template(source, data, partials) == "78after:survives"
+
+  test "Nested same-named loops restore level by level":
+    let source = "{% assign item = 'outer' %}" &
+      "{% for item in a %}{% for item in b %}{{ item }}{% endfor %}-{% endfor %}" &
+      "end:{{ item }}"
+    let data = {
+      "a": to_vm_value(@[1, 2]),
+      "b": to_vm_value(@[3])
+    }.toTable
+    check render_template(source, data) == "3-3-end:outer"
+
 suite "VM Variables":
   test "Assign literal":
     let source = "{% assign x = 5 %}x = {{ x }}"

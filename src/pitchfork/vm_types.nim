@@ -130,6 +130,11 @@ type
     index*: int
     var_name*: string
     original_offset*: int  # Offset applied to original collection (for offset: continue tracking)
+    saved_var*: VMValue      # Pre-loop binding of the loop variable, if any.
+                             # Liquid scopes the loop variable to the loop:
+                             # an outer assign of the same name must be
+                             # visible again after endfor.
+    had_saved_var*: bool
     saved_forloop*: VMValue  # The enclosing loop's forloop (becomes parentloop)
     loop_name*: string       # forloop.name value (e.g., "tag-product.tags")
     # forloop metadata is built on demand, not per iteration: most loop

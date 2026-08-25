@@ -384,7 +384,14 @@ proc finish_iterator*(vm: var VM, iter_index: int = -1) =
   let finished = vm.iterators[idx]
   vm.loop_offsets[finished.var_name] = finished.original_offset + finished.items.len
   vm.iterators.delete(idx)
-  vm.locals.del(finished.var_name)
+  # The loop variable is scoped to the loop: restore what the name was
+  # bound to before the loop began (an outer {% assign %} — including one
+  # in the enclosing template when this loop runs inside a shared-scope
+  # {% include %}), or unbind it if there was nothing.
+  if finished.had_saved_var:
+    vm.locals[finished.var_name] = finished.saved_var
+  else:
+    vm.locals.del(finished.var_name)
 
 proc indent_lines(s, indent: string): string =
   ## Prepend indent to every line of s (Mustache standalone-partial
@@ -966,6 +973,11 @@ proc execute*(vm: var VM): string =
       # Get loop name from instruction
       let loop_name = if inst.loopNameId >= 0: vm.strings[inst.loopNameId] else: ""
 
+      # Snapshot the loop variable's pre-loop binding so endfor can
+      # restore it (Liquid scopes the loop variable to the loop).
+      let had_var = loop_var_name in vm.locals
+      let saved_var = if had_var: vm.locals[loop_var_name] else: vm_null()
+
       vm.iterators.add(Iterator(
         items: items,
         keys: obj_keys,
@@ -973,6 +985,8 @@ proc execute*(vm: var VM): string =
         index: 0,
         var_name: loop_var_name,
         original_offset: offset_val.int,
+        saved_var: saved_var,
+        had_saved_var: had_var,
         saved_forloop: saved_fl,
         loop_name: loop_name
       ))
