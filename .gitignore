@@ -1,6 +1,7 @@
 *.*
 !*.nim
 !*.nims
+!*.nimble
 !nim.cfg
 !*.js
 !*.json
