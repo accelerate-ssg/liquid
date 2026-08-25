@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.3.0"
+version       = "0.1.0"
 author        = "Jonas Schubert Erlandsson, Claude"
 description   = "Multi-language template engine: one bytecode VM, per-language frontends"
 license       = "MIT"
@@ -13,7 +13,7 @@ requires "nim >= 1.6.12"
 
 # The Liquid frontend renders against an arena context store, so that every
 # context access can be tracked by node identity.
-requires "git+ssh://git@github.com/accelerate-ssg/arena.git"
+requires "git+ssh://git@github.com/accelerate-ssg/arena.git#v0.1.0"
 
 # Tasks
 

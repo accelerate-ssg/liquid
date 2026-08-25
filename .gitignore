@@ -6,8 +6,7 @@
 !*.js
 !*.json
 !*.txt
-!README.md
-!CLAUDE.md
+!*.md
 
 nimcache/
 
