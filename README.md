@@ -1,3 +1,5 @@
+![Pitchfork](./icon.png)
+
 # Pitchfork
 
 A multi-language template engine for Nim: several parser frontends
