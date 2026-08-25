@@ -280,6 +280,32 @@ when isMainModule:
                    initTable[string, VMValue](), partials) ==
         "<title>Accodeing</title>"
 
+    test "a lazy value bound into a render partial resolves":
+      # {% render %} isolates scope but the arena store still travels
+      # into the sub-VM — a lazy container bound through with/for must
+      # not dereference a nil arena.
+      var (arena, root) = arenaFrom(%*{"posts": [{"title": "one"}, {"title": "two"}]})
+      let partials = {"card": "[{{ card.title }}]"}.toTable
+      check render("{% for p in posts %}{% render 'card' with p as card %}{% endfor %}",
+                   arena, root, initTable[string, VMValue](), partials) ==
+        "[one][two]"
+
+    test "include-for expands a lazy collection":
+      var (arena, root) = arenaFrom(%*{"items": [{"n": 1}, {"n": 2}]})
+      let partials = {"row": "<{{ row.n }}>"}.toTable
+      check render("{% include 'row' for items %}", arena, root,
+                   initTable[string, VMValue](), partials) == "<1><2>"
+
+    test "lazy elements inside an eager overlay group render":
+      # An overlay built as an eager array of wrapped nodes (the merged
+      # route group convention) must stringify its lazy elements.
+      var (arena, root) = arenaFrom(%*{"a": [1, 2], "b": [3]})
+      var group = VMValue(kind: vmArray)
+      group.arrayVal.add(wrap_arena_node(arena, arena.objGet(root, "a")))
+      group.arrayVal.add(wrap_arena_node(arena, arena.objGet(root, "b")))
+      let overlays = {"merged": group}.toTable
+      check render("{{ merged }}", arena, root, overlays) == "123"
+
     test "assign aliases stay lazy":
       var (arena, root) = arenaFrom(%*{"site": {"name": "Accodeing", "domain": "accodeing.com"}})
       check render("{% assign s = site %}{{ s.name }}", arena, root) == "Accodeing"

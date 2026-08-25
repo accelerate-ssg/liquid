@@ -145,11 +145,44 @@ proc materialize_node*(vm: VM, id: NodeId): VMValue =
       v.objectVal[key] = vm.materialize_node(child)
     v
 
+proc has_lazy(v: VMValue): bool =
+  ## Does this value contain a vmNode anywhere? Eager containers built by
+  ## consumers (overlay groups) can mix lazy elements into eager arrays.
+  case v.kind
+  of vmNode: true
+  of vmArray:
+    for e in v.arrayVal:
+      if has_lazy(e): return true
+    false
+  of vmObject:
+    for _, e in v.objectVal:
+      if has_lazy(e): return true
+    false
+  else: false
+
 proc materialize*(vm: VM, v: VMValue): VMValue =
   ## Resolve a lazy value into an eager one at the boundaries that
   ## consume values wholesale; anything already eager passes through.
-  if v.kind == vmNode:
+  ## Also walks eager containers for lazy elements (an overlay group is
+  ## an eager array of wrapped nodes), rebuilding only when one is found.
+  if vm.arena == nil:
+    # No arena means no vmNode can exist anywhere in the value.
+    return v
+  case v.kind
+  of vmNode:
     vm.materialize_node(NodeId(v.nodeVal))
+  of vmArray:
+    if not has_lazy(v): return v
+    var r = VMValue(kind: vmArray)
+    for e in v.arrayVal:
+      r.arrayVal.add(vm.materialize(e))
+    r
+  of vmObject:
+    if not has_lazy(v): return v
+    var r = VMValue(kind: vmObject)
+    for k, e in v.objectVal:
+      r.objectVal[k] = vm.materialize(e)
+    r
   else:
     v
 
@@ -405,9 +438,15 @@ proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
   ## The shared case borrows the parent's context pointer rather than
   ## copying the table, so an include costs nothing per variable already
   ## in scope.
+  # The arena store travels into every sub-VM: lazy vmNode values can be
+  # bound into an isolated {% render %} through with/for/keyword args,
+  # and resolving them needs the store. Isolation concerns scope, so
+  # only context_root (the root the sub-VM may resolve names from) is
+  # withheld from the isolated case.
   result = new_vm(bytecode, strings, constants,
-    if shared_scope: vm.context else: nil,
-    vm.partials)
+    (if shared_scope: vm.context else: nil),
+    vm.partials, vm.arena,
+    (if shared_scope: vm.context_root else: InvalidNodeId))
   if shared_scope:
     # Carries a {% render %} forloop down through a nested include.
     # locals and loop_offsets share by reference; counters is
@@ -420,10 +459,6 @@ proc create_sub_vm*(vm: var VM, bytecode: seq[Instruction],
     result.loop_offsets = vm.loop_offsets
     result.counters = vm.counters
     result.ctx_stack = vm.ctx_stack
-    # The arena context is part of the shared scope: reads inside the
-    # partial record like the parent's own, so tracking stays transitive.
-    result.arena = vm.arena
-    result.context_root = vm.context_root
   result.partial_cache = vm.partial_cache
   result.partial_compiler = vm.partial_compiler
   result.tag_handlers = vm.tag_handlers
@@ -729,8 +764,8 @@ proc execute*(vm: var VM): string =
       var val = vm.pop()
       vm.pop_and_record()
       # Lazy values materialize here: stringification consumes the value.
-      if val.kind == vmNode:
-        val = vm.materialize_node(NodeId(val.nodeVal))
+      # (No-op without an arena.)
+      val = vm.materialize(val)
 
       if vm.is_capturing:
         # When capturing, store raw (escaping happens on final output)
@@ -1164,7 +1199,9 @@ proc execute*(vm: var VM): string =
         vm.push(VMValue(kind: vmNull))
 
     of opGetIndex:
-      let index = vm.pop()
+      # A lazy key materializes: stringifying a container as an object
+      # key must give the same text lazy and eager.
+      let index = vm.materialize(vm.pop())
       let idx_path = vm.pop_path()
       let arr = vm.pop()
       let arr_path = vm.pop_path()
@@ -1243,11 +1280,9 @@ proc execute*(vm: var VM): string =
       # filter consumes them wholesale either way.
       var value = vm.pop()
       vm.pop_and_record()  # Record the value's path
-      if value.kind == vmNode:
-        value = vm.materialize_node(NodeId(value.nodeVal))
+      value = vm.materialize(value)
       for i in 0 ..< args.len:
-        if args[i].kind == vmNode:
-          args[i] = vm.materialize_node(NodeId(args[i].nodeVal))
+        args[i] = vm.materialize(args[i])
 
       # A filter error propagates to the caller as-is; a library must not
       # echo to the host program's console on the way out.
@@ -1314,6 +1349,15 @@ proc execute*(vm: var VM): string =
         vm.pop_and_record()
         if collVal.kind == vmArray:
           forCollection = collVal.arrayVal
+        elif collVal.kind == vmNode:
+          # Lazy arena array: expand to wrapped elements, same as
+          # opBeginLoop, so include-for renders identically lazy and
+          # eager.
+          let arena = vm.arena
+          let id = NodeId(collVal.nodeVal)
+          if arena[].kind(id) == nkArray:
+            for child in arrItems(arena[], id):
+              forCollection.add(vm.wrap_node(child))
 
       # Compile partial (with caching)
       let indent = if inst.includeHasIndent: vm.strings[inst.includeIndentId] else: ""
@@ -1337,6 +1381,16 @@ proc execute*(vm: var VM): string =
         # Single execution
         var sub = vm.create_sub_vm(partial.bytecode, partial.strings,
                                    partial.constants, inst.withContext)
+        if inst.withContext:
+          # A shared-scope partial sees the caller's loop metadata, as it
+          # did when the loop materialized it into the shared locals.
+          # Bound into the sub-VM's own variables (not the shared locals)
+          # so nothing leaks into the caller's scope past the loop, and a
+          # loop begun inside the partial still outranks it.
+          if vm.iterators.len > 0 and vm.iterators[^1].builds_forloop:
+            sub.variables["forloop"] = vm.current_forloop()
+          if vm.tablerow_iters.len > 0:
+            sub.variables["tablerowloop"] = vm.current_tablerowloop()
         if inst.includeWithVar >= 0:
           let alias = if inst.includeAlias >= 0: vm.strings[inst.includeAlias.uint32]
                       else: partialName

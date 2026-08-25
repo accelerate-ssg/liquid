@@ -6,10 +6,11 @@ import ../src/pitchfork/tines/liquid/api
 let empty_array:seq[string] = @[]
 
 # Helper to compile and run a template
-proc render_template(source: string, data: Table[string, VMValue]): string =
+proc render_template(source: string, data: Table[string, VMValue],
+                     partials: Table[string, string] = initTable[string, string]()): string =
   let sections = lex(source)
   let compiled = compile(sections, source)
-  result = render(compiled.bytecode, compiled.strings, compiled.constants, data)
+  result = render(compiled.bytecode, compiled.strings, compiled.constants, data, partials)
 
 # Helper to create VMValue from various types
 # proc to_vm_value(x: int): VMValue = vmInt(x.int64)
@@ -706,6 +707,27 @@ suite "Forloop Helper":
     let source = "{% for i in (1..2) %}{{ forloop.parentloop.index }}{% endfor %}"
     let data = initTable[string, VMValue]()
     check render_template(source, data) == ""
+
+  test "Forloop visible inside an include partial":
+    # The lazy scheme keeps forloop out of locals, so the include handler
+    # binds a snapshot into the sub-VM's variables.
+    let source = "{% for i in items %}{% include 'p' %}{% endfor %}"
+    let data = {"items": vmArray(@[vmInt(1), vmInt(2)])}.toTable
+    let partials = {"p": "{{ forloop.index }}"}.toTable
+    check render_template(source, data, partials) == "12"
+
+  test "Forloop stays invisible inside a render partial":
+    let source = "{% for i in items %}{% render 'p' %}{% endfor %}"
+    let data = {"items": vmArray(@[vmInt(1), vmInt(2)])}.toTable
+    let partials = {"p": "[{{ forloop.index }}]"}.toTable
+    check render_template(source, data, partials) == "[][]"
+
+  test "Tablerowloop visible inside an include partial":
+    let source = "{% tablerow i in items %}{% include 'p' %}{% endtablerow %}"
+    let data = {"items": vmArray(@[vmInt(1), vmInt(2)])}.toTable
+    let partials = {"p": "{{ tablerowloop.col }}"}.toTable
+    check render_template(source, data, partials) ==
+      "<tr class=\"row1\">\n<td class=\"col1\">1</td><td class=\"col2\">2</td></tr>\n"
 
 # Helper for tracked rendering
 proc render_tracked_template(source: string, data: Table[string, VMValue],

@@ -159,6 +159,11 @@ suite "Handlebars partials":
     check render("{{> link label=title}}", %*{"title": "Home"}, partials) == "<a>Home</a>"
     check render("""{{> link label="Lit"}}""", %*{}, partials) == "<a>Lit</a>"
 
+  test "each data variables visible inside a partial":
+    let partials = {"row": "{{@index}}:{{this}} "}.toTable
+    check render("{{#each items}}{{> row}}{{/each}}",
+                 %*{"items": ["a", "b"]}, partials) == "0:a 1:b "
+
   test "standalone partial indentation":
     let partials = {"p": "1\n2\n"}.toTable
     check render("a\n  {{> p}}\nb\n", %*{}, partials) == "a\n  1\n  2\nb\n"
