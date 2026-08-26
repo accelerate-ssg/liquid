@@ -114,6 +114,66 @@ proc compile_tokens(c: var Compiler, until_close: seq[string] = @[]) =
       c.compile_tokens(tok.name)
       c.patch_jump(jmp)
 
+    of mBlockOpen:
+      # {{$name}}…{{/name}}: render the override an enclosing {{<parent}}
+      # call captured into __block_<name>, or the default body when the
+      # local is unset/empty. The emptiness test mirrors mInvertedOpen:
+      # normalize through the section filter so "unset" and "" both fall
+      # back to the default.
+      let blockVar = "__block_" & tok.name.join(".")
+      c.emit_resolve(@[blockVar])
+      c.emit(Instruction(op: opCallFilter,
+        filterId: c.intern_string(mustache_section_filter), argCount: 0))
+      c.emit(Instruction(op: opPushEmpty))
+      c.emit(Instruction(op: opEqual))
+      let use_default = c.emit_jump(opJumpIfTrue)
+      # Override present: emit the captured (already rendered) content
+      # raw, then skip the default body's bytecode.
+      c.emit_resolve(@[blockVar])
+      c.emit(Instruction(op: opOutput))
+      let skip_default = c.emit_jump(opJump)
+      c.patch_jump(use_default)
+      c.compile_tokens(tok.name)
+      c.patch_jump(skip_default)
+
+    of mParentOpen:
+      # {{<parent}}…{{/parent}}: capture each {{$block}} body in the tag
+      # into __block_<name>, then include the parent with shared scope —
+      # its blocks read the captures. Content outside blocks is ignored,
+      # per the inheritance spec.
+      var boundBlocks: seq[string] = @[]
+      while c.pos < c.tokens.len:
+        let btok = c.tokens[c.pos]
+        if btok.kind == mSectionClose and btok.name == tok.name:
+          inc c.pos
+          break
+        inc c.pos
+        if btok.kind == mBlockOpen:
+          let blockVar = "__block_" & btok.name.join(".")
+          boundBlocks.add(blockVar)
+          c.emit(Instruction(op: opBeginCapture))
+          c.compile_tokens(btok.name)
+          c.emit(Instruction(op: opEndCapture,
+            varId: c.intern_string(blockVar)))
+      c.emit(Instruction(op: opInclude,
+        templateId: c.intern_string(tok.name.join(".")),
+        withContext: true,
+        includeArgNames: @[],
+        includeVarExpr: false,
+        includeWithVar: -1,
+        includeAlias: -1,
+        includeForVar: -1,
+        includeHasIndent: false,
+        includeIndentId: 0))
+      # Clear the captures so a later parent call without an override for
+      # a block falls back to that block's default. Null, not "": the
+      # empty string is truthy to mustache sections, so it would read as
+      # an (empty) override.
+      for blockVar in boundBlocks:
+        c.emit(Instruction(op: opPushNull))
+        c.emit(Instruction(op: opStoreVar,
+          stringId: c.intern_string(blockVar)))
+
     of mSectionClose:
       if until_close.len == 0 or tok.name != until_close:
         raise newException(ValueError,

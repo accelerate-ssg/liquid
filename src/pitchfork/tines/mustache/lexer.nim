@@ -21,6 +21,8 @@ type
     mSectionOpen   # {{#name}}
     mInvertedOpen  # {{^name}}
     mSectionClose  # {{/name}}
+    mBlockOpen     # {{$name}} — inheritance block; renders its default body
+    mParentOpen    # {{<name}} — render partial with block overrides
     mPartial       # {{> name}}
 
   MToken* = object
@@ -113,6 +115,14 @@ proc tokenize(input: string): seq[MToken] =
         result.add(MToken(kind: mInvertedOpen, name: split_name(inner[1..^1])))
       of '/':
         result.add(MToken(kind: mSectionClose, name: split_name(inner[1..^1])))
+      of '$':
+        # Inheritance block: renders the override bound by an enclosing
+        # {{<parent}} call, or its default body when none is.
+        result.add(MToken(kind: mBlockOpen, name: split_name(inner[1..^1])))
+      of '<':
+        # Parent call: render the named partial, with {{$block}} bodies
+        # in this tag's body as overrides.
+        result.add(MToken(kind: mParentOpen, name: split_name(inner[1..^1])))
       of '>':
         result.add(MToken(kind: mPartial, partial_name: inner[1..^1].strip(), indent: ""))
       of '&':
@@ -173,7 +183,8 @@ proc strip_standalone(tokens: seq[MToken]): seq[MToken] =
       # then blank out every text token on the line.
       var indent = ""
       for j in i .. last:
-        if tokens[j].kind in {mSectionOpen, mInvertedOpen, mSectionClose, mPartial}:
+        if tokens[j].kind in {mSectionOpen, mInvertedOpen, mSectionClose,
+                              mBlockOpen, mParentOpen, mPartial}:
           break
         if tokens[j].kind == mText:
           indent.add(tokens[j].text)

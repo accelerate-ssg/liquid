@@ -48,3 +48,58 @@ echo ""
 echo "Mustache spec: ", passed, "/", run, " passed"
 if passed != run:
   quit(1)
+
+# Inheritance blocks without a parent invocation: {{$block}} renders its
+# default body (the "optional hook" pattern legacy acc sites rely on).
+# Full inheritance ({{<parent}} with overrides) is not implemented.
+block:
+  var extra = 0
+  var extraPassed = 0
+  proc caseOk(name, templ, expected: string, data: JsonNode) =
+    inc extra
+    let got = render(templ, data, initTable[string, string]())
+    if got == expected:
+      inc extraPassed
+    else:
+      echo "[FAILED] blocks :: ", name, " expected ", expected.escape(),
+        " got ", got.escape()
+  caseOk("empty block renders nothing",
+    "a{{$extra_styles}}{{/extra_styles}}b", "ab", %*{})
+  caseOk("block default body renders",
+    "{{$hook}}default {{name}}{{/hook}}!", "default World!",
+    %*{"name": "World"})
+  caseOk("standalone block line is stripped",
+    "a\n{{$hook}}\nx\n{{/hook}}\nb\n", "a\nx\nb\n", %*{})
+  proc caseP(name, templ, expected: string, data: JsonNode,
+             partials: openArray[(string, string)]) =
+    inc extra
+    let got = render(templ, data, partials.toTable)
+    if got == expected:
+      inc extraPassed
+    else:
+      echo "[FAILED] blocks :: ", name, " expected ", expected.escape(),
+        " got ", got.escape()
+  caseP("parent renders with override",
+    "{{<layout}}{{$title}}Home{{/title}}{{/layout}}", "[Home]", %*{},
+    {"layout": "[{{$title}}Default{{/title}}]"})
+  caseP("parent renders default when block not overridden",
+    "{{<layout}}{{/layout}}", "[Default]", %*{},
+    {"layout": "[{{$title}}Default{{/title}}]"})
+  caseP("override body renders in the calling context",
+    "{{<layout}}{{$title}}Hi {{name}}{{/title}}{{/layout}}", "[Hi World]",
+    %*{"name": "World"},
+    {"layout": "[{{$title}}Default{{/title}}]"})
+  caseP("text outside blocks in the parent call body is ignored",
+    "{{<layout}}IGNORED {{$title}}X{{/title}} ALSO{{/layout}}", "[X]", %*{},
+    {"layout": "[{{$title}}Default{{/title}}]"})
+  caseP("a second parent call does not inherit the first call's override",
+    "{{<layout}}{{$title}}A{{/title}}{{/layout}}{{<layout}}{{/layout}}",
+    "[A][Default]", %*{},
+    {"layout": "[{{$title}}Default{{/title}}]"})
+  caseP("parent name may contain a slash",
+    "{{< partials/head}}{{$extra_styles}}<link>{{/extra_styles}}{{/partials/head}}",
+    "(<link>)", %*{},
+    {"partials/head": "({{$extra_styles}}{{/extra_styles}})"})
+  echo "Inheritance blocks: ", extraPassed, "/", extra, " passed"
+  if extraPassed != extra:
+    quit(1)
