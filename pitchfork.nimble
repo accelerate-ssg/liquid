@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.2.0"
 author        = "Jonas Schubert Erlandsson, Claude"
 description   = "Multi-language template engine: one bytecode VM, per-language frontends"
 license       = "MIT"

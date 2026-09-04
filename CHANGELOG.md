@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-04
+
+### Fixed
+
+- The Liquid `for` loop variable is scoped to its loop again. It used to
+  leak past `endfor` — and since `include` shares the caller's scope, any
+  loop inside an included partial destroyed an `item` assigned by the
+  enclosing template for the rest of the render.
+
+### Added
+
+- Mustache template inheritance: `{{<parent}}` renders a parent template
+  with `{{$block}}` sections overridable by the caller, implemented as
+  capture into `__block_<name>` variables plus a shared-scope include.
+  This is what Accelerate's legacy-config converter renders pre-0.2
+  sites with.
+
 ## [0.1.0] - 2026-08-25
 
 First tagged release. Pitchfork compiles Liquid, Mustache and Handlebars to one
